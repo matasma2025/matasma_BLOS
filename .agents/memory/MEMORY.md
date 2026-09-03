@@ -1,3 +1,3 @@
 - [SSO Group-to-Role Mapping](sso-group-role-mapping.md) — N Azure AD groups → any role per domain; JSONB ssoGroupMappings on domains; 15-min background sync deactivates removed users
 - [Terms acceptance versioning](terms-acceptance-versioning.md) — material legal-text changes must bump the terms version so every user explicitly accepts the new revision
-- [Bosch production schema safety](bosch-production-schema-safety.md) — use narrow additive startup migrations; do not run full schema push against the existing Bosch database
+- [Bosch production schema safety](bosch-production-schema-safety.md) — use guarded additive db:push reconciliation; preserve undeclared objects and block destructive or ambiguous changes

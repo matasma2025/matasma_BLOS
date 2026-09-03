@@ -1,8 +1,8 @@
 /**
- * db-prepare.ts — run BEFORE drizzle-kit push
+ * db-prepare.ts — run before additive schema synchronization
  *
  * Creates required PostgreSQL extensions that the schema depends on.
- * Must succeed before drizzle-kit push because the schema has vector columns
+ * Must succeed before schema synchronization because the schema has vector columns
  * (vector(1024) and vector(3072)) that require the pgvector extension.
  *
  * Also creates pg_trgm for fuzzy-search indexes.
@@ -19,6 +19,8 @@
 import pkg from "pg";
 const { Client } = pkg;
 import { execSync } from "child_process";
+import { resolve } from "path";
+import { pathToFileURL } from "url";
 
 const authMode = (process.env.DB_AUTH_MODE || "").toLowerCase();
 const PG_RESOURCE = "https://ossrdbms-aad.database.windows.net";
@@ -49,7 +51,7 @@ function fetchEntraTokenSync(): string {
 
 // ── Build connection config ───────────────────────────────────────────────────
 
-function getClientConfig(): pkg.ClientConfig {
+export function getClientConfig(): pkg.ClientConfig {
   if (authMode === "entra" || authMode === "hybrid") {
     return {
       host:     process.env.DB_HOST!,
@@ -82,14 +84,19 @@ function getClientConfig(): pkg.ClientConfig {
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 
-async function main() {
+export async function prepareDatabaseExtensions(
+  existingClient?: InstanceType<typeof Client>,
+) {
   console.log("===========================================");
   console.log("[db-prepare] Creating PostgreSQL extensions");
   console.log(`[db-prepare] DB_AUTH_MODE = ${authMode || "(unset — using URL)"}`);
   console.log("===========================================");
 
-  const client = new Client(getClientConfig());
-  await client.connect();
+  const ownsClient = !existingClient;
+  const client = existingClient ?? new Client(getClientConfig());
+  if (ownsClient) {
+    await client.connect();
+  }
 
   const extensions = [
     { name: "vector",   desc: "pgvector — required for embedding columns (vector(1024), vector(3072))" },
@@ -114,19 +121,29 @@ async function main() {
         console.error("  PostgreSQL server → Server parameters → azure.extensions");
         console.error(`  → add "${ext.name.toUpperCase()}" to the list → Save`);
         console.error("");
-        await client.end();
-        process.exit(1);
+        if (ownsClient) {
+          await client.end();
+        }
+        throw new Error(`Required PostgreSQL extension "${ext.name}" is unavailable`);
       }
     }
   }
 
-  await client.end();
+  if (ownsClient) {
+    await client.end();
+  }
   console.log("===========================================");
-  console.log("[db-prepare] ✅ Extensions ready — proceeding to drizzle-kit push");
+  console.log("[db-prepare] ✅ Extensions ready for schema synchronization");
   console.log("===========================================");
 }
 
-main().catch((err) => {
-  console.error("[db-prepare] Fatal:", err instanceof Error ? err.message : err);
-  process.exit(1);
-});
+const isDirectExecution =
+  Boolean(process.argv[1]) &&
+  import.meta.url === pathToFileURL(resolve(process.argv[1])).href;
+
+if (isDirectExecution) {
+  prepareDatabaseExtensions().catch((err) => {
+    console.error("[db-prepare] Fatal:", err instanceof Error ? err.message : err);
+    process.exit(1);
+  });
+}

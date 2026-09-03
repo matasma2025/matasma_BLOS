@@ -9,8 +9,9 @@
     "start": "NODE_ENV=production node dist/index.js",
     "check": "tsc",
     "test:security": "tsx --test tests/security/*.test.ts",
-    "db:push": "drizzle-kit push",
-    "db:prepare": "tsx scripts/db-prepare.ts && drizzle-kit push"
+    "db:push": "tsx scripts/db-safe-push.ts",
+    "db:push:check": "tsx scripts/db-safe-push.ts --dry-run",
+    "db:prepare": "tsx scripts/db-prepare.ts"
   },
   "dependencies": {
     "@azure/identity": "^4.13.1",

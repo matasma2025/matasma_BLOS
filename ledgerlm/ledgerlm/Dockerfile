@@ -24,6 +24,7 @@ RUN npm ci
 COPY client ./client
 COPY server ./server
 COPY shared ./shared
+COPY scripts ./scripts
 COPY attached_assets ./attached_assets
 COPY tsconfig.json ./
 
@@ -79,6 +80,7 @@ RUN npm install vite drizzle-kit nanoid
 # This includes server/public with compiled frontend from builder
 COPY --from=node-builder /app/server ./server
 COPY shared ./shared
+COPY scripts ./scripts
 COPY tsconfig.json ./
 
 # Copy attached_assets (for any runtime asset references)

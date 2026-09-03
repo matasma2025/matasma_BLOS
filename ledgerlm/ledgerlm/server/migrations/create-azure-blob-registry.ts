@@ -39,16 +39,3 @@ export async function createAzureBlobRegistryTable(): Promise<void> {
     throw error;
   }
 }
-
-export async function dropAzureBlobConnectorUniqueConstraint(): Promise<void> {
-  console.log("🔧 Removing single-connector-per-domain constraint from domain_api_connectors...");
-  try {
-    await db.execute(sql`
-      ALTER TABLE domain_api_connectors
-        DROP CONSTRAINT IF EXISTS domain_api_connectors_domain_id_connector_type_key
-    `);
-    console.log("✅ Dropped UNIQUE(domain_id, connector_type) — multiple connectors of same type now allowed");
-  } catch (error) {
-    console.warn("⚠️  Could not drop unique constraint (may not exist):", (error as any).message);
-  }
-}

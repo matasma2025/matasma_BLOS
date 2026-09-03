@@ -28,17 +28,6 @@ export async function runDomainEnhancementsMigration() {
     `);
     console.log("✅ Added user_quota column to domains table");
     
-    // Drop the unique constraint on domain_users.email if it exists (to allow multi-domain users)
-    await db.execute(sql`
-      DO $$ 
-      BEGIN
-        IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'domain_users_email_unique') THEN
-          ALTER TABLE domain_users DROP CONSTRAINT domain_users_email_unique;
-        END IF;
-      END $$;
-    `);
-    console.log("✅ Removed global unique constraint on domain_users.email");
-    
     // Create composite unique index on (domain_id, email) if not exists
     await db.execute(sql`
       CREATE UNIQUE INDEX IF NOT EXISTS domain_users_domain_email_idx ON domain_users(domain_id, email);

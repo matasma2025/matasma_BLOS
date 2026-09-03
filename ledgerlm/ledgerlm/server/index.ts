@@ -21,7 +21,7 @@ import { addBillingTypeColumn } from "./migrations/add-billing-type-column";
 import { createKioskFaqEntriesTable } from "./migrations/create-kiosk-faq-entries";
 import { addDomainAnaplanCredentials } from "./migrations/add-domain-anaplan-credentials";
 import { createDomainApiConnectorsTable } from "./migrations/create-domain-api-connectors";
-import { createAzureBlobRegistryTable, dropAzureBlobConnectorUniqueConstraint } from "./migrations/create-azure-blob-registry";
+import { createAzureBlobRegistryTable } from "./migrations/create-azure-blob-registry";
 import { runConnectorPreferencesMigration } from "./migrations/add-connector-preferences";
 import { addCubeIdToChunks } from "./migrations/add-cube-id-to-chunks";
 import { addTargetCubeToSchedulerConfig } from "./migrations/add-target-cube-to-scheduler";
@@ -45,7 +45,6 @@ import { runInvestmentTablesMigration } from "./migrations/create-investment-tab
 import { addSsoGroupMappings } from "./migrations/add-sso-group-mappings";
 import { createBoardReportsTable } from "./migrations/create-board-reports";
 import { addVarianceDataColumn } from "./migrations/add-variance-data-column";
-import { createTermsAcceptancesTable } from "./migrations/create-terms-acceptances";
 import { runRetentionEngine } from "./services/retentionEngine";
 import { runBackup } from "./services/backupService";
 import { startSsoSyncJob } from "./services/ssoSyncJob";
@@ -335,10 +334,6 @@ app.use((req: Request, res: Response, next: NextFunction) => {
     // If it truly fails, vector queries will fail later with a clear error.
   }
 
-  // Create the Terms acceptance table without reconciling or deleting any
-  // unrelated production tables, columns, or rows.
-  await createTermsAcceptancesTable();
-
   // Ensure scheduler_config table exists (required for scheduler service)
   await createSchedulerConfig();
   
@@ -362,8 +357,6 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 
   // Create azure_blob_file_registry table for delta-sync tracking (new files only)
   await createAzureBlobRegistryTable();
-  // Allow multiple Azure Blob connectors per domain (different folders/cubes)
-  await dropAzureBlobConnectorUniqueConstraint();
   
   // Add connector_preferences column to user_settings
   await runConnectorPreferencesMigration();
