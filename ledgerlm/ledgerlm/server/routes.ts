@@ -714,25 +714,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: "Authentication required" });
       }
 
-      await storage.recordTermsAcceptance({
+      const existingAcceptance = await storage.getTermsAcceptance(
+        userId,
+        CURRENT_TERMS_VERSION,
+      );
+      const acceptance = existingAcceptance ?? await storage.recordTermsAcceptance({
         userId,
         termsVersion: CURRENT_TERMS_VERSION,
         ipAddress: extractIp(req),
         userAgent: req.get("user-agent") ?? null,
       });
+      const acceptedAt = acceptance.acceptedAt.toISOString();
 
-      writeAuditLog({
-        userId,
-        action: "TERMS_ACCEPTED",
-        resource: "terms_and_conditions",
-        resourceId: CURRENT_TERMS_VERSION,
-        ipAddress: extractIp(req),
-        status: "success",
-        details: {
-          termsVersion: CURRENT_TERMS_VERSION,
-          effectiveDate: CURRENT_TERMS_EFFECTIVE_DATE,
-        },
-      }).catch(() => {});
+      console.log(
+        `[TERMS] ${existingAcceptance ? "Acceptance confirmed" : "Acceptance recorded"} | ` +
+        `user=${req.user?.username ?? userId} | userId=${userId} | ` +
+        `version=${acceptance.termsVersion} | acceptedAt=${acceptedAt}`,
+      );
+
+      if (!existingAcceptance) {
+        writeAuditLog({
+          userId,
+          action: "TERMS_ACCEPTED",
+          resource: "terms_and_conditions",
+          resourceId: CURRENT_TERMS_VERSION,
+          ipAddress: extractIp(req),
+          status: "success",
+          details: {
+            termsVersion: CURRENT_TERMS_VERSION,
+            effectiveDate: CURRENT_TERMS_EFFECTIVE_DATE,
+          },
+        }).catch(() => {});
+      }
 
       return res.json(await getTermsStatus(userId));
     } catch (error) {
