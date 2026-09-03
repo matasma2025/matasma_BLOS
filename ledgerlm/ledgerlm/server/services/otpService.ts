@@ -18,6 +18,22 @@ export class OtpService {
     return crypto.randomInt(min, max).toString();
   }
 
+  private logDevelopmentLoginOtp(email: string, otpCode: string, expiresAt: Date): void {
+    if (process.env.NODE_ENV !== 'development') {
+      return;
+    }
+
+    const [localPart, domain] = email.split('@');
+    const maskedEmail = domain
+      ? `${localPart.slice(0, 1)}***@${domain}`
+      : '***';
+
+    console.log(
+      `[DEV ONLY] Login OTP for ${maskedEmail}: ${otpCode} ` +
+      `(expires at ${expiresAt.toISOString()})`,
+    );
+  }
+
   async createAndSendOtp(userId: string, email: string, userName: string, context: 'login' | 'password_reset', domainConfig?: DomainEmailConfig | null): Promise<void> {
     const otpCode = this.generateOtpCode();
     const codeHash = await bcrypt.hash(otpCode, 10);
@@ -33,6 +49,10 @@ export class OtpService {
       attempts: 0,
       consumedAt: null,
     });
+
+    if (context === 'login') {
+      this.logDevelopmentLoginOtp(email, otpCode, expiresAt);
+    }
 
     await emailService.sendOtpCode(email, otpCode, userName, domainConfig);
   }
