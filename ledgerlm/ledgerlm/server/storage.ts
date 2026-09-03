@@ -55,21 +55,21 @@ export interface IStorage {
   updateBoardTemplate(id: string, template: Partial<InsertBoardTemplate>): Promise<BoardTemplate | undefined>;
   deleteBoardTemplate(id: string): Promise<void>;
   
-  getBoardThreads(boardId: string): Promise<Chat[]>;
+  getBoardThreads(boardId: string, userId?: string): Promise<Chat[]>;
   addBoardThread(thread: InsertBoardThread): Promise<BoardThread>;
   removeBoardThread(boardId: string, chatId: string): Promise<void>;
   
-  getBoardDocuments(boardId: string): Promise<Document[]>;
+  getBoardDocuments(boardId: string, userId?: string): Promise<Document[]>;
   addBoardDocument(boardDoc: InsertBoardDocument): Promise<BoardDocument>;
   removeBoardDocument(boardId: string, documentId: string): Promise<void>;
   
   getBoardDataSources(boardId: string): Promise<BoardDataSource[]>;
   createBoardDataSource(dataSource: InsertBoardDataSource): Promise<BoardDataSource>;
-  updateBoardDataSource(id: string, dataSource: Partial<InsertBoardDataSource>): Promise<BoardDataSource | undefined>;
-  deleteBoardDataSource(id: string): Promise<void>;
+  updateBoardDataSource(id: string, dataSource: Partial<InsertBoardDataSource>, boardId?: string): Promise<BoardDataSource | undefined>;
+  deleteBoardDataSource(id: string, boardId?: string): Promise<boolean>;
   reorderBoardDataSources(boardId: string, sourceIds: string[]): Promise<void>;
   
-  getChatDocuments(chatId: string): Promise<Document[]>;
+  getChatDocuments(chatId: string, userId?: string): Promise<Document[]>;
   associateDocumentWithChat(chatId: string, documentId: string): Promise<void>;
   deleteChatDocuments(chatId: string): Promise<void>;
   getChatMessageCount(chatId: string): Promise<number>;
@@ -354,7 +354,7 @@ export class DbStorage implements IStorage {
     await db.delete(boardTemplates).where(eq(boardTemplates.id, id));
   }
 
-  async getBoardThreads(boardId: string): Promise<Chat[]> {
+  async getBoardThreads(boardId: string, userId?: string): Promise<Chat[]> {
     const result = await db.select({
       id: chats.id,
       userId: chats.userId,
@@ -364,7 +364,11 @@ export class DbStorage implements IStorage {
     })
     .from(boardThreads)
     .innerJoin(chats, eq(boardThreads.chatId, chats.id))
-    .where(eq(boardThreads.boardId, boardId))
+    .where(
+      userId
+        ? and(eq(boardThreads.boardId, boardId), eq(chats.userId, userId))
+        : eq(boardThreads.boardId, boardId),
+    )
     .orderBy(desc(chats.createdAt));
     
     return result;
@@ -380,7 +384,7 @@ export class DbStorage implements IStorage {
       .where(and(eq(boardThreads.boardId, boardId), eq(boardThreads.chatId, chatId)));
   }
 
-  async getBoardDocuments(boardId: string): Promise<Document[]> {
+  async getBoardDocuments(boardId: string, userId?: string): Promise<Document[]> {
     const result = await db.select({
       id: documents.id,
       userId: documents.userId,
@@ -395,7 +399,11 @@ export class DbStorage implements IStorage {
     })
     .from(boardDocuments)
     .innerJoin(documents, eq(boardDocuments.documentId, documents.id))
-    .where(eq(boardDocuments.boardId, boardId))
+    .where(
+      userId
+        ? and(eq(boardDocuments.boardId, boardId), eq(documents.userId, userId))
+        : eq(boardDocuments.boardId, boardId),
+    )
     .orderBy(desc(documents.uploadedAt));
     
     return result;
@@ -422,13 +430,33 @@ export class DbStorage implements IStorage {
     return result[0];
   }
 
-  async updateBoardDataSource(id: string, updates: Partial<InsertBoardDataSource>): Promise<BoardDataSource | undefined> {
-    const result = await db.update(boardDataSources).set(updates).where(eq(boardDataSources.id, id)).returning();
+  async updateBoardDataSource(
+    id: string,
+    updates: Partial<InsertBoardDataSource>,
+    boardId?: string,
+  ): Promise<BoardDataSource | undefined> {
+    const result = await db
+      .update(boardDataSources)
+      .set(updates)
+      .where(
+        boardId
+          ? and(eq(boardDataSources.id, id), eq(boardDataSources.boardId, boardId))
+          : eq(boardDataSources.id, id),
+      )
+      .returning();
     return result[0];
   }
 
-  async deleteBoardDataSource(id: string): Promise<void> {
-    await db.delete(boardDataSources).where(eq(boardDataSources.id, id));
+  async deleteBoardDataSource(id: string, boardId?: string): Promise<boolean> {
+    const result = await db
+      .delete(boardDataSources)
+      .where(
+        boardId
+          ? and(eq(boardDataSources.id, id), eq(boardDataSources.boardId, boardId))
+          : eq(boardDataSources.id, id),
+      )
+      .returning();
+    return result.length > 0;
   }
 
   async reorderBoardDataSources(boardId: string, sourceIds: string[]): Promise<void> {
@@ -439,7 +467,7 @@ export class DbStorage implements IStorage {
     }
   }
 
-  async getChatDocuments(chatId: string): Promise<Document[]> {
+  async getChatDocuments(chatId: string, userId?: string): Promise<Document[]> {
     const result = await db.select({
       id: documents.id,
       userId: documents.userId,
@@ -454,7 +482,11 @@ export class DbStorage implements IStorage {
     })
     .from(chatDocuments)
     .innerJoin(documents, eq(chatDocuments.documentId, documents.id))
-    .where(eq(chatDocuments.chatId, chatId));
+    .where(
+      userId
+        ? and(eq(chatDocuments.chatId, chatId), eq(documents.userId, userId))
+        : eq(chatDocuments.chatId, chatId),
+    );
     
     return result.map(row => ({
       id: row.id,

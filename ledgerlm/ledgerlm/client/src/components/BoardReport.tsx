@@ -8,9 +8,7 @@
  *  - Comparison period badge
  */
 
-import { useState } from 'react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+import { useRef, useState } from 'react';
 import { useLocation } from 'wouter';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -23,6 +21,7 @@ import { useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { type CubeBoardReport } from '@shared/schema';
+import { SafeMarkdown } from '@/components/SafeMarkdown';
 
 // ── Intent definitions ────────────────────────────────────────────────────────
 
@@ -74,37 +73,41 @@ function downloadCsv(content: string, filename: string) {
   URL.revokeObjectURL(url);
 }
 
-function printReport(title: string, content: string) {
+function printReport(title: string, sourceElement: HTMLElement | null) {
+  if (!sourceElement) return;
   const win = window.open('', '_blank');
   if (!win) return;
-  win.document.write(`<!DOCTYPE html><html><head>
-    <title>${title}</title>
-    <style>
-      body { font-family: -apple-system, sans-serif; max-width: 860px; margin: 40px auto; padding: 0 20px; color: #111; }
-      h1 { font-size: 1.4rem; border-bottom: 2px solid #111; padding-bottom: 8px; margin-bottom: 24px; }
-      h3 { font-size: 1rem; margin: 24px 0 8px; color: #1d4ed8; }
-      table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 0.85rem; }
-      th { background: #f1f5f9; padding: 6px 10px; text-align: left; border: 1px solid #e2e8f0; }
-      td { padding: 5px 10px; border: 1px solid #e2e8f0; }
-      tr:nth-child(even) { background: #f8fafc; }
-      p, li { font-size: 0.9rem; line-height: 1.6; }
-      .header { display: flex; justify-content: space-between; align-items: flex-start; }
-      .meta { font-size: 0.75rem; color: #64748b; }
-      @media print { button { display: none; } }
-    </style>
-  </head><body>
-    <div class="header">
-      <h1>${title}</h1>
-      <div class="meta">LedgerLM · ${new Date().toLocaleDateString()}</div>
-    </div>
-    <div id="content"></div>
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"><\/script>
-    <script>
-      document.getElementById('content').innerHTML = marked.parse(${JSON.stringify(content)});
-      window.onload = () => { window.print(); };
-    <\/script>
-  </body></html>`);
-  win.document.close();
+  win.opener = null;
+
+  const doc = win.document;
+  doc.title = title;
+
+  const style = doc.createElement('style');
+  style.textContent = `
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; max-width: 860px; margin: 40px auto; padding: 0 20px; color: #111; }
+    h1 { font-size: 1.4rem; border-bottom: 2px solid #111; padding-bottom: 8px; margin-bottom: 8px; }
+    h2, h3 { margin: 24px 0 8px; color: #1d4ed8; }
+    table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 0.85rem; }
+    th { background: #f1f5f9; padding: 6px 10px; text-align: left; border: 1px solid #e2e8f0; }
+    td { padding: 5px 10px; border: 1px solid #e2e8f0; }
+    tr:nth-child(even) { background: #f8fafc; }
+    p, li { font-size: 0.9rem; line-height: 1.6; }
+    .meta { font-size: 0.75rem; color: #64748b; margin-bottom: 24px; }
+  `;
+  doc.head.appendChild(style);
+
+  const heading = doc.createElement('h1');
+  heading.textContent = title;
+  const meta = doc.createElement('div');
+  meta.className = 'meta';
+  meta.textContent = `LedgerLM · ${new Date().toLocaleDateString()}`;
+  const content = sourceElement.cloneNode(true);
+  doc.body.replaceChildren(heading, meta, content);
+
+  window.setTimeout(() => {
+    win.focus();
+    win.print();
+  }, 100);
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -120,6 +123,7 @@ export function BoardReport({ report, boardId }: BoardReportProps) {
   const [expanded, setExpanded]     = useState(true);
   const [showPrompt, setShowPrompt] = useState(false);
   const [pendingIntent, setPendingIntent] = useState<string | null>(null);
+  const reportContentRef = useRef<HTMLDivElement>(null);
 
   const mapping    = report.columnMapping as any ?? {};
   const varData    = report.varianceData  as VRow[] | null;
@@ -164,7 +168,7 @@ export function BoardReport({ report, boardId }: BoardReportProps) {
 
   const handlePrint = () => {
     if (!report.rawAnalysis) return;
-    printReport(report.title, report.rawAnalysis);
+    printReport(report.title, reportContentRef.current);
   };
 
   // ── Render ───────────────────────────────────────────────────────────────
@@ -214,14 +218,14 @@ export function BoardReport({ report, boardId }: BoardReportProps) {
 
           {/* Markdown analysis */}
           {report.rawAnalysis ? (
-            <div className="prose prose-sm max-w-none
+            <div ref={reportContentRef} className="prose prose-sm max-w-none
               prose-headings:font-semibold prose-headings:text-foreground
               prose-h3:text-base prose-h3:mt-4 prose-h3:mb-2
               prose-p:text-sm prose-p:leading-relaxed
               prose-li:text-sm prose-strong:text-foreground
               prose-table:text-sm prose-th:bg-muted prose-th:px-3 prose-th:py-2
               prose-td:px-3 prose-td:py-1.5 prose-tr:border-b">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>{report.rawAnalysis}</ReactMarkdown>
+              <SafeMarkdown>{report.rawAnalysis}</SafeMarkdown>
             </div>
           ) : (
             <p className="text-sm text-muted-foreground italic">No analysis content.</p>

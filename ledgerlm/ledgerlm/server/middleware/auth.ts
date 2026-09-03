@@ -13,6 +13,11 @@ declare global {
 declare module 'express-session' {
   interface SessionData {
     userId?: string;
+    csrfToken?: string;
+    clientBinding?: string;
+    clientNetworkBinding?: string;
+    clientBindingVersion?: number;
+    authenticatedAt?: number;
   }
 }
 

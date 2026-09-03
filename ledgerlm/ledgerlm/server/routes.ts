@@ -63,6 +63,8 @@ import {
   redactSensitiveFields,
 } from "./utils/encryption";
 import { writeAuditLog, extractIp } from "./services/auditLogger";
+import { establishAuthenticatedSession } from "./middleware/sessionBinding";
+import { areAllOwnedBy, isOwnedBy } from "./security/ownership";
 import { runBackup, listBackups } from "./services/backupService";
 import { listRetentionPolicies, updateRetentionPolicy, runRetentionEngine } from "./services/retentionEngine";
 import { CURRENT_TERMS_EFFECTIVE_DATE, CURRENT_TERMS_VERSION } from "@shared/terms";
@@ -643,11 +645,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Ensure user account exists in main users table
       const userId = await ensureUserAccountForDomainUser(email, displayName);
 
-      // Regenerate session and log user in
-      await new Promise<void>((resolve, reject) =>
-        req.session.regenerate((err) => (err ? reject(err) : resolve()))
-      );
-      (req.session as any).userId = userId;
+      // Rotate the session ID and bind the authenticated session to this browser.
+      await establishAuthenticatedSession(req, userId);
 
       // Audit: successful SSO login
       writeAuditLog({ userId, action: 'SSO_LOGIN', resource: domainName, ipAddress: extractIp(req as any), status: 'success', details: { email, domain: domainName, role: domainUser.role, triggeredBy: 'login' } });
@@ -821,7 +820,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
 
       if (!requiresOtp) {
-        req.session.userId = user.id;
+        await establishAuthenticatedSession(req, user.id);
         await storage.updateUserLastLogin(user.id);
 
         await ensureCompanyMembershipForUser(user.id, user.username);
@@ -882,7 +881,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: verification.error });
       }
 
-      req.session.userId = user.id;
+      await establishAuthenticatedSession(req, user.id);
       await storage.updateUserLastLogin(user.id);
 
       await ensureCompanyMembershipForUser(user.id, user.username);
@@ -1594,7 +1593,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: "Unauthorized - please sign in" });
       }
 
-      const documents = await storage.getChatDocuments(req.params.chatId);
+      const chat = await storage.getChat(req.params.chatId);
+      if (!isOwnedBy(chat, userId)) {
+        return res.status(404).json({ error: "Chat not found" });
+      }
+
+      const documents = await storage.getChatDocuments(
+        req.params.chatId,
+        userId,
+      );
       res.json(documents);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch chat documents" });
@@ -1671,15 +1678,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
             .json({ error: "documentIds must be an array" });
         }
 
+        const documentsToAssociate = await Promise.all(
+          documentIds.map((docId) =>
+            typeof docId === "string"
+              ? storage.getDocument(docId)
+              : Promise.resolve(undefined),
+          ),
+        );
+        if (!areAllOwnedBy(documentsToAssociate, userId)) {
+          return res.status(404).json({ error: "Document not found" });
+        }
+
         // Delete all existing document associations for this chat
         await storage.deleteChatDocuments(req.params.chatId);
 
         // Add new document associations
-        for (const docId of documentIds) {
+        for (let index = 0; index < documentIds.length; index += 1) {
+          const docId = documentIds[index];
+          const document = documentsToAssociate[index]!;
           await storage.associateDocumentWithChat(req.params.chatId, docId);
 
           // Trigger document processing in the background
-          const document = await storage.getDocument(docId);
           if (document && document.filePath) {
             fetch(`http://localhost:8000/api/v2/documents/process/${docId}`, {
               method: "POST",
@@ -1706,11 +1725,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .json({ error: "Document ID or documentIds required" });
       }
 
+      const document = typeof documentId === "string"
+        ? await storage.getDocument(documentId)
+        : undefined;
+      if (!isOwnedBy(document, userId)) {
+        return res.status(404).json({ error: "Document not found" });
+      }
+
       // Associate document with chat
       await storage.associateDocumentWithChat(req.params.chatId, documentId);
 
       // Trigger document processing in the background
-      const document = await storage.getDocument(documentId);
       if (document && document.filePath) {
         fetch(`http://localhost:8000/api/v2/documents/process/${documentId}`, {
           method: "POST",
@@ -2915,7 +2940,7 @@ ${intentDef.question}`;
         return res.status(403).json({ error: "Forbidden" });
       }
 
-      const threads = await storage.getBoardThreads(req.params.id);
+      const threads = await storage.getBoardThreads(req.params.id, userId);
       res.json(threads);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch board threads" });
@@ -2935,6 +2960,13 @@ ${intentDef.question}`;
       }
 
       const { chatId } = req.body;
+      const chat = typeof chatId === "string"
+        ? await storage.getChat(chatId)
+        : undefined;
+      if (!isOwnedBy(chat, userId)) {
+        return res.status(404).json({ error: "Chat not found" });
+      }
+
       const thread = await storage.addBoardThread({
         boardId: req.params.id,
         chatId,
@@ -2957,6 +2989,11 @@ ${intentDef.question}`;
         return res.status(403).json({ error: "Forbidden" });
       }
 
+      const chat = await storage.getChat(req.params.chatId);
+      if (!isOwnedBy(chat, userId)) {
+        return res.status(404).json({ error: "Chat not found" });
+      }
+
       await storage.removeBoardThread(req.params.id, req.params.chatId);
       res.status(204).send();
     } catch (error) {
@@ -2976,7 +3013,7 @@ ${intentDef.question}`;
         return res.status(403).json({ error: "Forbidden" });
       }
 
-      const documents = await storage.getBoardDocuments(req.params.id);
+      const documents = await storage.getBoardDocuments(req.params.id, userId);
       res.json(documents);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch board documents" });
@@ -2996,6 +3033,13 @@ ${intentDef.question}`;
       }
 
       const { documentId } = req.body;
+      const document = typeof documentId === "string"
+        ? await storage.getDocument(documentId)
+        : undefined;
+      if (!isOwnedBy(document, userId)) {
+        return res.status(404).json({ error: "Document not found" });
+      }
+
       const boardDoc = await storage.addBoardDocument({
         boardId: req.params.id,
         documentId,
@@ -3016,6 +3060,11 @@ ${intentDef.question}`;
       const board = await storage.getBoard(req.params.id);
       if (!board || board.userId !== userId) {
         return res.status(403).json({ error: "Forbidden" });
+      }
+
+      const document = await storage.getDocument(req.params.documentId);
+      if (!isOwnedBy(document, userId)) {
+        return res.status(404).json({ error: "Document not found" });
       }
 
       await storage.removeBoardDocument(req.params.id, req.params.documentId);
@@ -3081,6 +3130,7 @@ ${intentDef.question}`;
       const dataSource = await storage.updateBoardDataSource(
         req.params.sourceId,
         req.body,
+        req.params.id,
       );
       if (!dataSource) {
         return res.status(404).json({ error: "Data source not found" });
@@ -3103,7 +3153,13 @@ ${intentDef.question}`;
         return res.status(403).json({ error: "Forbidden" });
       }
 
-      await storage.deleteBoardDataSource(req.params.sourceId);
+      const deleted = await storage.deleteBoardDataSource(
+        req.params.sourceId,
+        req.params.id,
+      );
+      if (!deleted) {
+        return res.status(404).json({ error: "Data source not found" });
+      }
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ error: "Failed to delete board data source" });

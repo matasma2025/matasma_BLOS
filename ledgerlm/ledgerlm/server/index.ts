@@ -49,6 +49,7 @@ import { runRetentionEngine } from "./services/retentionEngine";
 import { runBackup } from "./services/backupService";
 import { startSsoSyncJob } from "./services/ssoSyncJob";
 import rateLimit from "express-rate-limit";
+import { enforceSessionBinding } from "./middleware/sessionBinding";
 
 const app = express();
 
@@ -213,6 +214,7 @@ app.use(session({
     maxAge: 15 * 60 * 1000,  // 15 minutes — Bosch SG-39 / SG-84 requirement
   },
 }));
+app.use(enforceSessionBinding);
 
 // ── Rate limiting ─────────────────────────────────────────────────────────────
 const globalApiLimiter = rateLimit({

@@ -52,8 +52,7 @@ import type { Chat, Message, Document } from "@shared/schema";
 import { formatDistanceToNow } from "date-fns";
 import { parseCitations } from "@/lib/citations";
 import { DataSourcesPanel } from "@/components/DataSourcesPanel";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import { SafeMarkdown } from "@/components/SafeMarkdown";
 import { parseCharts } from "@/lib/chartParser";
 import { ChartRenderer } from "@/components/ChartRenderer";
 import { InteractiveDataTable } from "@/components/InteractiveDataTable";
@@ -154,9 +153,9 @@ function InsightsSection({ keyFindingsText, keyObservationsText, mdComponents }:
       </button>
       {open && (
         <div className="mt-3 rounded-lg border border-border/60 bg-muted/30 px-4 py-3">
-          <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
+          <SafeMarkdown components={mdComponents}>
             {[keyFindingsText, keyObservationsText].filter(Boolean).join("\n\n")}
-          </ReactMarkdown>
+          </SafeMarkdown>
         </div>
       )}
     </div>
@@ -1500,12 +1499,9 @@ export default function ChatDetail() {
                                         )}
 
                                         {/* Summary only — always visible */}
-                                        <ReactMarkdown
-                                          remarkPlugins={[remarkGfm]}
-                                          components={mdComponents}
-                                        >
+                                        <SafeMarkdown components={mdComponents}>
                                           {summaryOnly}
-                                        </ReactMarkdown>
+                                        </SafeMarkdown>
 
                                         {/* All extracted tables — one per placeholder found */}
                                         {splitFound && sections.map((section, i) => (
@@ -1683,8 +1679,7 @@ export default function ChatDetail() {
                           <div className="rounded-xl p-5 shadow-sm min-h-[60px]">
                             {streamingContent ? (
                               <div className="prose prose-sm dark:prose-invert max-w-none text-foreground leading-relaxed">
-                                <ReactMarkdown
-                                  remarkPlugins={[remarkGfm]}
+                                <SafeMarkdown
                                   components={{
                                     h3: ({ children }) => (
                                       <h3 className="text-base font-semibold text-foreground mt-4 mb-2 first:mt-0">{children}</h3>
@@ -1704,7 +1699,7 @@ export default function ChatDetail() {
                                   }}
                                 >
                                   {streamingContent}
-                                </ReactMarkdown>
+                                </SafeMarkdown>
                                 <span className="inline-block w-2 h-4 bg-primary/60 animate-pulse ml-0.5" />
                               </div>
                             ) : (
