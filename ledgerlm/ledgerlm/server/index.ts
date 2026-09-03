@@ -45,6 +45,7 @@ import { runInvestmentTablesMigration } from "./migrations/create-investment-tab
 import { addSsoGroupMappings } from "./migrations/add-sso-group-mappings";
 import { createBoardReportsTable } from "./migrations/create-board-reports";
 import { addVarianceDataColumn } from "./migrations/add-variance-data-column";
+import { createTermsAcceptancesTable } from "./migrations/create-terms-acceptances";
 import { runRetentionEngine } from "./services/retentionEngine";
 import { runBackup } from "./services/backupService";
 import { startSsoSyncJob } from "./services/ssoSyncJob";
@@ -333,6 +334,10 @@ app.use((req: Request, res: Response, next: NextFunction) => {
     // Non-fatal at runtime — if the extension already exists this is a no-op.
     // If it truly fails, vector queries will fail later with a clear error.
   }
+
+  // Create the Terms acceptance table without reconciling or deleting any
+  // unrelated production tables, columns, or rows.
+  await createTermsAcceptancesTable();
 
   // Ensure scheduler_config table exists (required for scheduler service)
   await createSchedulerConfig();
