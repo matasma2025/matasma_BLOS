@@ -1,0 +1,59 @@
+# **STEP 7 — Configure Workflows**
+
+Tell the agent to set up these 5 workflows in Replit:
+
+Workflow 1 — Main App (most important)
+
+- Name: `artifacts/ledgerlm-web: web`
+- Run command: `cd /home/runner/workspace/ledgerlm/ledgerlm && npm run dev`
+
+Workflow 2 — Slide Deck
+
+- Name: `ledgerlm/artifacts/ledgerlm-deck: web`
+- Run command: `pnpm --filter @workspace/ledgerlm-deck run dev`
+
+Workflow 3 — Security Architecture Diagram
+
+- Name: `ledgerlm/artifacts/ledgerlm-security-arch: web`
+- Run command: `pnpm --filter @workspace/ledgerlm-security-arch run dev`
+
+Workflow 4 — Mockup Sandbox (canvas previews)
+
+- Name: `artifacts/mockup-sandbox: Component Preview Server`
+- Run command: `pnpm --filter @workspace/mockup-sandbox run dev`
+
+Workflow 5 — Mockup Sandbox (ledgerlm)
+
+- Name: `ledgerlm/artifacts/mockup-sandbox: Component Preview Server`
+- Run command: `pnpm --filter @workspace/mockup-sandbox run dev`
+
+---
+
+# **STEP 8 — First Boot (Auto-Migrations)**
+
+Start the main workflow. On first boot only, the server automatically runs these in order:
+
+- ✅ Creates all database tables (30+ migrations)
+- ✅ Seeds base companies: LedgerLM, Nemko, Bosch
+- ✅ Seeds default users and admin accounts
+- ✅ Seeds board templates
+- ✅ Seeds Bosch business logic (query patterns, calculations, filters)
+
+Watch the Console logs — it will print `✅ ...` for each migration step. It takes ~30 seconds.
+
+---
+
+# **STEP 9 — Register Artifacts**
+
+The artifact config files are already in the repo inside `.replit-artifact/artifact.toml` folders. Tell the agent:
+
+> *"Register all artifacts from the artifact.toml files in the repo. There are 4 artifacts:
+• `artifacts/ledgerlm-web` — main web app, preview path `/`
+• `artifacts/ledgerlm-deck` — slide deck, preview path `/ledgerlm-deck/`
+• `artifacts/ledgerlm-security-arch` — security diagram, preview path `/ledgerlm-security-arch/`
+• `artifacts/mockup-sandbox` — canvas component previews, preview path `/__mockup`"*
+> 
+
+---
+
+#

@@ -1,0 +1,31 @@
+kind = "slides"
+previewPath = "/ledgerlm-deck/"
+title = "LedgerLM Security & Architecture"
+version = "1.0.0"
+id = "artifacts/ledgerlm-deck"
+router = "path"
+
+[[integratedSkills]]
+name = "slides"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/ledgerlm-deck/" ]
+localPort = 3001
+
+[services.development]
+run = "pnpm --filter @workspace/ledgerlm-deck run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/ledgerlm-deck", "run", "build" ]
+publicDir = "artifacts/ledgerlm-deck/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "3001"
+BASE_PATH = "/ledgerlm-deck/"

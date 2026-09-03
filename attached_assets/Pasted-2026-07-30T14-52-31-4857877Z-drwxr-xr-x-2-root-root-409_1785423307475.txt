@@ -1,0 +1,703 @@
+2026-07-30T14:52:31.4857877Z drwxr-xr-x 2 root root   4096 Jul 29 10:54 migrations
+2026-07-30T14:52:31.48579Z -rwxr-xr-x 1 root root  11820 Jul 29 10:52 openai.ts
+2026-07-30T14:52:31.4857923Z drwxr-xr-x 4 root root   4096 Jul 30 14:48 public
+2026-07-30T14:52:31.4857945Z -rwxr-xr-x 1 root root   2014 Jul 29 10:59 python-backend.ts
+2026-07-30T14:52:31.4857966Z -rwxr-xr-x 1 root root 335375 Jul 29 10:52 routes.ts
+2026-07-30T14:52:31.4857989Z drwxr-xr-x 2 root root   4096 Jul 29 10:54 seed
+2026-07-30T14:52:31.4858011Z -rwxr-xr-x 1 root root  21143 Jul 29 10:52 seed.ts
+2026-07-30T14:52:31.4858053Z drwxr-xr-x 3 root root   4096 Jul 30 10:59 services
+2026-07-30T14:52:31.4858073Z -rwxr-xr-x 1 root root  54423 Jul 29 10:52 storage.ts
+2026-07-30T14:52:31.4858092Z drwxr-xr-x 2 root root   4096 Jul 30 14:46 utils
+2026-07-30T14:52:31.4858113Z -rwxr-xr-x 1 root root   2263 Jul 29 10:52 vite.ts
+2026-07-30T14:52:31.4865565Z Contents of server/utils:
+2026-07-30T14:52:31.4884994Z server/utils:
+2026-07-30T14:52:31.4885227Z encryption.ts
+2026-07-30T14:52:31.4885251Z entraToken.ts
+2026-07-30T14:52:31.4889216Z
+2026-07-30T14:52:31.4889318Z ===== Node & NPM =====
+2026-07-30T14:52:31.5301546Z v20.20.1
+2026-07-30T14:52:31.748815Z 10.8.2
+2026-07-30T14:52:31.7534699Z
+2026-07-30T14:52:31.753513Z ===== Installed Drizzle Packages =====
+2026-07-30T14:52:32.8453495Z rest-express@1.0.0 /app
+2026-07-30T14:52:32.8454105Z `-- drizzle-kit@0.31.10
+2026-07-30T14:52:32.8454131Z
+2026-07-30T14:52:33.8234142Z rest-express@1.0.0 /app
+2026-07-30T14:52:33.8234667Z +-- drizzle-orm@0.39.3
+2026-07-30T14:52:33.8234704Z `-- drizzle-zod@0.7.1
+2026-07-30T14:52:33.8234727Z   `-- drizzle-orm@0.39.3 deduped
+2026-07-30T14:52:33.8234747Z
+2026-07-30T14:52:33.8321786Z
+2026-07-30T14:52:33.8322229Z ===== Drizzle Directories =====
+2026-07-30T14:52:33.8351494Z total 10072
+2026-07-30T14:52:33.8351861Z drwxr-xr-x   2 root root    4096 Jul 30 14:47 .
+2026-07-30T14:52:33.8351894Z drwxr-xr-x 504 root root   20480 Jul 30 14:47 ..
+2026-07-30T14:52:33.8351915Z -rw-r--r--   1 root root    2073 Jul 30 14:46 README.md
+2026-07-30T14:52:33.835194Z -rw-r--r--   1 root root  121381 Jul 30 14:47 api.d.mts
+2026-07-30T14:52:33.8351964Z -rw-r--r--   1 root root  121381 Jul 30 14:47 api.d.ts
+2026-07-30T14:52:33.8351983Z -rw-r--r--   1 root root 2956135 Jul 30 14:46 api.js
+2026-07-30T14:52:33.8352006Z -rw-r--r--   1 root root 2946338 Jul 30 14:47 api.mjs
+2026-07-30T14:52:33.8352029Z -rwxr-xr-x   1 root root 3693410 Jul 30 14:46 bin.cjs
+2026-07-30T14:52:33.8352051Z -rw-r--r--   1 root root   12078 Jul 30 14:47 index.d.mts
+2026-07-30T14:52:33.8352072Z -rw-r--r--   1 root root   12078 Jul 30 14:47 index.d.ts
+2026-07-30T14:52:33.8352093Z -rw-r--r--   1 root root    1108 Jul 30 14:46 index.js
+2026-07-30T14:52:33.8352114Z -rw-r--r--   1 root root      94 Jul 30 14:47 index.mjs
+2026-07-30T14:52:33.8352194Z -rw-r--r--   1 root root    3683 Jul 30 14:46 package.json
+2026-07-30T14:52:33.8352217Z -rw-r--r--   1 root root  199285 Jul 30 14:46 utils.js
+2026-07-30T14:52:33.8352241Z -rw-r--r--   1 root root  198040 Jul 30 14:47 utils.mjs
+2026-07-30T14:52:33.8399738Z total 1156
+2026-07-30T14:52:33.8400038Z drwxr-xr-x  38 root root  12288 Jul 30 14:47 .
+2026-07-30T14:52:33.8400067Z drwxr-xr-x 504 root root  20480 Jul 30 14:47 ..
+2026-07-30T14:52:33.8400092Z -rw-r--r--   1 root root   3219 Jul 30 14:47 README.md
+2026-07-30T14:52:33.8400116Z -rw-r--r--   1 root root   4879 Jul 30 14:46 alias.cjs
+2026-07-30T14:52:33.8400142Z -rw-r--r--   1 root root   6058 Jul 30 14:47 alias.cjs.map
+2026-07-30T14:52:33.8400167Z -rw-r--r--   1 root root   1578 Jul 30 14:46 alias.d.cts
+2026-07-30T14:52:33.8400192Z -rw-r--r--   1 root root   1571 Jul 30 14:47 alias.d.ts
+2026-07-30T14:52:33.8400218Z -rw-r--r--   1 root root   3151 Jul 30 14:47 alias.js
+2026-07-30T14:52:33.8400294Z -rw-r--r--   1 root root   5992 Jul 30 14:47 alias.js.map
+2026-07-30T14:52:33.8400317Z drwxr-xr-x   4 root root   4096 Jul 30 14:46 aws-data-api
+2026-07-30T14:52:33.8400337Z -rw-r--r--   1 root root    775 Jul 30 14:46 batch.cjs
+2026-07-30T14:52:33.8400356Z -rw-r--r--   1 root root    442 Jul 30 14:47 batch.cjs.map
+2026-07-30T14:52:33.8400377Z -rw-r--r--   1 root root    322 Jul 30 14:46 batch.d.cts
+2026-07-30T14:52:33.8400397Z -rw-r--r--   1 root root    320 Jul 30 14:47 batch.d.ts
+2026-07-30T14:52:33.8400416Z -rw-r--r--   1 root root     33 Jul 30 14:47 batch.js
+2026-07-30T14:52:33.8400436Z -rw-r--r--   1 root root     71 Jul 30 14:47 batch.js.map
+2026-07-30T14:52:33.8400457Z drwxr-xr-x   2 root root   4096 Jul 30 14:47 better-sqlite3
+2026-07-30T14:52:33.8400475Z drwxr-xr-x   2 root root   4096 Jul 30 14:47 bun-sql
+2026-07-30T14:52:33.8400496Z drwxr-xr-x   2 root root   4096 Jul 30 14:47 bun-sqlite
+2026-07-30T14:52:33.8400515Z -rw-r--r--   1 root root   3076 Jul 30 14:46 casing.cjs
+2026-07-30T14:52:33.8400535Z -rw-r--r--   1 root root   3779 Jul 30 14:47 casing.cjs.map
+2026-07-30T14:52:33.8400572Z -rw-r--r--   1 root root    503 Jul 30 14:46 casing.d.cts
+2026-07-30T14:52:33.8400591Z -rw-r--r--   1 root root    500 Jul 30 14:47 casing.d.ts
+2026-07-30T14:52:33.8400611Z -rw-r--r--   1 root root   1904 Jul 30 14:47 casing.js
+2026-07-30T14:52:33.8400631Z -rw-r--r--   1 root root   3728 Jul 30 14:47 casing.js.map
+2026-07-30T14:52:33.8400653Z -rw-r--r--   1 root root   4245 Jul 30 14:46 column-builder.cjs
+2026-07-30T14:52:33.8400677Z -rw-r--r--   1 root root  14275 Jul 30 14:47 column-builder.cjs.map
+2026-07-30T14:52:33.8400701Z -rw-r--r--   1 root root  11157 Jul 30 14:46 column-builder.d.cts
+2026-07-30T14:52:33.8400725Z -rw-r--r--   1 root root  11149 Jul 30 14:47 column-builder.d.ts
+2026-07-30T14:52:33.8400748Z -rw-r--r--   1 root root   3185 Jul 30 14:47 column-builder.js
+2026-07-30T14:52:33.8400771Z -rw-r--r--   1 root root  14236 Jul 30 14:47 column-builder.js.map
+2026-07-30T14:52:33.8400796Z -rw-r--r--   1 root root   2333 Jul 30 14:46 column.cjs
+2026-07-30T14:52:33.8400819Z -rw-r--r--   1 root root   6400 Jul 30 14:47 column.cjs.map
+2026-07-30T14:52:33.8400842Z -rw-r--r--   1 root root   3937 Jul 30 14:46 column.d.cts
+2026-07-30T14:52:33.8400886Z -rw-r--r--   1 root root   3932 Jul 30 14:47 column.d.ts
+2026-07-30T14:52:33.8400909Z -rw-r--r--   1 root root   1311 Jul 30 14:47 column.js
+2026-07-30T14:52:33.8400933Z -rw-r--r--   1 root root   6361 Jul 30 14:47 column.js.map
+2026-07-30T14:52:33.8400955Z drwxr-xr-x   2 root root   4096 Jul 30 14:47 d1
+2026-07-30T14:52:33.8400979Z drwxr-xr-x   2 root root   4096 Jul 30 14:47 durable-sqlite
+2026-07-30T14:52:33.8401003Z -rw-r--r--   1 root root   1940 Jul 30 14:46 entity.cjs
+2026-07-30T14:52:33.8401026Z -rw-r--r--   1 root root   1889 Jul 30 14:47 entity.cjs.map
+2026-07-30T14:52:33.8401049Z -rw-r--r--   1 root root    395 Jul 30 14:47 entity.d.cts
+2026-07-30T14:52:33.8401071Z -rw-r--r--   1 root root    395 Jul 30 14:47 entity.d.ts
+2026-07-30T14:52:33.8401092Z -rw-r--r--   1 root root    867 Jul 30 14:47 entity.js
+2026-07-30T14:52:33.8401115Z -rw-r--r--   1 root root   1836 Jul 30 14:47 entity.js.map
+2026-07-30T14:52:33.8401137Z -rw-r--r--   1 root root   1598 Jul 30 14:46 errors.cjs
+2026-07-30T14:52:33.8401175Z -rw-r--r--   1 root root    932 Jul 30 14:47 errors.cjs.map
+2026-07-30T14:52:33.8401199Z -rw-r--r--   1 root root    366 Jul 30 14:47 errors.d.cts
+2026-07-30T14:52:33.8401222Z -rw-r--r--   1 root root    365 Jul 30 14:47 errors.d.ts
+2026-07-30T14:52:33.8401244Z -rw-r--r--   1 root root    490 Jul 30 14:47 errors.js
+2026-07-30T14:52:33.8401265Z -rw-r--r--   1 root root    887 Jul 30 14:47 errors.js.map
+2026-07-30T14:52:33.8401286Z drwxr-xr-x   2 root root   4096 Jul 30 14:47 expo-sqlite
+2026-07-30T14:52:33.840131Z -rw-r--r--   1 root root   1163 Jul 30 14:46 expressions.cjs
+2026-07-30T14:52:33.8401333Z -rw-r--r--   1 root root    183 Jul 30 14:47 expressions.cjs.map
+2026-07-30T14:52:33.8401354Z -rw-r--r--   1 root root     45 Jul 30 14:47 expressions.d.cts
+2026-07-30T14:52:33.8401377Z -rw-r--r--   1 root root     44 Jul 30 14:47 expressions.d.ts
+2026-07-30T14:52:33.84014Z -rw-r--r--   1 root root     83 Jul 30 14:47 expressions.js
+2026-07-30T14:52:33.8401421Z -rw-r--r--   1 root root    151 Jul 30 14:47 expressions.js.map
+2026-07-30T14:52:33.8401444Z -rw-r--r--   1 root root   2515 Jul 30 14:46 index.cjs
+2026-07-30T14:52:33.8401483Z -rw-r--r--   1 root root    854 Jul 30 14:47 index.cjs.map
+2026-07-30T14:52:33.8401507Z -rw-r--r--   1 root root    484 Jul 30 14:47 index.d.cts
+2026-07-30T14:52:33.8401529Z -rw-r--r--   1 root root    469 Jul 30 14:47 index.d.ts
+2026-07-30T14:52:33.8401552Z -rw-r--r--   1 root root    502 Jul 30 14:47 index.js
+2026-07-30T14:52:33.8401576Z -rw-r--r--   1 root root    724 Jul 30 14:47 index.js.map
+2026-07-30T14:52:33.8401598Z drwxr-xr-x   2 root root   4096 Jul 30 14:47 knex
+2026-07-30T14:52:33.8401618Z drwxr-xr-x   2 root root   4096 Jul 30 14:47 kysely
+2026-07-30T14:52:33.8401638Z drwxr-xr-x   8 root root   4096 Jul 30 14:47 libsql
+2026-07-30T14:52:33.8401658Z -rw-r--r--   1 root root   1982 Jul 30 14:46 logger.cjs
+2026-07-30T14:52:33.8401682Z -rw-r--r--   1 root root   1918 Jul 30 14:47 logger.cjs.map
+2026-07-30T14:52:33.8401704Z -rw-r--r--   1 root root    694 Jul 30 14:47 logger.d.cts
+2026-07-30T14:52:33.8436969Z -rw-r--r--   1 root root    693 Jul 30 14:47 logger.d.ts
+2026-07-30T14:52:33.8437207Z -rw-r--r--   1 root root    842 Jul 30 14:47 logger.js
+2026-07-30T14:52:33.8437242Z -rw-r--r--   1 root root   1867 Jul 30 14:47 logger.js.map
+2026-07-30T14:52:33.8437265Z -rw-r--r--   1 root root   3010 Jul 30 14:46 migrator.cjs
+2026-07-30T14:52:33.8437289Z -rw-r--r--   1 root root   2638 Jul 30 14:47 migrator.cjs.map
+2026-07-30T14:52:33.8437312Z -rw-r--r--   1 root root    398 Jul 30 14:47 migrator.d.cts
+2026-07-30T14:52:33.8437336Z -rw-r--r--   1 root root    398 Jul 30 14:47 migrator.d.ts
+2026-07-30T14:52:33.843736Z -rw-r--r--   1 root root   1244 Jul 30 14:47 migrator.js
+2026-07-30T14:52:33.8437384Z -rw-r--r--   1 root root   2554 Jul 30 14:47 migrator.js.map
+2026-07-30T14:52:33.8437409Z drwxr-xr-x   4 root root   4096 Jul 30 14:47 mysql-core
+2026-07-30T14:52:33.8437432Z drwxr-xr-x   2 root root   4096 Jul 30 14:47 mysql-proxy
+2026-07-30T14:52:33.8437455Z drwxr-xr-x   2 root root   4096 Jul 30 14:47 mysql2
+2026-07-30T14:52:33.8437478Z drwxr-xr-x   2 root root   4096 Jul 30 14:47 neon
+2026-07-30T14:52:33.8437499Z drwxr-xr-x   2 root root   4096 Jul 30 14:47 neon-http
+2026-07-30T14:52:33.843754Z drwxr-xr-x   2 root root   4096 Jul 30 14:47 neon-serverless
+2026-07-30T14:52:33.8437563Z drwxr-xr-x   2 root root   4096 Jul 30 14:47 node-postgres
+2026-07-30T14:52:33.8438242Z drwxr-xr-x   2 root root   4096 Jul 30 14:47 op-sqlite
+2026-07-30T14:52:33.8438268Z -rw-r--r--   1 root root    790 Jul 30 14:46 operations.cjs
+2026-07-30T14:52:33.8438291Z -rw-r--r--   1 root root   1352 Jul 30 14:47 operations.cjs.map
+2026-07-30T14:52:33.8438314Z -rw-r--r--   1 root root   1113 Jul 30 14:47 operations.d.cts
+2026-07-30T14:52:33.8438336Z -rw-r--r--   1 root root   1110 Jul 30 14:47 operations.d.ts
+2026-07-30T14:52:33.8438359Z -rw-r--r--   1 root root     38 Jul 30 14:47 operations.js
+2026-07-30T14:52:33.8438385Z -rw-r--r--   1 root root     71 Jul 30 14:47 operations.js.map
+2026-07-30T14:52:33.8438408Z -rw-r--r--   1 root root 151576 Jul 30 14:47 package.json
+2026-07-30T14:52:33.8438432Z drwxr-xr-x   5 root root   4096 Jul 30 14:47 pg-core
+2026-07-30T14:52:33.8438456Z drwxr-xr-x   2 root root   4096 Jul 30 14:47 pg-proxy
+2026-07-30T14:52:33.8438478Z drwxr-xr-x   2 root root   4096 Jul 30 14:47 pglite
+2026-07-30T14:52:33.8438524Z drwxr-xr-x   2 root root   4096 Jul 30 14:47 planetscale-serverless
+2026-07-30T14:52:33.8438548Z drwxr-xr-x   2 root root   4096 Jul 30 14:47 postgres-js
+2026-07-30T14:52:33.8438572Z -rw-r--r--   1 root root   1298 Jul 30 14:46 primary-key.cjs
+2026-07-30T14:52:33.8438597Z -rw-r--r--   1 root root    601 Jul 30 14:47 primary-key.cjs.map
+2026-07-30T14:52:33.8438621Z -rw-r--r--   1 root root    370 Jul 30 14:47 primary-key.d.cts
+2026-07-30T14:52:33.8438644Z -rw-r--r--   1 root root    367 Jul 30 14:47 primary-key.d.ts
+2026-07-30T14:52:33.8438668Z -rw-r--r--   1 root root    253 Jul 30 14:47 primary-key.js
+2026-07-30T14:52:33.8438691Z -rw-r--r--   1 root root    562 Jul 30 14:47 primary-key.js.map
+2026-07-30T14:52:33.8438713Z drwxr-xr-x   5 root root   4096 Jul 30 14:46 prisma
+2026-07-30T14:52:33.8438736Z drwxr-xr-x   2 root root   4096 Jul 30 14:47 query-builders
+2026-07-30T14:52:33.8438761Z -rw-r--r--   1 root root   1634 Jul 30 14:46 query-promise.cjs
+2026-07-30T14:52:33.8438785Z -rw-r--r--   1 root root   1566 Jul 30 14:47 query-promise.cjs.map
+2026-07-30T14:52:33.8438826Z -rw-r--r--   1 root root    670 Jul 30 14:47 query-promise.d.cts
+2026-07-30T14:52:33.843885Z -rw-r--r--   1 root root    669 Jul 30 14:47 query-promise.d.ts
+2026-07-30T14:52:33.8438872Z -rw-r--r--   1 root root    579 Jul 30 14:47 query-promise.js
+2026-07-30T14:52:33.8438896Z -rw-r--r--   1 root root   1527 Jul 30 14:47 query-promise.js.map
+2026-07-30T14:52:33.8438919Z -rw-r--r--   1 root root  11362 Jul 30 14:46 relations.cjs
+2026-07-30T14:52:33.8438943Z -rw-r--r--   1 root root  26612 Jul 30 14:47 relations.cjs.map
+2026-07-30T14:52:33.8438967Z -rw-r--r--   1 root root  12304 Jul 30 14:47 relations.d.cts
+2026-07-30T14:52:33.843899Z -rw-r--r--   1 root root  12298 Jul 30 14:47 relations.d.ts
+2026-07-30T14:52:33.8439012Z -rw-r--r--   1 root root   8929 Jul 30 14:47 relations.js
+2026-07-30T14:52:33.8439034Z -rw-r--r--   1 root root  26750 Jul 30 14:47 relations.js.map
+2026-07-30T14:52:33.8439059Z -rw-r--r--   1 root root    802 Jul 30 14:46 runnable-query.cjs
+2026-07-30T14:52:33.8439082Z -rw-r--r--   1 root root    429 Jul 30 14:47 runnable-query.cjs.map
+2026-07-30T14:52:33.8439107Z -rw-r--r--   1 root root    206 Jul 30 14:47 runnable-query.d.cts
+2026-07-30T14:52:33.843915Z -rw-r--r--   1 root root    205 Jul 30 14:47 runnable-query.d.ts
+2026-07-30T14:52:33.8439173Z -rw-r--r--   1 root root     42 Jul 30 14:47 runnable-query.js
+2026-07-30T14:52:33.8439197Z -rw-r--r--   1 root root     71 Jul 30 14:47 runnable-query.js.map
+2026-07-30T14:52:33.843922Z -rw-r--r--   1 root root   3620 Jul 30 14:46 selection-proxy.cjs
+2026-07-30T14:52:33.8439244Z -rw-r--r--   1 root root   5304 Jul 30 14:47 selection-proxy.cjs.map
+2026-07-30T14:52:33.8439269Z -rw-r--r--   1 root root    464 Jul 30 14:47 selection-proxy.d.cts
+2026-07-30T14:52:33.8439294Z -rw-r--r--   1 root root    461 Jul 30 14:47 selection-proxy.d.ts
+2026-07-30T14:52:33.8439318Z -rw-r--r--   1 root root   2301 Jul 30 14:47 selection-proxy.js
+2026-07-30T14:52:33.8439343Z -rw-r--r--   1 root root   5291 Jul 30 14:47 selection-proxy.js.map
+2026-07-30T14:52:33.8439367Z -rw-r--r--   1 root root    781 Jul 30 14:46 session.cjs
+2026-07-30T14:52:33.8439389Z -rw-r--r--   1 root root    341 Jul 30 14:47 session.cjs.map
+2026-07-30T14:52:33.8439411Z -rw-r--r--   1 root root    166 Jul 30 14:47 session.d.cts
+2026-07-30T14:52:33.843945Z -rw-r--r--   1 root root    165 Jul 30 14:47 session.d.ts
+2026-07-30T14:52:33.8439474Z -rw-r--r--   1 root root     35 Jul 30 14:47 session.js
+2026-07-30T14:52:33.8439499Z -rw-r--r--   1 root root     71 Jul 30 14:47 session.js.map
+2026-07-30T14:52:33.8439523Z drwxr-xr-x   2 root root   4096 Jul 30 14:47 singlestore
+2026-07-30T14:52:33.8440601Z drwxr-xr-x   4 root root   4096 Jul 30 14:47 singlestore-core
+2026-07-30T14:52:33.8440678Z drwxr-xr-x   2 root root   4096 Jul 30 14:47 singlestore-proxy
+2026-07-30T14:52:33.8440699Z drwxr-xr-x   4 root root   4096 Jul 30 14:47 sql
+2026-07-30T14:52:33.8440719Z drwxr-xr-x   2 root root   4096 Jul 30 14:47 sql-js
+2026-07-30T14:52:33.8440737Z drwxr-xr-x   4 root root   4096 Jul 30 14:47 sqlite-core
+2026-07-30T14:52:33.8440756Z drwxr-xr-x   2 root root   4096 Jul 30 14:47 sqlite-proxy
+2026-07-30T14:52:33.8440776Z -rw-r--r--   1 root root   1577 Jul 30 14:46 subquery.cjs
+2026-07-30T14:52:33.8440795Z -rw-r--r--   1 root root   1922 Jul 30 14:47 subquery.cjs.map
+2026-07-30T14:52:33.8440819Z -rw-r--r--   1 root root   1015 Jul 30 14:47 subquery.d.cts
+2026-07-30T14:52:33.8440871Z -rw-r--r--   1 root root   1013 Jul 30 14:47 subquery.d.ts
+2026-07-30T14:52:33.8440894Z -rw-r--r--   1 root root    495 Jul 30 14:47 subquery.js
+2026-07-30T14:52:33.8440916Z -rw-r--r--   1 root root   1877 Jul 30 14:47 subquery.js.map
+2026-07-30T14:52:33.8440937Z drwxr-xr-x   2 root root   4096 Jul 30 14:47 supabase
+2026-07-30T14:52:33.8440959Z -rw-r--r--   1 root root   3440 Jul 30 14:46 table.cjs
+2026-07-30T14:52:33.8440978Z -rw-r--r--   1 root root   7859 Jul 30 14:47 table.cjs.map
+2026-07-30T14:52:33.8440998Z -rw-r--r--   1 root root   3855 Jul 30 14:47 table.d.cts
+2026-07-30T14:52:33.8441019Z -rw-r--r--   1 root root   3850 Jul 30 14:47 table.d.ts
+2026-07-30T14:52:33.844104Z -rw-r--r--   1 root root   1973 Jul 30 14:47 table.js
+2026-07-30T14:52:33.8441062Z -rw-r--r--   1 root root   7771 Jul 30 14:47 table.js.map
+2026-07-30T14:52:33.8441085Z -rw-r--r--   1 root root   1135 Jul 30 14:46 table.utils.cjs
+2026-07-30T14:52:33.8441108Z -rw-r--r--   1 root root    241 Jul 30 14:47 table.utils.cjs.map
+2026-07-30T14:52:33.8441152Z -rw-r--r--   1 root root     11 Jul 30 14:47 table.utils.d.cts
+2026-07-30T14:52:33.8441172Z -rw-r--r--   1 root root     11 Jul 30 14:47 table.utils.d.ts
+2026-07-30T14:52:33.8441194Z -rw-r--r--   1 root root    109 Jul 30 14:47 table.utils.js
+2026-07-30T14:52:33.8441219Z -rw-r--r--   1 root root    198 Jul 30 14:47 table.utils.js.map
+2026-07-30T14:52:33.8441242Z drwxr-xr-x   2 root root   4096 Jul 30 14:47 tidb-serverless
+2026-07-30T14:52:33.8441265Z -rw-r--r--   1 root root   1135 Jul 30 14:46 tracing-utils.cjs
+2026-07-30T14:52:33.8441288Z -rw-r--r--   1 root root    312 Jul 30 14:47 tracing-utils.cjs.map
+2026-07-30T14:52:33.8441311Z -rw-r--r--   1 root root     92 Jul 30 14:47 tracing-utils.d.cts
+2026-07-30T14:52:33.8441335Z -rw-r--r--   1 root root     92 Jul 30 14:47 tracing-utils.d.ts
+2026-07-30T14:52:33.8441357Z -rw-r--r--   1 root root    113 Jul 30 14:47 tracing-utils.js
+2026-07-30T14:52:33.8441378Z -rw-r--r--   1 root root    269 Jul 30 14:47 tracing-utils.js.map
+2026-07-30T14:52:33.8441401Z -rw-r--r--   1 root root   1967 Jul 30 14:46 tracing.cjs
+2026-07-30T14:52:33.8441424Z -rw-r--r--   1 root root   2232 Jul 30 14:47 tracing.cjs.map
+2026-07-30T14:52:33.8441463Z -rw-r--r--   1 root root     11 Jul 30 14:47 tracing.d.cts
+2026-07-30T14:52:33.8441486Z -rw-r--r--   1 root root     11 Jul 30 14:47 tracing.d.ts
+2026-07-30T14:52:33.8441508Z -rw-r--r--   1 root root    898 Jul 30 14:47 tracing.js
+2026-07-30T14:52:33.8441532Z -rw-r--r--   1 root root   2196 Jul 30 14:47 tracing.js.map
+2026-07-30T14:52:33.8441553Z -rw-r--r--   1 root root   7714 Jul 30 14:46 utils.cjs
+2026-07-30T14:52:33.8441574Z -rw-r--r--   1 root root  14497 Jul 30 14:47 utils.cjs.map
+2026-07-30T14:52:33.8441597Z -rw-r--r--   1 root root   2863 Jul 30 14:47 utils.d.cts
+2026-07-30T14:52:33.8441618Z -rw-r--r--   1 root root   2859 Jul 30 14:47 utils.d.ts
+2026-07-30T14:52:33.8441641Z -rw-r--r--   1 root root   5762 Jul 30 14:47 utils.js
+2026-07-30T14:52:33.8441661Z -rw-r--r--   1 root root  14417 Jul 30 14:47 utils.js.map
+2026-07-30T14:52:33.8441681Z drwxr-xr-x   2 root root   4096 Jul 30 14:47 vercel-postgres
+2026-07-30T14:52:33.84417Z -rw-r--r--   1 root root   1223 Jul 30 14:46 version.cjs
+2026-07-30T14:52:33.8441718Z -rw-r--r--   1 root root    376 Jul 30 14:47 version.cjs.map
+2026-07-30T14:52:33.8441758Z -rw-r--r--   1 root root    123 Jul 30 14:47 version.d.cts
+2026-07-30T14:52:33.8441783Z -rw-r--r--   1 root root    123 Jul 30 14:47 version.d.ts
+2026-07-30T14:52:33.8441806Z -rw-r--r--   1 root root    150 Jul 30 14:47 version.js
+2026-07-30T14:52:33.8441827Z -rw-r--r--   1 root root    333 Jul 30 14:47 version.js.map
+2026-07-30T14:52:33.8441846Z -rw-r--r--   1 root root   1165 Jul 30 14:46 view-common.cjs
+2026-07-30T14:52:33.8441867Z -rw-r--r--   1 root root    242 Jul 30 14:47 view-common.cjs.map
+2026-07-30T14:52:33.8441887Z -rw-r--r--   1 root root     52 Jul 30 14:47 view-common.d.cts
+2026-07-30T14:52:33.844191Z -rw-r--r--   1 root root     52 Jul 30 14:47 view-common.d.ts
+2026-07-30T14:52:33.8441933Z -rw-r--r--   1 root root    129 Jul 30 14:47 view-common.js
+2026-07-30T14:52:33.8441956Z -rw-r--r--   1 root root    199 Jul 30 14:47 view-common.js.map
+2026-07-30T14:52:33.8441977Z drwxr-xr-x   2 root root   4096 Jul 30 14:47 xata-http
+2026-07-30T14:52:33.8441996Z
+2026-07-30T14:52:33.8442019Z ===== Environment Variables =====
+2026-07-30T14:52:33.844206Z DB_AUTH_MODE=entra
+2026-07-30T14:52:33.8442084Z DB_HOST=ps-genie-finance-prod.postgres.database.azure.com
+2026-07-30T14:52:33.8442104Z DB_USER=app-genie-finance-prod
+2026-07-30T14:52:33.8442123Z DB_NAME=postgres
+2026-07-30T14:52:33.8442143Z IDENTITY_ENDPOINT=Present
+2026-07-30T14:52:33.8442162Z IDENTITY_HEADER=Present
+2026-07-30T14:52:33.8442183Z =========================================
+2026-07-30T14:52:33.84422Z
+2026-07-30T14:52:33.8442217Z ===== Drizzle Version =====
+2026-07-30T14:52:34.4093009Z drizzle-kit: v0.31.10
+2026-07-30T14:52:34.4093387Z drizzle-orm: v0.39.3
+2026-07-30T14:52:34.409341Z
+2026-07-30T14:52:34.424559Z
+2026-07-30T14:52:34.4246092Z ===== Looking for gel-core =====
+2026-07-30T14:52:34.5243346Z node_modules/caniuse-lite/data/features/document-scrollingelement.js
+2026-07-30T14:52:34.5243799Z node_modules/iconv-lite/Changelog.md
+2026-07-30T14:52:34.5252598Z
+2026-07-30T14:52:34.5252902Z ===== Creating PostgreSQL extensions (pgvector, pg_trgm) =====
+2026-07-30T14:52:34.525497Z NOTE: Azure Portal prerequisite — Server parameters → azure.extensions → VECTOR must be enabled first
+2026-07-30T14:52:34.6754516Z
+2026-07-30T14:52:34.6754999Z > rest-express@1.0.0 db:prepare
+2026-07-30T14:52:34.6755035Z > tsx scripts/db-prepare.ts && drizzle-kit push
+2026-07-30T14:52:34.675506Z
+2026-07-30T14:52:34.9985575Z
+2026-07-30T14:52:34.9986193Z node:internal/modules/run_main:123
+2026-07-30T14:52:34.9986223Z     triggerUncaughtException(
+2026-07-30T14:52:34.9986245Z     ^
+2026-07-30T14:52:35.0020483Z Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/app/scripts/db-prepare.ts' imported from /app/
+2026-07-30T14:52:35.0020825Z     at finalizeResolution (node:internal/modules/esm/resolve:283:11)
+2026-07-30T14:52:35.0020854Z     at moduleResolve (node:internal/modules/esm/resolve:952:10)
+2026-07-30T14:52:35.002088Z     at defaultResolve (node:internal/modules/esm/resolve:1188:11)
+2026-07-30T14:52:35.0020902Z     at nextResolve (node:internal/modules/esm/hooks:864:28)
+2026-07-30T14:52:35.0020924Z     at resolveBase (file:///app/node_modules/tsx/dist/register-zZ7SWseA.mjs:2:8498)
+2026-07-30T14:52:35.0020946Z     at resolveDirectory (file:///app/node_modules/tsx/dist/register-zZ7SWseA.mjs:2:9584)
+2026-07-30T14:52:35.0020967Z     at resolveTsPaths (file:///app/node_modules/tsx/dist/register-zZ7SWseA.mjs:2:11114)
+2026-07-30T14:52:35.0021089Z     at resolve (file:///app/node_modules/tsx/dist/register-zZ7SWseA.mjs:2:12294)
+2026-07-30T14:52:35.0021114Z     at nextResolve (node:internal/modules/esm/hooks:864:28)
+2026-07-30T14:52:35.0021138Z     at Hooks.resolve (node:internal/modules/esm/hooks:306:30) {
+2026-07-30T14:52:35.0021159Z   code: 'ERR_MODULE_NOT_FOUND',
+2026-07-30T14:52:35.0021182Z   url: 'file:///app/scripts/db-prepare.ts'
+2026-07-30T14:52:35.00212Z }
+2026-07-30T14:52:35.0021217Z
+2026-07-30T14:52:35.0021235Z Node.js v20.20.1
+2026-07-30T14:52:35.0203324Z db:prepare Exit Code: 1
+2026-07-30T14:52:35.0203862Z =========================================
+2026-07-30T14:52:35.0203901Z ❌ db:prepare failed (extensions or schema push)
+2026-07-30T14:52:35.0203928Z   If error is about vector extension: go to Azure Portal →
+2026-07-30T14:52:35.0203954Z   PostgreSQL server → Server parameters → azure.extensions
+2026-07-30T14:52:35.0203978Z   → add VECTOR and PG_TRGM → Save → redeploy
+2026-07-30T14:52:35.0203998Z =========================================
+2026-07-30T14:52:35.0204017Z
+2026-07-30T14:52:35.0204035Z [2/2] Starting Supervisor...
+2026-07-30T14:52:35.2119357Z 2026-07-30 14:52:35,211 INFO Included extra file "/etc/supervisor/conf.d/ledgerlm.conf" during parsing
+2026-07-30T14:52:35.2119837Z 2026-07-30 14:52:35,211 INFO Set uid to user 0 succeeded
+2026-07-30T14:52:35.2164498Z 2026-07-30 14:52:35,216 INFO RPC interface 'supervisor' initialized
+2026-07-30T14:52:35.2168122Z 2026-07-30 14:52:35,216 CRIT Server 'unix_http_server' running without any HTTP authentication checking
+2026-07-30T14:52:35.2168318Z 2026-07-30 14:52:35,216 INFO supervisord started with pid 1
+2026-07-30T14:52:36.2262414Z 2026-07-30 14:52:36,223 INFO spawned: 'nginx' with pid 125
+2026-07-30T14:52:36.228363Z 2026-07-30 14:52:36,227 INFO spawned: 'node-backend' with pid 126
+2026-07-30T14:52:36.2338481Z 2026-07-30 14:52:36,233 INFO spawned: 'python-backend' with pid 127
+2026-07-30T14:52:37.3247038Z 2026-07-30 14:52:37,324 INFO success: nginx entered RUNNING state, process has stayed up for > than 1 seconds (startsecs)
+2026-07-30T14:52:40.9224287Z WARNING:services.content_safety:Azure Content Safety not configured (AZURE_CONTENT_SAFETY_ENDPOINT / AZURE_CONTENT_SAFETY_KEY missing). Prompt screening is disabled.
+2026-07-30T14:52:41.2142388Z INFO:     Started server process [127]
+2026-07-30T14:52:41.2154521Z INFO:     Waiting for application startup.
+2026-07-30T14:52:41.2159667Z {"message": "\ud83d\udd27 Running startup calculation validation...", "service": "ledgerlm-python", "time": "2026-07-30T14:52:41", "level": "INFO", "logger": "main"}
+2026-07-30T14:52:41.2213116Z {"message": "[EntraToken] Fetching token via App Service IDENTITY_ENDPOINT...", "service": "ledgerlm-python", "time": "2026-07-30T14:52:41", "level": "INFO", "logger": "utils.entra_token"}
+2026-07-30T14:52:42.1902731Z [DB] Using Azure PostgreSQL — Microsoft Entra auth. Host: ps-genie-finance-prod.postgres.database.azure.com
+2026-07-30T14:52:42.1924168Z 2026-07-30 14:52:42,190 INFO success: python-backend entered RUNNING state, process has stayed up for > than 5 seconds (startsecs)
+2026-07-30T14:52:42.409869Z ✅ Email service configured successfully
+2026-07-30T14:52:42.40993Z    SMTP: customer@ledgerlm.ai via smtpout.secureserver.net:465
+2026-07-30T14:52:42.5019916Z ℹ️  Anaplan credentials not configured - Anaplan integration disabled
+2026-07-30T14:52:42.7814032Z 2:52:42 PM [express] ⚠️  Extension creation warning (non-fatal): db is not defined
+2026-07-30T14:52:42.781563Z 🔧 Creating scheduler_config table...
+2026-07-30T14:52:42.8143282Z {"message": "[EntraToken] Token fetched via App Service MSI. Expires in ~1440 minutes.", "service": "ledgerlm-python", "time": "2026-07-30T14:52:42", "level": "INFO", "logger": "utils.entra_token"}
+2026-07-30T14:52:42.9063128Z [EntraToken] Using App Service MSI endpoint…
+2026-07-30T14:52:42.9483972Z [EntraToken] ✅ Token fetched. Expires in ~1440 min.
+2026-07-30T14:52:44.8923967Z {"message": "Database connection failed: connection to server at \"ps-genie-finance-prod.postgres.database.azure.com\" (10.0.3.4), port 5432 failed: FATAL:  password authentication failed for user \"app-genie-finance-prod\"\n", "service": "ledgerlm-python", "time": "2026-07-30T14:52:44", "level": "ERROR", "logger": "database"}
+2026-07-30T14:52:44.8924493Z {"message": "\ud83d\udcca Database not ready yet - skipping validation (OperationalError)", "service": "ledgerlm-python", "time": "2026-07-30T14:52:44", "level": "INFO", "logger": "main"}
+2026-07-30T14:52:44.8924532Z {"message": "   System starting without validation - /health/calculations available later", "service": "ledgerlm-python", "time": "2026-07-30T14:52:44", "level": "INFO", "logger": "main"}
+2026-07-30T14:52:44.8933482Z INFO:     Application startup complete.
+2026-07-30T14:52:44.8954911Z INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+2026-07-30T14:52:44.9738498Z 🔧 Running domain enhancements migration...
+2026-07-30T14:52:44.9738498Z ❌ Failed to create scheduler_config table: error: password authentication failed for user "app-genie-finance-prod"
+2026-07-30T14:52:44.9738909Z     at /app/node_modules/pg-pool/index.js:45:11
+2026-07-30T14:52:44.9738937Z     at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2026-07-30T14:52:44.9738969Z     at async createSchedulerConfig (/app/server/migrations/create-scheduler-config.ts:9:25)
+2026-07-30T14:52:44.9738996Z     at async <anonymous> (/app/server/index.ts:266:3) {
+2026-07-30T14:52:44.9739014Z   length: 118,
+2026-07-30T14:52:44.9739035Z   severity: 'FATAL',
+2026-07-30T14:52:44.9739054Z   code: '28P01',
+2026-07-30T14:52:44.973908Z   detail: undefined,
+2026-07-30T14:52:44.9739097Z   hint: undefined,
+2026-07-30T14:52:44.9739114Z   position: undefined,
+2026-07-30T14:52:44.9739243Z   internalPosition: undefined,
+2026-07-30T14:52:44.9739262Z   internalQuery: undefined,
+2026-07-30T14:52:44.973928Z   where: undefined,
+2026-07-30T14:52:44.9739298Z   schema: undefined,
+2026-07-30T14:52:44.9739316Z   table: undefined,
+2026-07-30T14:52:44.9739334Z   column: undefined,
+2026-07-30T14:52:44.9739353Z   dataType: undefined,
+2026-07-30T14:52:44.9739371Z   constraint: undefined,
+2026-07-30T14:52:44.9739387Z   file: 'auth.c',
+2026-07-30T14:52:44.9739404Z   line: '399',
+2026-07-30T14:52:44.9739421Z   routine: 'auth_failed'
+2026-07-30T14:52:44.9739437Z }
+2026-07-30T14:52:44.9739459Z ⚠️  Server will continue, but scheduler configuration may not be available
+2026-07-30T14:52:46.9826535Z 2026-07-30 14:52:46,982 INFO success: node-backend entered RUNNING state, process has stayed up for > than 10 seconds (startsecs)
+2026-07-30T14:52:47.0167195Z ❌ Domain enhancements migration failed: error: password authentication failed for user "app-genie-finance-prod"
+2026-07-30T14:52:47.016689Z 🔧 Running kiosk tables migration...
+2026-07-30T14:52:47.0167334Z     at /app/node_modules/pg-pool/index.js:45:11
+2026-07-30T14:52:47.0167361Z     at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2026-07-30T14:52:47.0167383Z     at async runDomainEnhancementsMigration (/app/server/migrations/domain-enhancements.ts:9:5)
+2026-07-30T14:52:47.0167402Z     at async <anonymous> (/app/server/index.ts:269:3) {
+2026-07-30T14:52:47.0167418Z   length: 118,
+2026-07-30T14:52:47.0167435Z   severity: 'FATAL',
+2026-07-30T14:52:47.0167452Z   code: '28P01',
+2026-07-30T14:52:47.0167469Z   detail: undefined,
+2026-07-30T14:52:47.0167486Z   hint: undefined,
+2026-07-30T14:52:47.0167503Z   position: undefined,
+2026-07-30T14:52:47.0167525Z   internalPosition: undefined,
+2026-07-30T14:52:47.0167551Z   internalQuery: undefined,
+2026-07-30T14:52:47.0167568Z   where: undefined,
+2026-07-30T14:52:47.0167603Z   schema: undefined,
+2026-07-30T14:52:47.0167623Z   table: undefined,
+2026-07-30T14:52:47.0167642Z   column: undefined,
+2026-07-30T14:52:47.016766Z   dataType: undefined,
+2026-07-30T14:52:47.0167677Z   constraint: undefined,
+2026-07-30T14:52:47.0167695Z   file: 'auth.c',
+2026-07-30T14:52:47.0167712Z   line: '399',
+2026-07-30T14:52:47.0167732Z   routine: 'auth_failed'
+2026-07-30T14:52:47.0167748Z }
+2026-07-30T14:52:49.0582623Z ❌ Kiosk tables migration failed: password authentication failed for user "app-genie-finance-prod"
+2026-07-30T14:52:49.0611431Z /app/node_modules/pg-pool/index.js:45
+2026-07-30T14:52:49.0611766Z     Error.captureStackTrace(err)
+2026-07-30T14:52:49.0611801Z           ^
+2026-07-30T14:52:49.0611886Z
+2026-07-30T14:52:49.0611916Z error: password authentication failed for user "app-genie-finance-prod"
+2026-07-30T14:52:49.061194Z     at /app/node_modules/pg-pool/index.js:45:11
+2026-07-30T14:52:49.0611965Z     at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2026-07-30T14:52:49.0611992Z     at async createKioskTables (/app/server/migrations/create-kiosk-tables.ts:8:5)
+2026-07-30T14:52:49.0612014Z     at async <anonymous> (/app/server/index.ts:272:3) {
+2026-07-30T14:52:49.0612031Z   length: 118,
+2026-07-30T14:52:49.061205Z   severity: 'FATAL',
+2026-07-30T14:52:49.0612068Z   code: '28P01',
+2026-07-30T14:52:49.0612086Z   detail: undefined,
+2026-07-30T14:52:49.0612103Z   hint: undefined,
+2026-07-30T14:52:49.0612121Z   position: undefined,
+2026-07-30T14:52:49.0612141Z   internalPosition: undefined,
+2026-07-30T14:52:49.0612178Z   internalQuery: undefined,
+2026-07-30T14:52:49.0612197Z   where: undefined,
+2026-07-30T14:52:49.0612216Z   schema: undefined,
+2026-07-30T14:52:49.0612234Z   table: undefined,
+2026-07-30T14:52:49.0612251Z   column: undefined,
+2026-07-30T14:52:49.0612269Z   dataType: undefined,
+2026-07-30T14:52:49.0612287Z   constraint: undefined,
+2026-07-30T14:52:49.0612305Z   file: 'auth.c',
+2026-07-30T14:52:49.0612325Z   line: '399',
+2026-07-30T14:52:49.0612345Z   routine: 'auth_failed'
+2026-07-30T14:52:49.0612363Z }
+2026-07-30T14:52:49.0612378Z
+2026-07-30T14:52:49.0612396Z Node.js v20.20.1
+2026-07-30T14:52:49.0925689Z 2026-07-30 14:52:49,092 INFO exited: node-backend (exit status 1; not expected)
+2026-07-30T14:52:49.09267Z 2026-07-30 14:52:49,092 INFO reaped unknown pid 159 (exit status 0)
+2026-07-30T14:52:50.0987306Z 2026-07-30 14:52:50,097 INFO spawned: 'node-backend' with pid 170
+2026-07-30T14:52:53.3147068Z [DB] Using Azure PostgreSQL — Microsoft Entra auth. Host: ps-genie-finance-prod.postgres.database.azure.com
+2026-07-30T14:52:53.4400618Z ✅ Email service configured successfully
+2026-07-30T14:52:53.4401066Z    SMTP: customer@ledgerlm.ai via smtpout.secureserver.net:465
+2026-07-30T14:52:53.5121398Z ℹ️  Anaplan credentials not configured - Anaplan integration disabled
+2026-07-30T14:52:53.6348578Z 2:52:53 PM [express] ⚠️  Extension creation warning (non-fatal): db is not defined
+2026-07-30T14:52:53.6349121Z 🔧 Creating scheduler_config table...
+2026-07-30T14:52:53.7185077Z [EntraToken] Using App Service MSI endpoint…
+2026-07-30T14:52:53.7591545Z [EntraToken] ✅ Token fetched. Expires in ~1440 min.
+2026-07-30T14:52:55.7808679Z ❌ Failed to create scheduler_config table: error: password authentication failed for user "app-genie-finance-prod"
+2026-07-30T14:52:55.7809303Z     at /app/node_modules/pg-pool/index.js:45:11
+2026-07-30T14:52:55.7809338Z     at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2026-07-30T14:52:55.7809363Z     at async createSchedulerConfig (/app/server/migrations/create-scheduler-config.ts:9:25)
+2026-07-30T14:52:55.7809385Z     at async <anonymous> (/app/server/index.ts:266:3) {
+2026-07-30T14:52:55.7809404Z   length: 118,
+2026-07-30T14:52:55.7809423Z   severity: 'FATAL',
+2026-07-30T14:52:55.7809442Z   code: '28P01',
+2026-07-30T14:52:55.7809461Z   detail: undefined,
+2026-07-30T14:52:55.7809478Z   hint: undefined,
+2026-07-30T14:52:55.7809496Z   position: undefined,
+2026-07-30T14:52:55.7809516Z   internalPosition: undefined,
+2026-07-30T14:52:55.7809536Z   internalQuery: undefined,
+2026-07-30T14:52:55.7809557Z   where: undefined,
+2026-07-30T14:52:55.7809575Z   schema: undefined,
+2026-07-30T14:52:55.7809611Z   table: undefined,
+2026-07-30T14:52:55.7809629Z   column: undefined,
+2026-07-30T14:52:55.7809646Z   dataType: undefined,
+2026-07-30T14:52:55.7809665Z   constraint: undefined,
+2026-07-30T14:52:55.7809682Z   file: 'auth.c',
+2026-07-30T14:52:55.7809699Z   line: '399',
+2026-07-30T14:52:55.7809718Z   routine: 'auth_failed'
+2026-07-30T14:52:55.7809735Z }
+2026-07-30T14:52:55.780976Z ⚠️  Server will continue, but scheduler configuration may not be available
+2026-07-30T14:52:55.7823983Z 🔧 Running domain enhancements migration...
+2026-07-30T14:52:57.8185291Z ❌ Domain enhancements migration failed: error: password authentication failed for user "app-genie-finance-prod"
+2026-07-30T14:52:57.8185906Z     at /app/node_modules/pg-pool/index.js:45:11
+2026-07-30T14:52:57.8185936Z     at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2026-07-30T14:52:57.8185957Z     at async runDomainEnhancementsMigration (/app/server/migrations/domain-enhancements.ts:9:5)
+2026-07-30T14:52:57.8185977Z     at async <anonymous> (/app/server/index.ts:269:3) {
+2026-07-30T14:52:57.8185994Z   length: 118,
+2026-07-30T14:52:57.8186013Z   severity: 'FATAL',
+2026-07-30T14:52:57.8186033Z   code: '28P01',
+2026-07-30T14:52:57.818605Z   detail: undefined,
+2026-07-30T14:52:57.8186067Z   hint: undefined,
+2026-07-30T14:52:57.8186087Z   position: undefined,
+2026-07-30T14:52:57.8186107Z   internalPosition: undefined,
+2026-07-30T14:52:57.8186128Z   internalQuery: undefined,
+2026-07-30T14:52:57.8186147Z   where: undefined,
+2026-07-30T14:52:57.8186191Z   schema: undefined,
+2026-07-30T14:52:57.818621Z   table: undefined,
+2026-07-30T14:52:57.8186228Z   column: undefined,
+2026-07-30T14:52:57.8186245Z   dataType: undefined,
+2026-07-30T14:52:57.8186261Z   constraint: undefined,
+2026-07-30T14:52:57.8186276Z   file: 'auth.c',
+2026-07-30T14:52:57.8186292Z   line: '399',
+2026-07-30T14:52:57.8186328Z   routine: 'auth_failed'
+2026-07-30T14:52:57.8186343Z }
+2026-07-30T14:52:57.8195385Z 🔧 Running kiosk tables migration...
+2026-07-30T14:52:59.8607789Z ❌ Kiosk tables migration failed: password authentication failed for user "app-genie-finance-prod"
+2026-07-30T14:52:59.8621076Z /app/node_modules/pg-pool/index.js:45
+2026-07-30T14:52:59.8621391Z     Error.captureStackTrace(err)
+2026-07-30T14:52:59.8621423Z           ^
+2026-07-30T14:52:59.8621444Z
+2026-07-30T14:52:59.8621468Z error: password authentication failed for user "app-genie-finance-prod"
+2026-07-30T14:52:59.8621539Z     at /app/node_modules/pg-pool/index.js:45:11
+2026-07-30T14:52:59.8621828Z     at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2026-07-30T14:52:59.8621863Z     at async createKioskTables (/app/server/migrations/create-kiosk-tables.ts:8:5)
+2026-07-30T14:52:59.8621896Z     at async <anonymous> (/app/server/index.ts:272:3) {
+2026-07-30T14:52:59.8621914Z   length: 118,
+2026-07-30T14:52:59.862193Z   severity: 'FATAL',
+2026-07-30T14:52:59.8621961Z   code: '28P01',
+2026-07-30T14:52:59.862198Z   detail: undefined,
+2026-07-30T14:52:59.8622016Z   hint: undefined,
+2026-07-30T14:52:59.862204Z   position: undefined,
+2026-07-30T14:52:59.8622057Z   internalPosition: undefined,
+2026-07-30T14:52:59.8622074Z   internalQuery: undefined,
+2026-07-30T14:52:59.8622091Z   where: undefined,
+2026-07-30T14:52:59.8622108Z   schema: undefined,
+2026-07-30T14:52:59.8622124Z   table: undefined,
+2026-07-30T14:52:59.862214Z   column: undefined,
+2026-07-30T14:52:59.8622159Z   dataType: undefined,
+2026-07-30T14:52:59.8622176Z   constraint: undefined,
+2026-07-30T14:52:59.8622191Z   file: 'auth.c',
+2026-07-30T14:52:59.8622207Z   line: '399',
+2026-07-30T14:52:59.8622225Z   routine: 'auth_failed'
+2026-07-30T14:52:59.862224Z }
+2026-07-30T14:52:59.8622274Z
+2026-07-30T14:52:59.8622293Z Node.js v20.20.1
+2026-07-30T14:52:59.904177Z 2026-07-30 14:52:59,903 INFO exited: node-backend (exit status 1; not expected)
+2026-07-30T14:53:00.9070653Z 2026-07-30 14:53:00,906 INFO spawned: 'node-backend' with pid 193
+2026-07-30T14:53:04.0389158Z [DB] Using Azure PostgreSQL — Microsoft Entra auth. Host: ps-genie-finance-prod.postgres.database.azure.com
+2026-07-30T14:53:04.1563489Z ✅ Email service configured successfully
+2026-07-30T14:53:04.1564036Z    SMTP: customer@ledgerlm.ai via smtpout.secureserver.net:465
+2026-07-30T14:53:04.2101449Z ℹ️  Anaplan credentials not configured - Anaplan integration disabled
+2026-07-30T14:53:04.3112351Z 2:53:04 PM [express] ⚠️  Extension creation warning (non-fatal): db is not defined
+2026-07-30T14:53:04.3112828Z 🔧 Creating scheduler_config table...
+2026-07-30T14:53:04.3905916Z [EntraToken] Using App Service MSI endpoint…
+2026-07-30T14:53:04.4344411Z [EntraToken] ✅ Token fetched. Expires in ~1440 min.
+2026-07-30T14:53:06.4711624Z 🔧 Running domain enhancements migration...
+2026-07-30T14:53:06.4712751Z ❌ Failed to create scheduler_config table: error: password authentication failed for user "app-genie-finance-prod"
+2026-07-30T14:53:06.4712803Z     at /app/node_modules/pg-pool/index.js:45:11
+2026-07-30T14:53:06.4712831Z     at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2026-07-30T14:53:06.4712854Z     at async createSchedulerConfig (/app/server/migrations/create-scheduler-config.ts:9:25)
+2026-07-30T14:53:06.4712876Z     at async <anonymous> (/app/server/index.ts:266:3) {
+2026-07-30T14:53:06.4712896Z   length: 118,
+2026-07-30T14:53:06.4712912Z   severity: 'FATAL',
+2026-07-30T14:53:06.4712929Z   code: '28P01',
+2026-07-30T14:53:06.4712952Z   detail: undefined,
+2026-07-30T14:53:06.4712976Z   hint: undefined,
+2026-07-30T14:53:06.4713Z   position: undefined,
+2026-07-30T14:53:06.4713268Z   internalPosition: undefined,
+2026-07-30T14:53:06.4713293Z   internalQuery: undefined,
+2026-07-30T14:53:06.4713311Z   where: undefined,
+2026-07-30T14:53:06.4713329Z   schema: undefined,
+2026-07-30T14:53:06.4713347Z   table: undefined,
+2026-07-30T14:53:06.4713366Z   column: undefined,
+2026-07-30T14:53:06.4713386Z   dataType: undefined,
+2026-07-30T14:53:06.4713406Z   constraint: undefined,
+2026-07-30T14:53:06.4713427Z   file: 'auth.c',
+2026-07-30T14:53:06.4713446Z   line: '399',
+2026-07-30T14:53:06.4713467Z   routine: 'auth_failed'
+2026-07-30T14:53:06.4713486Z }
+2026-07-30T14:53:06.4713509Z ⚠️  Server will continue, but scheduler configuration may not be available
+2026-07-30T14:53:08.520128Z ❌ Domain enhancements migration failed: error: password authentication failed for user "app-genie-finance-prod"
+2026-07-30T14:53:08.5201747Z     at /app/node_modules/pg-pool/index.js:45:11
+2026-07-30T14:53:08.5201777Z     at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2026-07-30T14:53:08.5201802Z     at async runDomainEnhancementsMigration (/app/server/migrations/domain-enhancements.ts:9:5)
+2026-07-30T14:53:08.5201822Z     at async <anonymous> (/app/server/index.ts:269:3) {
+2026-07-30T14:53:08.5201839Z   length: 118,
+2026-07-30T14:53:08.5201858Z   severity: 'FATAL',
+2026-07-30T14:53:08.5201874Z   code: '28P01',
+2026-07-30T14:53:08.5201891Z   detail: undefined,
+2026-07-30T14:53:08.5201908Z   hint: undefined,
+2026-07-30T14:53:08.5201924Z   position: undefined,
+2026-07-30T14:53:08.5201943Z   internalPosition: undefined,
+2026-07-30T14:53:08.5201962Z   internalQuery: undefined,
+2026-07-30T14:53:08.5201979Z   where: undefined,
+2026-07-30T14:53:08.5202022Z   schema: undefined,
+2026-07-30T14:53:08.520204Z   table: undefined,
+2026-07-30T14:53:08.5202057Z   column: undefined,
+2026-07-30T14:53:08.5202075Z   dataType: undefined,
+2026-07-30T14:53:08.5202094Z   constraint: undefined,
+2026-07-30T14:53:08.5202112Z   file: 'auth.c',
+2026-07-30T14:53:08.5202128Z   line: '399',
+2026-07-30T14:53:08.5202144Z   routine: 'auth_failed'
+2026-07-30T14:53:08.5202161Z }
+2026-07-30T14:53:08.5221557Z 🔧 Running kiosk tables migration...
+2026-07-30T14:53:10.5657924Z ❌ Kiosk tables migration failed: password authentication failed for user "app-genie-finance-prod"
+2026-07-30T14:53:10.5675305Z /app/node_modules/pg-pool/index.js:45
+2026-07-30T14:53:10.5675481Z     Error.captureStackTrace(err)
+2026-07-30T14:53:10.5675506Z           ^
+2026-07-30T14:53:10.5675581Z
+2026-07-30T14:53:10.5675602Z error: password authentication failed for user "app-genie-finance-prod"
+2026-07-30T14:53:10.5675622Z     at /app/node_modules/pg-pool/index.js:45:11
+2026-07-30T14:53:10.5675642Z     at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2026-07-30T14:53:10.5675662Z     at async createKioskTables (/app/server/migrations/create-kiosk-tables.ts:8:5)
+2026-07-30T14:53:10.5675681Z     at async <anonymous> (/app/server/index.ts:272:3) {
+2026-07-30T14:53:10.5675698Z   length: 118,
+2026-07-30T14:53:10.5675715Z   severity: 'FATAL',
+2026-07-30T14:53:10.5675733Z   code: '28P01',
+2026-07-30T14:53:10.5675755Z   detail: undefined,
+2026-07-30T14:53:10.5675773Z   hint: undefined,
+2026-07-30T14:53:10.5675793Z   position: undefined,
+2026-07-30T14:53:10.5675811Z   internalPosition: undefined,
+2026-07-30T14:53:10.567585Z   internalQuery: undefined,
+2026-07-30T14:53:10.5675868Z   where: undefined,
+2026-07-30T14:53:10.5675885Z   schema: undefined,
+2026-07-30T14:53:10.5675902Z   table: undefined,
+2026-07-30T14:53:10.5675919Z   column: undefined,
+2026-07-30T14:53:10.5675944Z   dataType: undefined,
+2026-07-30T14:53:10.5675968Z   constraint: undefined,
+2026-07-30T14:53:10.5675992Z   file: 'auth.c',
+2026-07-30T14:53:10.5676015Z   line: '399',
+2026-07-30T14:53:10.567604Z   routine: 'auth_failed'
+2026-07-30T14:53:10.5676062Z }
+2026-07-30T14:53:10.5676084Z
+2026-07-30T14:53:10.5676106Z Node.js v20.20.1
+2026-07-30T14:53:10.608286Z 2026-07-30 14:53:10,607 INFO exited: node-backend (exit status 1; not expected)
+2026-07-30T14:53:12.6182723Z 2026-07-30 14:53:12,616 INFO spawned: 'node-backend' with pid 216
+2026-07-30T14:53:16.0482014Z [DB] Using Azure PostgreSQL — Microsoft Entra auth. Host: ps-genie-finance-prod.postgres.database.azure.com
+2026-07-30T14:53:16.1658056Z ✅ Email service configured successfully
+2026-07-30T14:53:16.165857Z    SMTP: customer@ledgerlm.ai via smtpout.secureserver.net:465
+2026-07-30T14:53:16.2174084Z ℹ️  Anaplan credentials not configured - Anaplan integration disabled
+2026-07-30T14:53:16.3252396Z 2:53:16 PM [express] ⚠️  Extension creation warning (non-fatal): db is not defined
+2026-07-30T14:53:16.325804Z 🔧 Creating scheduler_config table...
+2026-07-30T14:53:16.4092099Z [EntraToken] Using App Service MSI endpoint…
+2026-07-30T14:53:16.4520785Z [EntraToken] ✅ Token fetched. Expires in ~1439 min.
+2026-07-30T14:53:18.4733331Z 🔧 Running domain enhancements migration...
+2026-07-30T14:53:18.4735195Z ❌ Failed to create scheduler_config table: error: password authentication failed for user "app-genie-finance-prod"
+2026-07-30T14:53:18.4735437Z     at /app/node_modules/pg-pool/index.js:45:11
+2026-07-30T14:53:18.4735474Z     at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2026-07-30T14:53:18.4735501Z     at async createSchedulerConfig (/app/server/migrations/create-scheduler-config.ts:9:25)
+2026-07-30T14:53:18.4735524Z     at async <anonymous> (/app/server/index.ts:266:3) {
+2026-07-30T14:53:18.4735546Z   length: 118,
+2026-07-30T14:53:18.4735568Z   severity: 'FATAL',
+2026-07-30T14:53:18.4735589Z   code: '28P01',
+2026-07-30T14:53:18.4735608Z   detail: undefined,
+2026-07-30T14:53:18.4735633Z   hint: undefined,
+2026-07-30T14:53:18.4735654Z   position: undefined,
+2026-07-30T14:53:18.4735677Z   internalPosition: undefined,
+2026-07-30T14:53:18.4735699Z   internalQuery: undefined,
+2026-07-30T14:53:18.4735722Z   where: undefined,
+2026-07-30T14:53:18.4735744Z   schema: undefined,
+2026-07-30T14:53:18.4735787Z   table: undefined,
+2026-07-30T14:53:18.4735811Z   column: undefined,
+2026-07-30T14:53:18.4735835Z   dataType: undefined,
+2026-07-30T14:53:18.4735857Z   constraint: undefined,
+2026-07-30T14:53:18.4735877Z   file: 'auth.c',
+2026-07-30T14:53:18.4735899Z   line: '399',
+2026-07-30T14:53:18.4735926Z   routine: 'auth_failed'
+2026-07-30T14:53:18.4735949Z }
+2026-07-30T14:53:18.4735985Z ⚠️  Server will continue, but scheduler configuration may not be available
+2026-07-30T14:53:20.5177352Z ❌ Domain enhancements migration failed: error: password authentication failed for user "app-genie-finance-prod"
+2026-07-30T14:53:20.5177928Z     at /app/node_modules/pg-pool/index.js:45:11
+2026-07-30T14:53:20.5177964Z     at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2026-07-30T14:53:20.5177995Z     at async runDomainEnhancementsMigration (/app/server/migrations/domain-enhancements.ts:9:5)
+2026-07-30T14:53:20.5178121Z     at async <anonymous> (/app/server/index.ts:269:3) {
+2026-07-30T14:53:20.517814Z   length: 118,
+2026-07-30T14:53:20.5178156Z   severity: 'FATAL',
+2026-07-30T14:53:20.5178173Z   code: '28P01',
+2026-07-30T14:53:20.5178189Z   detail: undefined,
+2026-07-30T14:53:20.5178206Z   hint: undefined,
+2026-07-30T14:53:20.5178228Z   position: undefined,
+2026-07-30T14:53:20.5178246Z   internalPosition: undefined,
+2026-07-30T14:53:20.5178269Z   internalQuery: undefined,
+2026-07-30T14:53:20.5178285Z   where: undefined,
+2026-07-30T14:53:20.5178302Z   schema: undefined,
+2026-07-30T14:53:20.5178318Z   table: undefined,
+2026-07-30T14:53:20.5178336Z   column: undefined,
+2026-07-30T14:53:20.5178353Z   dataType: undefined,
+2026-07-30T14:53:20.5178392Z   constraint: undefined,
+2026-07-30T14:53:20.517841Z   file: 'auth.c',
+2026-07-30T14:53:20.5178426Z   line: '399',
+2026-07-30T14:53:20.5178445Z   routine: 'auth_failed'
+2026-07-30T14:53:20.5178462Z }
+2026-07-30T14:53:20.5190066Z 🔧 Running kiosk tables migration...
+2026-07-30T14:53:22.5568046Z ❌ Kiosk tables migration failed: password authentication failed for user "app-genie-finance-prod"
+2026-07-30T14:53:22.5590873Z /app/node_modules/pg-pool/index.js:45
+2026-07-30T14:53:22.559146Z     Error.captureStackTrace(err)
+2026-07-30T14:53:22.5591497Z           ^
+2026-07-30T14:53:22.559152Z
+2026-07-30T14:53:22.5591547Z error: password authentication failed for user "app-genie-finance-prod"
+2026-07-30T14:53:22.5591573Z     at /app/node_modules/pg-pool/index.js:45:11
+2026-07-30T14:53:22.559167Z     at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2026-07-30T14:53:22.5591697Z     at async createKioskTables (/app/server/migrations/create-kiosk-tables.ts:8:5)
+2026-07-30T14:53:22.5591719Z     at async <anonymous> (/app/server/index.ts:272:3) {
+2026-07-30T14:53:22.5591741Z   length: 118,
+2026-07-30T14:53:22.5591761Z   severity: 'FATAL',
+2026-07-30T14:53:22.5591781Z   code: '28P01',
+2026-07-30T14:53:22.5591801Z   detail: undefined,
+2026-07-30T14:53:22.5591821Z   hint: undefined,
+2026-07-30T14:53:22.5591842Z   position: undefined,
+2026-07-30T14:53:22.5591864Z   internalPosition: undefined,
+2026-07-30T14:53:22.5591886Z   internalQuery: undefined,
+2026-07-30T14:53:22.5591908Z   where: undefined,
+2026-07-30T14:53:22.5591929Z   schema: undefined,
+2026-07-30T14:53:22.5591951Z   table: undefined,
+2026-07-30T14:53:22.5591994Z   column: undefined,
+2026-07-30T14:53:22.5592016Z   dataType: undefined,
+2026-07-30T14:53:22.5592037Z   constraint: undefined,
+2026-07-30T14:53:22.5592057Z   file: 'auth.c',
+2026-07-30T14:53:22.5592075Z   line: '399',
+2026-07-30T14:53:22.5592097Z   routine: 'auth_failed'
+2026-07-30T14:53:22.5592115Z }
+2026-07-30T14:53:22.5592135Z
+2026-07-30T14:53:22.5592155Z Node.js v20.20.1
+2026-07-30T14:53:22.601727Z 2026-07-30 14:53:22,601 INFO exited: node-backend (exit status 1; not expected)
+2026-07-30T14:53:25.6171498Z 2026-07-30 14:53:25,616 INFO spawned: 'node-backend' with pid 239
+2026-07-30T14:53:28.79798Z [DB] Using Azure PostgreSQL — Microsoft Entra auth. Host: ps-genie-finance-prod.postgres.database.azure.com
+2026-07-30T14:53:28.9128559Z ✅ Email service configured successfully
+2026-07-30T14:53:28.9129117Z    SMTP: customer@ledgerlm.ai via smtpout.secureserver.net:465
+2026-07-30T14:53:28.9648116Z ℹ️  Anaplan credentials not configured - Anaplan integration disabled
+2026-07-30T14:53:29.0782402Z 2:53:29 PM [express] ⚠️  Extension creation warning (non-fatal): db is not defined
+2026-07-30T14:53:29.0785058Z 🔧 Creating scheduler_config table...
+2026-07-30T14:53:29.1522683Z [EntraToken] Using App Service MSI endpoint…
+2026-07-30T14:53:29.2021207Z [EntraToken] ✅ Token fetched. Expires in ~1439 min.
+2026-07-30T14:53:31.245482Z 🔧 Running domain enhancements migration...
+2026-07-30T14:53:31.2462314Z ❌ Failed to create scheduler_config table: error: password authentication failed for user "app-genie-finance-prod"
+2026-07-30T14:53:31.2462627Z     at /app/node_modules/pg-pool/index.js:45:11
+2026-07-30T14:53:31.2462665Z     at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2026-07-30T14:53:31.2462703Z     at async createSchedulerConfig (/app/server/migrations/create-scheduler-config.ts:9:25)
+2026-07-30T14:53:31.2462802Z     at async <anonymous> (/app/server/index.ts:266:3) {
+2026-07-30T14:53:31.246283Z   length: 118,
+2026-07-30T14:53:31.2462855Z   severity: 'FATAL',
+2026-07-30T14:53:31.2462877Z   code: '28P01',
+2026-07-30T14:53:31.2462898Z   detail: undefined,
+2026-07-30T14:53:31.2462923Z   hint: undefined,
+2026-07-30T14:53:31.2462944Z   position: undefined,
+2026-07-30T14:53:31.2462967Z   internalPosition: undefined,
+2026-07-30T14:53:31.246299Z   internalQuery: undefined,
+2026-07-30T14:53:31.2463012Z   where: undefined,
+2026-07-30T14:53:31.2463035Z   schema: undefined,
+2026-07-30T14:53:31.2463054Z   table: undefined,
+ 

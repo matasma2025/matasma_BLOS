@@ -1,0 +1,20 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "NaebAA_KjoFPi_m-mvxEi"
+uri = "file://ledgerlm/AZURE_DEPLOYMENT.md"
+type = "text"
+title = "LedgerLM — Azure Deployment Guide"
+
+[[outputs]]
+id = "rEhjrFzcluds4y0utNvST"
+uri = "file://.local/outputs/LedgerLM-Security-Architecture.pptx"
+type = "slides"
+title = "LedgerLM Security & Architecture (PPTX)"
+
+[[outputs]]
+id = "lphYBMpJWA3TXHDhmkSPX"
+uri = "file://.local/outputs/HARCODE_SQL_BGS_LLM.pptx"
+type = "slides"
+title = "HARCODE_SQL_BGS_LLM.pptx"

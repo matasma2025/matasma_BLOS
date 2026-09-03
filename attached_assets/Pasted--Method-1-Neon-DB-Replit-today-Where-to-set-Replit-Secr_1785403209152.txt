@@ -1,0 +1,113 @@
+# Method 1 — Neon DB (Replit today)
+
+Where to set: Replit → Secrets panel (left sidebar)
+
+```
+NEON_DATABASE_URL = postgres://username:password@ep-xxx.neon.tech/dbname?sslmode=require
+```
+
+| Var | Required | Notes |
+| --- | --- | --- |
+| `NEON_DATABASE_URL` | ✅ Yes | Full connection string from Neon dashboard. Already set. |
+
+> *Nothing else needed. `DB_AUTH_MODE` must not be set (or leave it empty).*
+> 
+
+---
+
+# Method 2 — Local Development
+
+Where to set: `.env` file in project root
+
+```
+DATABASE_URL = postgresql://postgres:yourpassword@localhost:5432/ledgerlm_db
+```
+
+| Var | Required | Notes |
+| --- | --- | --- |
+| `DATABASE_URL` | ✅ Yes | Must include `localhost` or `127.0.0.1` — app disables SSL automatically |
+
+> *Nothing else needed. `DB_AUTH_MODE` must not be set.*
+> 
+
+---
+
+# Method 3 — Azure PostgreSQL — Password Only
+
+Where to set: Azure Portal → App Service → Configuration → Application Settings
+
+```
+DB_AUTH_MODE  = postgres-azure
+DB_HOST       = ps-ledgerlm-qg.postgres.database.azure.com
+DB_NAME       = LedgerLM_db
+DB_USER       = ledgerlm_admin
+DB_PASSWORD   = <your postgres password>
+```
+
+| Var | Required | Notes |
+| --- | --- | --- |
+| `DB_AUTH_MODE` | ✅ Yes | Must be exactly `postgres-azure` |
+| `DB_HOST` | ✅ Yes | Full Azure Postgres hostname |
+| `DB_NAME` | ✅ Yes | Database name |
+| `DB_USER` | ✅ Yes | Postgres username |
+| `DB_PASSWORD` | ✅ Yes | Postgres password — store as a secret |
+
+> *SSL is forced on automatically. No token, no Managed Identity needed.*
+> 
+
+---
+
+# Method 4 — Azure PostgreSQL — Microsoft Entra Only
+
+Where to set: Azure Portal → App Service → Configuration → Application Settings
+
+```
+DB_AUTH_MODE  = entra
+DB_HOST       = ps-ledgerlm-qg.postgres.database.azure.com
+DB_NAME       = LedgerLM_db
+DB_USER       = ledgerlm-mi@bosch.onmicrosoft.com
+```
+
+| Var | Required | Notes |
+| --- | --- | --- |
+| `DB_AUTH_MODE` | ✅ Yes | Must be exactly `entra` |
+| `DB_HOST` | ✅ Yes | Full Azure Postgres hostname |
+| `DB_NAME` | ✅ Yes | Database name |
+| `DB_USER` | ✅ Yes | The Entra UPN registered as admin in Postgres (not a normal password username) |
+| `DB_PASSWORD` | ❌ Not needed | Token is fetched automatically from Azure IMDS |
+
+> *Prerequisite on Azure side: App Service must have a System-assigned Managed Identity enabled, and that identity must be added as a PostgreSQL admin in the Postgres server's Authentication panel.*
+> 
+
+---
+
+# Method 5 — Azure PostgreSQL — Entra + Password (Hybrid)
+
+Where to set: Azure Portal → App Service → Configuration → Application Settings
+
+```
+DB_AUTH_MODE  = hybrid
+DB_HOST       = ps-ledgerlm-qg.postgres.database.azure.com
+DB_NAME       = LedgerLM_db
+DB_USER       = ledgerlm-mi@bosch.onmicrosoft.com
+```
+
+| Var | Required | Notes |
+| --- | --- | --- |
+| `DB_AUTH_MODE` | ✅ Yes | Must be exactly `hybrid` |
+| `DB_HOST` | ✅ Yes | Full Azure Postgres hostname |
+| `DB_NAME` | ✅ Yes | Database name |
+| `DB_USER` | ✅ Yes | Entra UPN (app always uses Entra token; Postgres just accepts both) |
+| `DB_PASSWORD` | ❌ Not needed | App uses Entra token — password auth is only the Postgres server's fallback |
+
+---
+
+# Quick Reference Card
+
+| Method | `DB_AUTH_MODE` | `NEON_DATABASE_URL` | `DB_HOST` | `DB_USER` | `DB_NAME` | `DB_PASSWORD` |
+| --- | --- | --- | --- | --- | --- | --- |
+| Replit / Neon | *(not set)* | ✅ | — | — | — | — |
+| Local dev | *(not set)* | ✅ `DATABASE_URL` | — | — | — | — |
+| Azure Password | `postgres-azure` | — | ✅ | ✅ | ✅ | ✅ |
+| Azure Entra only | `entra` | — | ✅ | ✅ | ✅ | ❌ |
+| Azure Entra+PW | `hybrid` | — | ✅ |  |  |  |

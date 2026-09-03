@@ -1,0 +1,59 @@
+1:53:39 PM [express] serving on port 5000
+Starting Python backend on port 8000...
+Python backend process spawned
+[Python Backend] Traceback (most recent call last):
+[Python Backend] File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "C:\Users\Rahitha\.conda\envs\005_26052026_1312_LedgerLM_Bosch\Lib\site-packages\uvicorn\__main__.py", line 4, in <module>
+[Python Backend] uvicorn.main()
+[Python Backend] File "C:\Users\Rahitha\.conda\envs\005_26052026_1312_LedgerLM_Bosch\Lib\site-packages\click\core.py", line 1524, in __call__
+[Python Backend] return self.main(*args, **kwargs)
+[Python Backend] ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Rahitha\.conda\envs\005_26052026_1312_LedgerLM_Bosch\Lib\site-packages\click\core.py", line 1445, in main
+[Python Backend] rv = self.invoke(ctx)
+         ^^^^^^^^^^^^^^^^
+  File "C:\Users\Rahitha\.conda\envs\005_26052026_1312_LedgerLM_Bosch\Lib\site-packages\click\core.py", line 1308, in invoke
+[Python Backend] return ctx.invoke(self.callback, **ctx.params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Rahitha\.conda\envs\005_26052026_1312_LedgerLM_Bosch\Lib\site-packages\click\core.py", line 877, in invoke
+    return callback(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+[Python Backend] File "C:\Users\Rahitha\.conda\envs\005_26052026_1312_LedgerLM_Bosch\Lib\site-packages\uvicorn\main.py", line 416, in main
+[Python Backend] run(
+  File "C:\Users\Rahitha\.conda\envs\005_26052026_1312_LedgerLM_Bosch\Lib\site-packages\uvicorn\main.py", line 587, in run
+[Python Backend] server.run()
+  File "C:\Users\Rahitha\.conda\envs\005_26052026_1312_LedgerLM_Bosch\Lib\site-packages\uvicorn\server.py", line 61, in run
+[Python Backend] return asyncio.run(self.serve(sockets=sockets))
+[Python Backend] ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Rahitha\.conda\envs\005_26052026_1312_LedgerLM_Bosch\Lib\asyncio\runners.py", line 190, in run
+[Python Backend] return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "C:\Users\Rahitha\.conda\envs\005_26052026_1312_LedgerLM_Bosch\Lib\asyncio\runners.py", line 118, in run
+[Python Backend] return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Rahitha\.conda\envs\005_26052026_1312_LedgerLM_Bosch\Lib\asyncio\base_events.py", line 654, in run_until_complete
+[Python Backend] return future.result()
+[Python Backend] ^^^^^^^^^^^^^^^
+  File "C:\Users\Rahitha\.conda\envs\005_26052026_1312_LedgerLM_Bosch\Lib\site-packages\uvicorn\server.py", line 68, in serve
+    config.load()
+  File "C:\Users\Rahitha\.conda\envs\005_26052026_1312_LedgerLM_Bosch\Lib\site-packages\uvicorn\config.py", line 467, in load
+[Python Backend] self.loaded_app = import_from_string(self.app)
+[Python Backend] ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Rahitha\.conda\envs\005_26052026_1312_LedgerLM_Bosch\Lib\site-packages\uvicorn\importer.py", line 24, in import_from_string
+[Python Backend] raise exc from None
+[Python Backend] File "C:\Users\Rahitha\.conda\envs\005_26052026_1312_LedgerLM_Bosch\Lib\site-packages\uvicorn\importer.py", line 21, in import_from_string
+[Python Backend] module = importlib.import_module(module_str)
+[Python Backend] ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Rahitha\.conda\envs\005_26052026_1312_LedgerLM_Bosch\Lib\importlib\__init__.py", line 126, in import_module
+[Python Backend] return _bootstrap._gcd_import(name[level:], package, level)
+[Python Backend] ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1204, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1176, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1147, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 690, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 940, in exec_module
+  File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+  File "C:\Users\Rahitha\OneDrive - Matasma Digital Technologies LLP\Desktop\08 Ledgerlm\08.05 LedgerLM_Final\005_26052026_1312_LedgerLM_Bosch\zip_2605\python_backend\main.py", line 16, in <module>
+[Python Backend] from pythonjsonlogger.jsonlogger import JsonFormatter
+ModuleNotFoundError: No module named 'pythonjsonlogger'
+Python backend exited with code 1

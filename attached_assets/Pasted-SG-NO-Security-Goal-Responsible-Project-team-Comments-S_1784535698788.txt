@@ -1,0 +1,77 @@
+SG NO	Security Goal	Responsible 	Project team Comments
+SG-14	Key Vault - Secrets and keys shall not be hardcoded in the application.	Samritha/Rahitha 	Implemented
+SG-23	Web Application - Secure certificate handling mechanisms shall be implemented for the web application.	Samritha/Rahitha 	"Inprogress - SSL/TLS certificates will be securely managed through Azure Key 
+Matasma Digital Technologies – BOSCH_CS Activities_Tracker 
+Vault. HTTPS-only communication is enforced for the web application. 
+Certificates and private keys are not stored in application code or repositories 
+and are accessible only through authorized identities. Certificate validation is 
+enabled for all secure communications."
+SG-24	Security event log records shall be transferred to a central log server and the log records must be kept for 180 days for analysis of security incidents by Bosch CERT.	Samritha/Rahitha 	Implemented. Waiting for the central logs server access & Documents
+SG-25	Communication Channel - All communication with the web application shall be encrypted.	Samritha/Rahitha 	"Implemented using SSL , Please let us know if there other things that we need 
+provide"
+SG-34	Web Application - Single Sign-On (SSO) shall be implemented for secure user authentication.	Samritha/Rahitha 	"SSO implemented.(One IDM Access is pending and Role Based Mechanism is 
+yet to implemented post connect with Manasa from 
+Bosch) "
+SG-36	Web Application - Separate environments/instances shall be maintained for Development, Testing/UAT, and Production.	Samritha/Rahitha 	Implemented for Development and UAT;  Production – yet to Start 
+SG-37	Web Application - Audit trails and system logging shall be enabled to ensure monitoring and traceability.	Samritha/Rahitha 	"Implemented as per Development Perspective. If there is any specific audit and 
+logs require please shares the Requirement . Waiting for the central log server 
+access."
+SG-38	Web Application - Role-Based Access Control (RBAC) shall be implemented to restrict access based on user roles and responsibilities.	Samritha/Rahitha 	"Implemented SSO. The role-based access will be integrated once the OneIDM 
+integration is done and the documentation for the role attributes from One IDM 
+Team is provided"
+SG-39	Web Application - Secure session management mechanisms, including automatic session expiration and user logout controls, shall be implemented.	Samritha/Rahitha 	Implemented for 15 mins session timeout 
+SG-40	Web Application - Input validation mechanisms shall be implemented to prevent data tampering and unauthorized changes.	Samritha/Rahitha 	Implemented – Testing from our end 
+SG-41	Web Application - The application shall prevent common web application vulnerabilities such as SQL Injection, Cross-Site Scripting (XSS), and Cross-Site Request Forgery (CSRF).	Samritha/Rahitha 	In progress 
+SG-42	Open AI Service - Bosch data should not be used for AI model training.	Samritha/Rahitha 	Using Bosch Environment Azure Open AI Models
+SG-43	Web application - Implement secure file upload controls, including file type validation, malware scanning, file size restrictions to prevent malicious uploads.	Samritha/Rahitha 	In Progress – testing From Our end 
+SG-44	The AI/LLM-based application shall be designed, implemented, and operated in alignment with OWASP Top 10 security principles for LLM applications to prevent unauthorized access, prompt injection, sensitive data exposure, insecure tool usage, excessive autonomy, supply-chain risks, and other AI-specific threats.	Samritha/Rahitha 	"Implemented. The AI application follows OWASP Top 10 for LLM security. 
+Controls include SSO authentication, RBAC authorization, prompt validation, 
+input/output filtering, secure API access, Azure OpenAI content filtering, logging 
+and monitoring, and restricted access to backend tools and data sources."
+SG-45	Only approved and licensed third-party software/tools shall be installed.	Samritha/Rahitha 	Implemented. Only SSO is integrated through Microsoft Entra ID. 
+SG-46	Installation packages shall be obtained from trusted and verified sources.	Samritha/Rahitha 	"Implemented. Installed from trusted sources. Please share us the Bosch trusted 
+Sources – so we can take that for remediating while developing - Working on 
+vulnerabilities checks of packages "
+SG-47	Installed software shall be scanned for malware/vulnerabilities before deployment where applicable.	Samritha/Rahitha 	Implemented. The docker image of the app will be scanned for Vulnerabilities before deployment in UAT
+SG-50	Open AI Service - Filter all user prompts provided to the model to prevent the injections attacks.	Samritha/Rahitha 	"Implemented. User prompts are validated and filtered before being sent to Azure 
+OpenAI. Prompt injection protection is enforced through input validation, Azure 
+AI Content Safety/Prompt Shields, RBAC controls, and monitoring of AI 
+interactions. System prompts, application instructions, and sensitive 
+information are protected from unauthorized disclosure."
+SG-51	Open AI Service - Ensure that Azure OpenAI provides accurate, unmanipulated, and reliable outputs aligned with business and compliance expectations	Samritha/Rahitha 	Implemented Guardrails to prevent hallucinations
+SG-53	Open AI Service - Logging and monitoring shall be implemented on LLM interactions (inputs/outputs) to detect and analyze potential prompt injections.	Samritha/Rahitha 	Implemented. Waiting for the central logs server access. 
+SG-54	Open AI Service - Azure Guardrails must be implemented to protect against attacks.	Samritha/Rahitha 	Testing in Progress
+SG-60	Restful APIs - Enforce secure authentication and authorization mechanisms.	Samritha/Rahitha 	Implemented SSO, Azure Blob integrations and Azure Open AI
+SG-61	Restful APIs - All API communications shall be protected using HTTPS/TLS 1.2 or higher.	Samritha/Rahitha 	"Development completed. All REST API endpoints are designed to use HTTPS with 
+TLS 1.2 or higher. HTTPS enforcement and certificate configuration will be 
+enabled during deployment. Evidence will be provided post-deployment. "
+SG-62	Restful APIs - Rate limiting and throttling controls shall be implemented to prevent abuse and denial-of-service attacks.	Samritha/Rahitha 	"Implemented. Rate limiting and throttling controls are enforced to prevent 
+abuse, excessive API consumption, and denial-of-service attacks. API requests 
+exceeding configured thresholds are automatically restricted and monitored. "
+SG-63	Restful APIs - Input validation and output sanitization shall be implemented to prevent API-based attacks.	Samritha/Rahitha 	In Progress
+SG-64	Restful APIs - API requests and responses shall be logged and monitored for security and traceability purposes.	Samritha/Rahitha 	Implemented. Waiting for the central logs server access.
+SG-65	Restful APIs - API keys, tokens, and credentials shall be securely stored and managed in Azure Key Vault.	Samritha/Rahitha 	Implemented
+SG-69	Users from unauthorized or external entities shall be restricted from accessing the application.	Samritha/Rahitha 	Implemented. SSO is enabled 
+SG-70	Container images shall be scanned for vulnerabilities, malware, and outdated packages before deployment.	Samritha/Rahitha 	"For dev and UAT: Implemented. Each image pushed to container is scanned for 
+vulnerabilities.  
+For prod: Need to implement"
+SG-73	Application dependencies should be scanned for known CVEs.	Samritha/Rahitha/tejas	"Before Pulling an images - As developers - will do basic scanning 
+
+post that Azure should be done by Bosch Azure Team"
+SG-74	Static code analysis has to be conducted to identify security vulnerabilities.	Samritha/Rahitha 	In progress 
+SG-75	Open AI Service - Only approved models listed in the organization’s approved AI catalog shall be used.	Samritha/Rahitha 	Implemented 
+SG-76	Application development shall adhere to secure coding standards.	Samritha/Rahitha 	"Development completed. Application development follows secure coding 
+standards including input validation, output sanitization, secure authentication 
+and authorization, secure secret management through Azure Key Vault, 
+protection against OWASP Top 10 vulnerabilities, secure error handling, and 
+encrypted communication using HTTPS/TLS. "
+SG-77	Cryptographic materials, including keys that are no longer required, shall be securely deleted or destroyed in accordance with security standards and retention requirements.	Samritha/Rahitha 	Implemented to deleted keys safely and also the expired ones.
+SG-78	Unsupported or end-of-life software shall not be used in production environments.	Samritha/Rahitha 	Implemented 
+SG-79	Access to install or modify software shall be restricted to authorized personnel only.	Samritha/Rahitha 	"Implemented and deployment is in progress. Role based access is implemented 
+needs to automated using the OneIDM integration. "
+SG-80	Authentication Data - SSO token generated to be secured in transit and at rest, the same to be session based token.	Samritha/Rahitha 	Implemented SSO. 
+SG-81	Self-assessments must be performed before go-live.	Samritha/Rahitha 	In progress 
+SG-82	Authentication Data - Avoid sending sensitive data in GET requests. For sensitive data, use POST requests, as the body is not exposed in the URL.	Samritha/Rahitha 	Implemented - Testing is in progress
+SG-83	Authorization Management Concept should be documented.	Samritha/Rahitha/Tejas	In Progress
+SG-84	Tokens should be short-lived to reduce security risk.	Samritha/Rahitha 	Implemented. Session time out for 15 minutes 
+SG-85	Session cookies should be Secure, HttpOnly. Do not store it in browser localStorage or sessionStorage.	Samritha/Rahitha 	mplement – Will Confirm Back after Testing 

@@ -1,0 +1,65 @@
+Builder-by-builder assessment
+TIER 1 — Multi-CTE JOIN builders: BROKEN ❌
+
+These have separate CTEs for revenue and capacity that are JOINed together. If year is not in the JOIN condition, you get a cartesian product (same 4-rows-instead-of-2 bug, but across years instead of months).
+
+Builder	Bug	Severity
+_build_budget_per_avg_capacity_entity_sql	Window PARTITION has no year; Jan 2025 capacity row and Jan 2026 capacity row get mixed in cumulative sum	Critical
+_build_budget_per_avg_capacity_ww_sql	JOIN on first_col only — if first col is region_entity not year, produces 4 rows; even if it hits year first, the capacity YTD mixes both years in the window	High
+_build_budget_per_capacity_sql	JOIN is hardcoded r.region_entity = c.region_entity — no year — cartesian product	High
+TIER 2 — Single-scan builders: SAFE ✅
+
+These are a single SELECT ... FROM cube_fact_data WHERE ... GROUP BY year, entity — year already isolates each row correctly. max_month = 3 is the same for both 2025 and 2026 when comparing the same month, so division is correct.
+
+Builder	Why safe
+_build_attrition_pct_sql	Uses COUNT(DISTINCT month) dynamically — self-correcting divisor, no JOIN
+_build_internal_capacity_mix_sql	Single scan, GROUP BY includes year, ratio cancels the divisor anyway
+_build_external_capacity_mix_sql	Same
+_build_total_capacity_avg_sql	Single scan, year in GROUP BY
+_build_offshore_capacity_avg_sql	Single scan
+_build_outsourcing_capacity_avg_sql	Single scan
+_build_pyramid_mix_sql	Single scan
+TIER 3 — No YTD logic at all: SAFE ✅
+
+Builder	Why safe
+_build_billing_utilization_sql	No YTD expansion — direct WHERE passthrough
+_build_sx/ms_internal_utilization_sql	Same
+_build_sx/ms_outsourcing_utilization_sql	Same
+_build_revenue_sql	Simple SUM aggregation
+_build_ebit_sql / _build_gross_margin_sql	Simple aggregations
+Solution for the 3 broken builders
+Same fix pattern for all three:
+
+Step 1 — Detect is_multi_year
+
+is_multi_year = 'year' in _group_cols
+
+Checked from group_by_clause (same technique as is_multi_month).
+
+Step 2 — _build_budget_per_avg_capacity_entity_sql
+Add a new is_multi_year path (alongside the existing is_multi_month path). In this path:
+
+Window function: PARTITION BY year, {entity_col} ORDER BY month::int so each year's running sum stays isolated
+JOIN: r.{entity_col} = o.{entity_col} AND r.year = o.year AND r.month::int = o.month_count
+Revenue and capacity CTEs: both use original year IN (2025,2026) AND month = 3 (no YTD expansion needed — same month, different years)
+SELECT: includes both r.year and r.{entity_col}
+Step 3 — _build_budget_per_capacity_sql
+Fix the JOIN from r.region_entity = c.region_entity to also include year when is_multi_year:
+
+r.region_entity = c.region_entity AND r.year = c.year
+SELECT: add r.year to output columns
+Step 4 — _build_budget_per_avg_capacity_ww_sql
+Same fix as entity builder's is_multi_year path (WW builder already has the first-col-only JOIN bug too — fix both at once).
+
+Risks
+Risk	Likelihood	Mitigation
+is_multi_year fires for single-year queries if year is always in GROUP BY	Medium — year is often in GROUP BY even for single-year queries	Detect by checking if the WHERE has year IN (x,y) (multi-value) vs year = x (single value), not just checking group_by
+Non-contiguous cross-year months (Mar 2025 + Jun 2026)	Low — uncommon query	Out of scope — document as not supported; the intent parser likely won't generate this form
+_build_budget_per_avg_capacity_entity_sql already has is_multi_month — combined is_multi_month AND is_multi_year case	Low — very unusual query	Add a combined guard: is_multi_month or is_multi_year routes to the window path; window PARTITION uses all available time grouping columns
+Regression on existing single-year queries	Medium	The guard condition checks for multi-value year filter, so single-year queries are untouched
+Scope summary
+3 builders need code changes (all are Budget / Capacity metric family)
+12+ builders are already correct for cross-year comparison
+Key technique: detect multi-value year filter to gate the fix (not just group_by presence)
+Out of scope: non-contiguous cross-year-month queries (e.g., Mar 2025 + Jun 2026) — these require a full redesign of the intent layer
+Approve and I'll implement all 3 builders with the detection logic and tests.

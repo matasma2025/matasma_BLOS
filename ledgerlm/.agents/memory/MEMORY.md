@@ -1,0 +1,1 @@
+- [queryContext follow-up architecture](querycontext-followups.md) — structured_query from Python saved in msg metadata; follow-ups skip LLM re-parse via pre-parsed context

@@ -1,0 +1,138 @@
+Updated chat title to: Compare the Revenue of BGSW for feb 2025 and fe...
+🔍 User boschmatasma@in.bosch.com has access to 2 cubes (2 total, filtered by preferences). Metadata loaded for 0 cubes.
+🔍 Semantic SQL enabled for 2 cubes: Bosch testing - KPI_2026 (in.bosch.com), Bosch testing - KPI (in.bosch.com)
+🔍 Semantic SQL query for cube Bosch testing - KPI_2026 (bda96aeb-284b-4447-bec0-174a9d5b2f52) domain in.bosch.com: "Compare the Revenue of BGSW for feb 2025 and feb 2026"
+🔍 Semantic SQL query for cube Bosch testing - KPI (e2eb7941-1d18-4e63-9ae8-f3180601f67b) domain in.bosch.com: "Compare the Revenue of BGSW for feb 2025 and feb 2026"
+🔍 Enterprise ENABLED - sending company_ids to Python: ["002cf1d1-e03d-4ea0-9af5-15f2d0531243"]
+🔍 Cube filtering ENABLED - sending 2 cube_ids to Python
+📤 RAG request for user 888e0809-e8ed-46c7-a5be-2ddec902aa80: {
+  enterpriseEnabled: true,
+  hasCompanyIds: true,
+  companyIdsCount: 1,
+  hasCubeIds: true,
+  cubeIdsCount: 2,
+  personalDocsCount: 0
+}
+[Python Backend] INFO:api.routes.semantic_sql:Intent check: domain=in.bosch.com, is_nemko=False, cube_id=bda96aeb-284b-4447-bec0-174a9d5b2f52, row_count=833742
+[Python Backend] INFO:services.semantic_sql_service:Detected entity filters from query: [{'column': 'region_entity', 'operator': '=', 'value': 'BGSW', 'matched_term': 'bgsw'}]
+[Python Backend] INFO:services.semantic_sql_service:Using dynamic schema context for cube bda96aeb-284b-4447-bec0-174a9d5b2f52
+[Python Backend] INFO:services.semantic_sql_service:FAST PATH: Entity budget/revenue query detected (no calc matched, entity present), routing as revenue with entity filter
+[Python Backend] INFO:services.semantic_sql_service:Built fast KPI intent: year=[2025], month=[2], group_by=['region_entity']
+[Python Backend] INFO:services.semantic_sql_service:Time scope 'specific': Skipping default time filter
+[Python Backend] INFO:     127.0.0.1:63670 - "POST /api/v2/semantic-sql/intent HTTP/1.1" 200 OK
+[Python Backend] INFO:api.routes.semantic_sql:Intent check: domain=in.bosch.com, is_nemko=False, cube_id=e2eb7941-1d18-4e63-9ae8-f3180601f67b, row_count=1672154
+[Python Backend] INFO:services.semantic_sql_service:Detected entity filters from query: [{'column': 'region_entity', 'operator': '=', 'value': 'BGSW', 'matched_term': 'bgsw'}]
+[Python Backend] INFO:services.semantic_sql_service:Using dynamic schema context for cube e2eb7941-1d18-4e63-9ae8-f3180601f67b
+[Python Backend] INFO:services.semantic_sql_service:FAST PATH: Entity budget/revenue query detected (no calc matched, entity present), routing as revenue with entity filter
+[Python Backend] INFO:services.semantic_sql_service:Built fast KPI intent: year=[2025], month=[2], group_by=['region_entity']
+INFO:services.semantic_sql_service:Time scope 'specific': Skipping default time filter
+[Python Backend] INFO:     127.0.0.1:63671 - "POST /api/v2/semantic-sql/intent HTTP/1.1" 200 OK
+[Python Backend] C:\Users\SamrithaS\anaconda3\envs\047_LedgerLMBosch_2105_2027\Lib\site-packages\urllib3\connectionpool.py:1110: InsecureRequestWarning: Unverified HTTPS request is being made to host 'ollama.ledgerlm.ai'. Adding certificate verification is strongly advised. See: https://urllib3.readthedocs.io/en/latest/advanced-usage.html#tls-warnings
+  warnings.warn(
+[Python Backend] INFO:api.routes.rag:Query embedded: 1024-dim vector (provider: ollama)
+[Python Backend] INFO:database:No document IDs provided - returning empty results (not searching all documents)
+[Python Backend] INFO:api.routes.rag:get_enterprise_chunks called with company_ids: ['002cf1d1-e03d-4ea0-9af5-15f2d0531243'], cube_ids: ['bda96aeb-284b-4447-bec0-174a9d5b2f52', 'e2eb7941-1d18-4e63-9ae8-f3180601f67b'], user_id: 888e0809-e8ed-46c7-a5be-2ddec902aa80, embedding_col: embedding
+[Python Backend] INFO:api.routes.rag:\U0001f512 Cube filtering ENABLED - querying only from 2 accessible cubes via embedding
+[Python Backend] INFO:api.routes.rag:get_enterprise_chunks returning 0 chunks for company_ids: ['002cf1d1-e03d-4ea0-9af5-15f2d0531243']
+[Python Backend] INFO:     127.0.0.1:63674 - "POST /api/v2/rag/query HTTP/1.1" 200 OK
+[Python Backend] INFO:     127.0.0.1:63690 - "POST /api/v2/semantic-sql/available-periods HTTP/1.1" 200 OK
+[Python Backend] INFO:api.routes.semantic_sql:Executing structured query for cube e2eb7941-1d18-4e63-9ae8-f3180601f67b
+INFO:services.semantic_sql_service:Plan type detection: is_plan=False, plan_type=None, page=None, particulars=None, year=2025, month=2
+INFO:services.semantic_sql_service:compile_sql: domain='in.bosch.com', is_nemko=False, use_calculation='revenue'
+INFO:services.semantic_sql_service:compile_sql: use_calculation='revenue' pre-set in intent, dispatching directly to compile_calculation_sql (bypassing LLM routing)
+INFO:services.semantic_sql_service:_inject_time_from_query: upgraded single year= to year IN [2025, 2026] (query has multiple years)
+[Python Backend] INFO:services.semantic_sql_service:[DB-LOOKUP] Starting DB lookup for calc='revenue', cube_id=e2eb7941-1d18-4e63-9ae8-f3180601f67b
+[Python Backend] INFO:services.semantic_sql_service:[DB-LOOKUP] Candidates to try: ['revenue']
+[Python Backend] INFO:services.semantic_sql_service:[DB-LOOKUP] Result: GB P&L Revenue | has_template=False | db_error=None
+[Python Backend] INFO:services.semantic_sql_service:[DB-TEMPLATE] calc_rule found for 'GB P&L Revenue' but sql_template is empty. Falling back to Python builders.
+INFO:services.semantic_sql_service:Bare 'P&L revenue' \u2192 defaulting to GB P&L revenue
+[Python Backend] INFO:services.semantic_sql_service:Generated GB P&L Revenue SQL (MTD month='2', multi_month=False, multi_entity=False, month_breakdown=False, col=amount_usd, alias=pl_revenue, excl order_reason+GL139)
+[Python Backend] INFO:api.routes.semantic_sql:
+============================================================
+[SQL_EXEC] metric     = gb_pl_revenue
+[SQL_EXEC] params     = []
+[SQL_EXEC] sql        =
+ 
+                    SELECT
+                        'BGSW'                                                    AS region_entity,
+                        ROUND((SUM(amount_usd) / 1000000.0)::numeric, 2) AS pl_revenue
+                    FROM cube_fact_data
+                    WHERE cube_id = 'e2eb7941-1d18-4e63-9ae8-f3180601f67b' AND year IN (2025, 2026) AND month = 2 AND region_entity = 'BGSW'
+                      AND cost_category = 'Revenue Summary'
+                      AND COALESCE(TRIM(order_reason), 'x') NOT IN ('YEH','YEI','YEJ','YEK','YN2')
+                      AND NOT starts_with(COALESCE(TRIM(gl_account), 'x'), '139')
+ 
+============================================================
+[Python Backend] INFO:api.routes.semantic_sql:[SQL_RESULT] metric=gb_pl_revenue | rows=1 | time=125ms
+[Python Backend] INFO:api.routes.semantic_sql:Fact data only: 1 rows
+[Python Backend] INFO:     127.0.0.1:63670 - "POST /api/v2/semantic-sql/query HTTP/1.1" 200 OK
+[Python Backend] INFO:api.routes.semantic_sql:Executing structured query for cube bda96aeb-284b-4447-bec0-174a9d5b2f52
+[Python Backend] INFO:services.semantic_sql_service:Plan type detection: is_plan=False, plan_type=None, page=None, particulars=None, year=2025, month=2
+INFO:services.semantic_sql_service:compile_sql: domain='in.bosch.com', is_nemko=False, use_calculation='revenue'
+INFO:services.semantic_sql_service:compile_sql: use_calculation='revenue' pre-set in intent, dispatching directly to compile_calculation_sql (bypassing LLM routing)
+[Python Backend] INFO:services.semantic_sql_service:_inject_time_from_query: upgraded single year= to year IN [2025, 2026] (query has multiple years)
+INFO:services.semantic_sql_service:[DB-LOOKUP] Starting DB lookup for calc='revenue', cube_id=bda96aeb-284b-4447-bec0-174a9d5b2f52
+[Python Backend] INFO:services.semantic_sql_service:[DB-LOOKUP] Candidates to try: ['revenue']
+[Python Backend] INFO:services.semantic_sql_service:[DB-LOOKUP] Result: GB P&L Revenue | has_template=False | db_error=None
+INFO:services.semantic_sql_service:[DB-TEMPLATE] calc_rule found for 'GB P&L Revenue' but sql_template is empty. Falling back to Python builders.
+[Python Backend] INFO:services.semantic_sql_service:Bare 'P&L revenue' \u2192 defaulting to GB P&L revenue
+INFO:services.semantic_sql_service:Generated GB P&L Revenue SQL (MTD month='2', multi_month=False, multi_entity=False, month_breakdown=False, col=amount_usd, alias=pl_revenue, excl order_reason+GL139)
+INFO:api.routes.semantic_sql:
+============================================================
+[SQL_EXEC] metric     = gb_pl_revenue
+[SQL_EXEC] params     = []
+[SQL_EXEC] sql        =
+ 
+                    SELECT
+                        'BGSW'                                                    AS region_entity,
+                        ROUND((SUM(amount_usd) / 1000000.0)::numeric, 2) AS pl_revenue
+                    FROM cube_fact_data
+                    WHERE cube_id = 'bda96aeb-284b-4447-bec0-174a9d5b2f52' AND year IN (2025, 2026) AND month = 2 AND region_entity = 'BGSW'
+                      AND cost_category = 'Revenue Summary'
+                      AND COALESCE(TRIM(order_reason), 'x') NOT IN ('YEH','YEI','YEJ','YEK','YN2')
+                      AND NOT starts_with(COALESCE(TRIM(gl_account), 'x'), '139')
+ 
+============================================================
+[Python Backend] INFO:api.routes.semantic_sql:[SQL_RESULT] metric=gb_pl_revenue | rows=1 | time=85ms
+[Python Backend] INFO:api.routes.semantic_sql:Fact data only: 1 rows
+[Python Backend] INFO:     127.0.0.1:63691 - "POST /api/v2/semantic-sql/query HTTP/1.1" 200 OK
+✅ Semantic SQL returned 1 rows from Bosch testing - KPI_2026
+[Python Backend] INFO:     127.0.0.1:63705 - "POST /api/v2/semantic-sql/available-periods HTTP/1.1" 200 OK
+📊 Running comparison query for Bosch testing - KPI: January 2025
+[Python Backend] INFO:api.routes.semantic_sql:Executing structured query for cube e2eb7941-1d18-4e63-9ae8-f3180601f67b
+[Python Backend] INFO:services.semantic_sql_service:Plan type detection: is_plan=False, plan_type=None, page=None, particulars=None, year=2025, month=2
+INFO:services.semantic_sql_service:compile_sql: domain='in.bosch.com', is_nemko=False, use_calculation='revenue'
+INFO:services.semantic_sql_service:compile_sql: use_calculation='revenue' pre-set in intent, dispatching directly to compile_calculation_sql (bypassing LLM routing)
+INFO:services.semantic_sql_service:_inject_time_from_query: upgraded single year= to year IN [2025, 2026] (query has multiple years)
+[Python Backend] INFO:services.semantic_sql_service:[DB-LOOKUP] Starting DB lookup for calc='revenue', cube_id=e2eb7941-1d18-4e63-9ae8-f3180601f67b
+[Python Backend] INFO:services.semantic_sql_service:[DB-LOOKUP] Candidates to try: ['revenue']
+[Python Backend] INFO:services.semantic_sql_service:[DB-LOOKUP] Result: GB P&L Revenue | has_template=False | db_error=None
+[Python Backend] INFO:services.semantic_sql_service:[DB-TEMPLATE] calc_rule found for 'GB P&L Revenue' but sql_template is empty. Falling back to Python builders.
+INFO:services.semantic_sql_service:Bare 'P&L revenue' \u2192 defaulting to GB P&L revenue
+INFO:services.semantic_sql_service:Generated GB P&L Revenue SQL (MTD month='1', multi_month=False, multi_entity=False, month_breakdown=False, col=amount_usd, alias=pl_revenue, excl order_reason+GL139)
+INFO:api.routes.semantic_sql:
+============================================================
+[SQL_EXEC] metric     = gb_pl_revenue
+[SQL_EXEC] params     = []
+[SQL_EXEC] sql        =
+ 
+                    SELECT
+                        'BGSW'                                                    AS region_entity,
+                        ROUND((SUM(amount_usd) / 1000000.0)::numeric, 2) AS pl_revenue
+                    FROM cube_fact_data
+                    WHERE cube_id = 'e2eb7941-1d18-4e63-9ae8-f3180601f67b' AND year IN (2025, 2026) AND month = 1 AND region_entity = 'BGSW'
+                      AND cost_category = 'Revenue Summary'
+                      AND COALESCE(TRIM(order_reason), 'x') NOT IN ('YEH','YEI','YEJ','YEK','YN2')
+                      AND NOT starts_with(COALESCE(TRIM(gl_account), 'x'), '139')
+ 
+============================================================
+[Python Backend] INFO:api.routes.semantic_sql:[SQL_RESULT] metric=gb_pl_revenue | rows=1 | time=68ms
+[Python Backend] INFO:api.routes.semantic_sql:Fact data only: 1 rows
+[Python Backend] INFO:     127.0.0.1:63670 - "POST /api/v2/semantic-sql/query HTTP/1.1" 200 OK
+✅ Semantic SQL returned 1 rows from Bosch testing - KPI
+📊 Comparison data: 1 rows for January 2025
+10:15:08 AM [express] GET /api/chats 200 in 70ms :: [{"id":"52318368-af8c-4b9e-9a5e-416938caed90","us…
+10:15:08 AM [express] GET /api/chats/52318368-af8c-4b9e-9a5e-416938caed90 200 in 78ms :: {"id":"52318…
+10:15:09 AM [express] GET /api/chats/52318368-af8c-4b9e-9a5e-416938caed90/messages 200 in 88ms :: [{"…
+10:15:09 AM [express] POST /api/chats/52318368-af8c-4b9e-9a5e-416938caed90/messages/stream 200 in 323…
+10:15:09 AM [express] GET /api/chats/52318368-af8c-4b9e-9a5e-416938caed90/documents 304 in 135ms :: []

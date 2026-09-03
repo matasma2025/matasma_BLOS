@@ -1,0 +1,26 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "ur-t1Vxxxbluoh2tB2uko"
+uri = "file://ledgerlm_test_questions.txt"
+type = "text"
+title = "LedgerLM – 100 Test Questions for Bosch"
+
+[[outputs]]
+id = "T17ZCXDBDFciqONDjDgA7"
+uri = "file://ledgerlm_bosch_all_scenarios.md"
+type = "text"
+title = "LedgerLM – All Scenarios Test Questions (338 queries)"
+
+[[outputs]]
+id = "SwqIGXdablOoUCqI-r54X"
+uri = "file://ledgerlm_security_scan_report.html"
+type = "unspecified"
+title = "LedgerLM Security Scanning Report"
+
+[[outputs]]
+id = "2oRwxNWZcXW-TVnCIYWsB"
+uri = "file://ledgerlm_sbom_cyclonedx.json"
+type = "unspecified"
+title = "LedgerLM SBOM (CycloneDX 1.4)"

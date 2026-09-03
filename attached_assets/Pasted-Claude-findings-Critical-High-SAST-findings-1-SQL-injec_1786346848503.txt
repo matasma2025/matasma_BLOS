@@ -1,0 +1,81 @@
+Claude findings 			
+Critical / High — SAST findings			
+			
+1. SQL injection via unescaped string interpolation — semantic_sql_service.py:12462 _embed_params_in_where			
+			
+python			
+			
+if isinstance(p, str):			
+    clause = clause.replace('%s', f"'{p}'", 1)			
+			
+This deliberately un-parameterizes an already-safe WHERE clause so it can be reused across multi-CTE queries, wrapping values in single quotes with no escaping. A param containing ' breaks out of the literal. The params originate from resolve_entity_from_query / detect_gb_view_filter — i.e. entity, sector and category names lifted from the user's natural-language question. It's reached from _extract_sector_inline_condition and _build_mtd_where_from_original, and its output flows into ~24 call sites across the capacity-mix, budget-per-capacity and P&L builders. Those builders then return SQL with an empty params list, and execute_query:16099 explicitly does cursor.execute(sql) with no second argument in that case — so nothing downstream can catch it. This is your headline finding. Fix: use psycopg2.sql.Literal / mogrify instead of f-string quoting, or restructure the CTEs to keep placeholders.			
+			
+2. Insecure randomness for authentication OTP — otpService.ts:12			
+			
+typescript			
+			
+return Math.floor(min + Math.random() * (max - min + 1)).toString();			
+			
+Math.random() is not cryptographically secure (CWE-338). Login OTPs are predictable from observed outputs. Use crypto.randomInt(100000, 1000000).			
+			
+3. Brute-force bypass on OTP verification — index.ts:217			
+			
+typescript			
+			
+skip: (req) => req.path.startsWith('/api/auth/verify-otp') || req.path.startsWith('/api/auth/resend-otp'),			
+			
+The global limiter explicitly exempts the two auth endpoints. The only compensating control is MAX_OTP_ATTEMPTS = 5 per OTP record and a hardcodedOtpLimiter (routes.ts:824) that fires only for hardcoded-OTP users. A 6-digit space with unlimited resends is brute-forceable. Combined with finding 2, this is a full account-takeover chain.			
+			
+4. Header-spoofable authorization — server/middleware/rbac.ts:6			
+			
+typescript			
+			
+const userId = req.headers['x-user-id'] as string;			
+			
+Two requireAdmin implementations exist. middleware/auth.ts correctly reads req.session.userId; middleware/rbac.ts trusts a client-supplied header. routes.ts:29 imports the rbac version and applies it to five enterprise-document routes (lines 3108, 3132, 3194, 3241, 3277), covering list/upload/process/status/delete on /api/admin/companies/:companyId/documents. Anyone who can reach the API sets x-user-id: <any admin uuid> and gets cross-tenant document read and delete. requireCompanyMembership has the same flaw. Delete rbac.ts and route everything through auth.ts.			
+			
+5. Missing authentication on file download — routes.ts:9834			
+			
+typescript			
+			
+app.get("/api/download/ppt/:filename", (req, res) => {			
+			
+No middleware, no session check. path.basename blocks traversal and the .pptx check limits type, but any unauthenticated party who guesses or obtains an export filename retrieves another tenant's generated deck.			
+			
+Medium			
+			
+6. Session cookie secure: false — index.ts:203. Hardcoded with a "MUST be false for localhost" comment, so it ships to production. Cookies transit in cleartext on any non-TLS hop. Should be process.env.NODE_ENV === 'production'. Note the 15-minute maxAge is annotated as a Bosch SG-39/SG-84 requirement — auditors will check this block, so the secure flag will be noticed.			
+			
+7. Hardcoded encryption key fallback — utils/encryption.ts:9. Falls back to SESSION_SECRET, then to the literal 'default-encryption-key-change-in-production'. Also scryptSync(key, 'salt', 32) uses a static salt. Connector credentials encrypted under the default key are effectively plaintext. Fail closed if ENCRYPTION_KEY is unset.			
+			
+8. Wildcard CORS with credentials — python_backend/main.py:61. allow_origins=["*"] plus allow_credentials=True — an invalid combination the spec forbids. Mitigated only because FastAPI binds to 127.0.0.1:8000 behind nginx. Verify nginx doesn't proxy /api/v2 externally; either way, fix it, because scanners flag it regardless of network position.			
+			
+9. Dynamic identifier interpolation. schema_config.py:512 interpolates {col_name} into SELECT DISTINCT {col_name}::text, and rag.py:91 / database.py:149 interpolate {embedding_col}. Both currently source from information_schema and internal constants, so not exploitable today — but SAST tools will flag all three, and they're one refactor away from being real. Add an allowlist check to close them out.			
+			
+10. Auth bypass by design — routes.ts:805-818. domain.defaultOtp and NEMKO_ADMIN_OTP let a static OTP substitute for the emailed one. Combined with the seeded 123456 values, this is a standing backdoor. Any Bosch reviewer will treat it as a finding regardless of intent.			
+			
+11. Committed .env. .gitignore lists .env, but the file is present in this archive containing DATABASE_URL, SESSION_SECRET, SMTP_PASS, ANAPLAN_PASSWORD and NEMKO_ADMIN_OTP. Treat all of these as compromised and rotate.			
+			
+SBOM / SCA			
+			
+From the checked-in trivy-report.json (image ledgerlm-app:latest, Ubuntu 22.04 + Node + Python): 1 critical, 46 high, 199 medium, 107 low.			
+			
+Package	Installed	Fix	Notes
+tar	6.2.1	7.5.19	8 CVEs incl. the sole CRITICAL (CVE-2026-59873, gzip-bomb DoS)
+pillow	10.4.0	12.3.0	13 highs — and you raised MAX_IMAGE_PIXELS to 300M in main.py:8, widening the decompression-bomb surface
+starlette	0.37.2	1.3.1	3 highs, directly in the request path
+python-multipart	0.0.22	0.0.30	2 highs — this is your file-upload parser
+setuptools	59.6.0	78.1.1	3 highs incl. CVE-2025-47273 path traversal
+xlsx (SheetJS)	0.18.5	0.20.2	CVE-2023-30533 prototype pollution, CVE-2024-22363 ReDoS; npm registry is stale — install from cdn.sheetjs.com
+drizzle-orm	0.39.3	0.45.2	CVE-2026-39356
+nodemailer	7.0.13	9.0.1	GHSA-p6gq-j5cr-w38f
+minimatch / brace-expansion / glob / cross-spawn	—	—	transitive ReDoS chain
+openssl / libssl3 / gnupg2	3.0.2-0ubuntu1.15	...1.25	base-image rebuild needed
+			
+For the SBOM artifact itself, trivy image --format cyclonedx or syft against the same image gives you CycloneDX 1.5 covering all three ecosystems in one document — which is what Bosch's supply-chain review will expect rather than three separate manifests.			
+			
+Suggested remediation order			
+			
+Findings 1–5 are the ones that constitute an actual attack chain and should block release. 4 and 5 are one-line fixes. 2 and 3 are a small patch to otpService.ts plus removing that skip. 1 is the only one requiring real refactoring work in the SQL compiler.			
+			
+Want me to write this up as a formal .docx assessment report — executive summary, findings with CWE/CVSS ratings, code excerpts, and remediation table — plus generate the CycloneDX SBOM?			

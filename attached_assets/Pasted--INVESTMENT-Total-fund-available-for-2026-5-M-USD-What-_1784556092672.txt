@@ -1,0 +1,101 @@
+
+INVESTMENT
+Total fund available for 2026 – 5 M USD
+•	What is the total approved amount and total utilized amount for 2026
+•	What is the balance available for a project / Dept / project ID. (Balance amount = Approved – Utilized amount)
+•	Split of approved amount by Category
+•	Split of utilized amount by Category
+•	Split of utilized amount by projects for CoE category
+•	Split of utilized amount by projects for Projects category
+•	Split of Approved amount by projects for CoE category
+•	Split of Approved amount by projects for Projects category
+•	Balance = Approved – Utilized
+
+
+SELECT "Project Name",
+        "Dept",
+        "ProjectID",
+    SUM(CASE WHEN "AppYTD_USD" = 0 THEN "AppMTD_USD" 
+        ELSE "AppYTD_USD" END)as "Tot_Aprvd_YTD_USD",
+    SUM(CASE WHEN "AppYTD_INR" = 0 THEN "AppMTD_INR"
+        ELSE "AppMTD_INR" END) as "Tot_Aprvd_YTD_INR" ,
+    SUM("Utilzd_YTD_USD") as "Tot_Utilzd_YTD_USD",
+    SUM("Utilzd_YTD_INR") as "Tot_Utilzd_YTD_INR"
+FROM
+(
+Select "Project Name",
+        "Dept",
+        "ProjDisplayId" as "ProjectID",
+        ROUND(MAX("Yearly Approved_tUSD"),1) as "AppYTD_USD",
+        ROUND(MAX("Yearly Approved_mINR"),1) as "AppYTD_INR",
+        ROUND(SUM("Monthly Approved_tUSD"),1) as "AppMTD_USD",
+        ROUND(SUM("Monthly Approved_mINR"),1) as "AppMTD_INR",
+        ROUND(SUM("Actual_tUSD"),1) as "Utilzd_YTD_USD",
+        ROUND(SUM("Actual_mINR"),1) as "Utilzd_YTD_INR"
+        
+from V_INVESTMENT_TRACKING_LEDGERLM 
+where "FiscalYear" ='2026' 
+and "Type" = 'Cost'
+and "ProjDisplayId" IS NOT NULL
+group by "Project Name","Dept","ProjDisplayId" 
+order by 1
+)A
+GROUP BY 
+    "Project Name",
+    "Dept",
+    "ProjectID"
+
+
+
+
+
+
+
+
+
+
+
+
+CAPEX
+•	Capex for the year Actual VS Approved by Department in USD
+•	Capex for the year Actual VS Approved by Department in INR
+•	Balance = Approved – Utilized
+
+Select 
+        "Dept",
+        ROUND(MAX("Yearly Approved_tUSD"),2) as "AppYTD_USD",
+        ROUND(MAX("Yearly Approved_mINR"),2) as "AppYTD_INR",
+        ROUND(SUM("Actual_tUSD"),2) as "Utilzd_YTD_USD",
+        ROUND(SUM("Actual_mINR"),2) as "Utilzd_YTD_INR"
+   
+from V_INVESTMENT_TRACKING_LEDGERLM 
+where "FiscalYear" ='2026' 
+and "Type" = 'CAPEX'
+group by "Dept"
+
+
+
+
+
+
+
+
+
+
+
+PMO
+•	Approved vs Actual PMO for Dept month wise
+•	Approved vs Actual PMO for Project name month wise
+•	Approved vs Actual PMO for Project name YTD
+
+Select 
+        "FiscalYear","Month","Dept","ProjDisplayId","Project Name","Category",
+        ROUND(MAX("Yearly Approved_tUSD"),2) as "Apprvd_PMO",
+        ROUND(SUM("Actual_tUSD"),2) as "Actual_PMO"
+
+from V_INVESTMENT_TRACKING_LEDGERLM 
+where "FiscalYear" ='2026' 
+and "Type" = 'PMO'
+group by   "FiscalYear","Month","Dept","ProjDisplayId","Project Name","Category"
+
+

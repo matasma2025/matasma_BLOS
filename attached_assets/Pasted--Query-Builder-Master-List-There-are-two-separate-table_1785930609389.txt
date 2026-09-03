@@ -1,0 +1,224 @@
+# **Query Builder Master List**
+
+There are two separate tables these builders hit:
+
+- `cube_fact_data` — all KPI / P&L / capacity / cost queries
+- `cube_investment_data` — all Investment / CAPEX / PMO queries
+
+---
+
+# **🟦 GROUP 1 — P&L / Profitability builders (`cube_fact_data`)**
+
+### **1. `_build_ebit_sql` (line 8845)**
+
+Trigger keywords: `ebit`, `ebit%`, `profit margin`, `operating margin`
+
+What it computes in a single query using `CASE WHEN` pivoting:
+
+```
+Revenue          = SUM(cost_category='Revenue Summary') [excludes order_reason YEH/YEI/YEJ/YEK/YN2 and gl_account LIKE '139%']
+Total Direct     = SUM(cost_category_class IN ('Resource Cost','Travel Cost','Other Direct Cost'))
+Total Indirect   = SUM(cost_category_class = 'Corporate Cost')
+Gross Margin     = Revenue - Direct - Indirect
+EBIT             = Gross Margin (absolute)
+EBIT%            = Gross_Margin / Revenue × 100
+```
+
+Groups by: `region_entity` or `project_gb` depending on context (GB P&L vs Entity level)
+
+---
+
+### **2. `_build_gross_margin_sql` (line 9089)**
+
+Trigger keywords: `gross margin`, `gross profit`
+
+Same formula as EBIT but outputs: `revenue`, `total_direct_cost`, `total_indirect_cost`, `total_cost`, `gross_margin`, `gross_margin_pct`
+
+Has a flag `apply_pl_exclusions=True` — when called from a GB/Entity P&L context it also strips the `YEH/YEI/YEJ/YEK/YN2` revenue exclusions. Without the flag, it's used for plain gross margin queries.
+
+---
+
+### **3. `_build_gb_pl_summary_sql` (line 6976)**
+
+Trigger keywords: `gb p&l summary`, `summarise gb p&l`, `gb p&l overview`, `gb p&l report`
+
+The full rolled-up P&L: fires `_build_gb_pl_summary_intent` first to determine entity/time filters, then generates a single SQL that returns Revenue, Resource Cost, Travel Cost, Other Direct, Corporate Cost, Total Cost, Gross Margin, and EBIT% all in one pass. Groups by `project_gb`.
+
+---
+
+### **4. `_build_gb_pl_cost_breakdown_intent` → routes to cost-class builders (line 6523)**
+
+Trigger keywords: `gb p&l resource cost`, `gb p&l travel cost`, `gb p&l direct cost`, etc.
+
+Intent builder — sets `use_calculation` to the appropriate cost-class calculation and routes to the specific SQL builder below.
+
+---
+
+### **5. `_build_entity_pl_ebit_sql` (line 6735)**
+
+Trigger keywords: `entity p&l ebit`, `entity p&l ebit%`
+
+Per-entity EBIT. Returns columns: `region_entity`, `revenue`, `total_cost`, `ebit` (Revenue − Total Cost), `ebit_pct`. Revenue restricted with P&L exclusions on `order_reason` and `gl_account`.
+
+---
+
+### **6. `_build_entity_pl_intent` (line 6319)**
+
+Trigger keywords: `entity p&l`, `entity pl`
+
+Intent builder for the general entity P&L path. Groups by `entity_category` / `entity_sub_category` — which is the Bosch entity cost breakdown view (not the same as GB-level grouping by `project_gb`).
+
+---
+
+# **🟩 GROUP 2 — Cost Component builders (`cube_fact_data`, table: `Cost Summary`)**
+
+All query against `cost_category = 'Cost Summary'`, filtering by `cost_category_class`, and GROUP BY `sub_cost_category`.
+
+| **Builder** | **Line** | **`cost_category_class` filter** | **Trigger keywords** | **Output column** |
+| --- | --- | --- | --- | --- |
+| `_build_resource_cost_sql` | 8981 | `Resource Cost` | `resource cost`, `resource expense` | `resource_cost` |
+| `_build_travel_cost_sql` | 8955 | `Travel Cost` | `travel cost`, `travel expense` | `travel_cost` (broken down by sub-category with `(T)` suffixes) |
+| `_build_other_direct_cost_sql` | 9007 | `Other Direct Cost` | `other direct cost`, `other direct expense` | `other_direct_cost` |
+| `_build_direct_cost_sql` | 9034 | IN `(Resource Cost, Travel Cost, Other Direct Cost)` | `total direct cost`, `direct cost` | `amount` grouped by `cost_category_class` + `sub_cost_category` |
+| `_build_indirect_cost_sql` | 9062 | `Corporate Cost` | `indirect cost`, `corporate cost` | `indirect_cost` |
+
+`_build_cost_class_intent` (line 6044) is the shared intent builder that feeds all five above.
+
+---
+
+# **🟨 GROUP 3 — Revenue builders (`cube_fact_data`, table: `Revenue Summary`)**
+
+| **Builder** | **Line** | **Trigger keywords** | **Notes** |
+| --- | --- | --- | --- |
+| `_build_revenue_sql` | 12428 | `revenue`, `total revenue`, `revenue for`, `what is revenue` | Plain revenue SUM from `cost_category='Revenue Summary'` |
+| `_build_gb_pl_revenue_sql` | 12580 | `gb p&l revenue`, `revenue summary` | Revenue with full P&L exclusions (order_reason + gl_account filter), groups by `project_gb` |
+| `_build_entity_pl_revenue_sql` | 12774 | Revenue sub-query inside entity P&L | Same exclusions, groups by `region_entity` |
+| `_build_revenue_type_sql` | 12360 | Revenue type breakdown | Revenue split by type dimension |
+| `_build_customer_revenue_sql` | 12504 | `customer revenue`, `top customer` | Groups by `bill_to_party_legal_entity_full_name`, shows revenue ranked by customer |
+
+---
+
+# **🟧 GROUP 4 — Capacity builders (`cube_fact_data`)**
+
+### **Avg/End Capacity**
+
+| **Builder** | **Line** | **Trigger keywords** | **Formula** |
+| --- | --- | --- | --- |
+| `_build_total_capacity_avg_sql` | 10927 | `total capacity avg`, `average total capacity` | `SUM(allocated + not_allocated + ms + vkm - non_linear) / months` |
+| `_build_total_capacity_end_sql` | 11099 | `total capacity end`, `end total capacity` | Point-in-time end-of-period headcount |
+| `_build_offshore_capacity_avg_sql` | 11142 | `offshore capacity avg` | Average of offshore headcount only |
+| `_build_offshore_capacity_end_sql` | 11320 | `offshore capacity end` | End-of-period offshore headcount |
+| `_build_outsourcing_capacity_avg_sql` | 11370 | `outsourcing capacity avg` | Average outsourcing headcount |
+| `_build_outsourcing_capacity_end_sql` | 11545 | `outsourcing capacity end` | End-of-period outsourcing headcount |
+| `_build_available_capacity_sql` | 9431 | `available capacity` | `allocated + not_allocated + ms + vkm - non_linear` |
+
+All capacity builders have a cross-period short-circuit: if the query spans multiple years or months, they skip the standard single-period path and fire a combined cross-period SQL.
+
+### **Capacity Mix**
+
+| **Builder** | **Line** | **Trigger keywords** | **Formula** |
+| --- | --- | --- | --- |
+| `_build_internal_capacity_mix_sql` | 10104 | `internal capacity mix`, `internal mix` | `offshore_internal / total_capacity × 100` |
+| `_build_external_capacity_mix_sql` | 10352 | `external capacity mix`, `outsourcing mix` | `outsourcing / total_capacity × 100` |
+
+---
+
+# **🟥 GROUP 5 — Budget builders (`cube_fact_data`)**
+
+| **Builder** | **Line** | **Trigger keywords** | **Notes** |
+| --- | --- | --- | --- |
+| `_build_budget_total_ww_sql` | 10825 | `world wide budget`, `ww budget total` | Worldwide aggregate budget |
+| `_build_budget_offshore_sql` | 10857 | `offshore budget`, `budget offshore` | Budget for offshore segment |
+| `_build_budget_outsourcing_sql` | 10893 | `outsourcing budget`, `budget outsourcing` | Budget for outsourcing segment |
+| `_build_budget_per_capacity_sql` | 10589 | `budget per capacity`, `revenue per capacity` | `budget / avg_capacity` ratio |
+| `_build_budget_per_avg_capacity_ww_sql` | 11733 | `ww budget per avg capacity`, `worldwide budget per avg capacity` | Same ratio but at worldwide level |
+| `_build_budget_per_avg_capacity_entity_sql` | 11978 | `budget per avg capacity`, `budget per avg capacity entity` | Per-entity breakdown of `budget / avg_capacity` |
+
+---
+
+# **🟪 GROUP 6 — Utilization builders (`cube_fact_data`)**
+
+Formula for all: `SUM(billed_capacity) / SUM(available_capacity) × 100`
+
+| **Builder** | **Line** | **Trigger keywords** | **Scope** |
+| --- | --- | --- | --- |
+| `_build_billing_utilization_sql` | 9188 | `billing utilization`, `utilization rate`, `utilization %` | General (uses `Billing Utilization` or `Billing Utilization Summary` cost_category) |
+| `_build_sx_internal_utilization_sql` | 9233 | `sx internal utilization`, `sx billing utilization` | SX (Services) internal staff only |
+| `_build_sx_outsourcing_utilization_sql` | 9327 | `sx outsourcing utilization` | SX outsourcing staff |
+| `_build_sx_external_utilization_sql` | — | `sx external utilization` | SX external |
+| `_build_ms_internal_utilization_sql` | 9280 | `ms internal utilization`, `ms billing utilization` | MS (Managed Services) internal staff |
+| `_build_ms_outsourcing_utilization_sql` | 9379 | `ms outsourcing utilization` | MS outsourcing staff |
+| `_build_ms_external_utilization_sql` | — | `ms external utilization` | MS external |
+
+---
+
+# **🟫 GROUP 7 — Workforce / People builders (`cube_fact_data`)**
+
+| **Builder** | **Line** | **Trigger keywords** | **Formula** |
+| --- | --- | --- | --- |
+| `_build_attrition_pct_sql` | 9527 | `attrition rate`, `attrition %`, `employee churn` | `(YTD_attrition / YTD_capacity) × 12 × 100` — annualised; attrition counted as `COUNT(*)` where each row = 1 person leaving |
+| `_build_pyramid_mix_sql` | 9688 | `pyramid mix`, `skill pyramid`, `sl48` | % breakdown by salary level bands |
+| `_build_pyramid_mix_individual_levels_sql` | 9822 | `pyramid individual`, `pyramid breakdown`, `pyramid by sl` | Full per-salary-level headcount |
+| `_build_pyramid_mix_by_salary_level_sql` | 9883 | `pyramid mix by salary level`, `pyramid salary level` | Cross-period pyramid comparison by SL48/49/50/51 |
+| `_build_price_mix_sql` | 9477 | `price mix`, `pricing mix`, `premium ratio` | Rate classification distribution (premium vs standard) |
+
+---
+
+# **🔵 GROUP 8 — Investment / CAPEX / PMO builders (`cube_investment_data`)**
+
+These are all inside `execute_investment_query` — no `_build_*` methods, they're inline SQL templates. The pattern is selected by keyword detection in the query:
+
+| **Pattern key** | **Trigger logic** | **SQL shape** | **Columns returned** |
+| --- | --- | --- | --- |
+| `pmo_project` | `pmo` + (`project` OR `category` in query) | GROUP BY `month, dept, proj_display_id, project_name, category` | `approved_pmo`, `actual_pmo`, `balance_pmo` (tUSD) |
+| `pmo_dept_month` | `pmo` + (`dept` OR month keyword) | GROUP BY `month, dept, category` | Same 3 columns |
+| `pmo_month` | `pmo` only (no dept/project) | GROUP BY `month` | Month-level PMO rollup |
+| `capex_by_dept` | `capex` in query | GROUP BY `dept`, `WHERE type='CAPEX'` | `approved_tusd`, `approved_minr`, `actual_tusd`, `actual_minr`, `balance_tusd` (dual-currency) |
+| `by_category` | `category` or `coe` in query | Inner: per-project; Outer: GROUP BY `category`, `WHERE type='Cost'` | `approved_tusd`, `actual_tusd`, `balance_tusd` |
+| `by_dept` | `dept` or `department`, no project | Same inner/outer pattern, GROUP BY `dept` | Same 3 columns |
+| `by_project` | `project` or `proj` in query | GROUP BY `dept, project_name, proj_display_id, category` | All project detail |
+| `total_summary` | No specific keyword matches | Grand total across all Cost projects | Single row: `total_approved_tusd`, `total_actual_tusd`, `balance_tusd` |
+
+Investment filter extraction is regex-based, not LLM: year from `\b20\d\d\b`, month name to number mapping, dept/category by longest-match against live DB dimension values, project by exact then fuzzy Levenshtein edit-distance match.
+
+---
+
+# **⚙️ GROUP 9 — Utility / Comparison builders**
+
+| **Builder** | **Line** | **Purpose** |
+| --- | --- | --- |
+| `_build_difference_sql` | 14293 | Period-over-period absolute difference (`value_A - value_B`) |
+| `_build_pct_contribution_sql` | 14381 | Each entity's % share of the total |
+| `_build_variance_sql` | 14448 | Variance between actual and plan |
+| `_build_spike_detection_sql` | 14542 | Detects statistical outliers / spikes in a metric time series |
+| `_build_calculation_where_clause` | 8757 | Shared utility — assembles parameterised `WHERE` from intent filters |
+| `_build_group_by_columns` | 8829 | Shared utility — maps intent `group_by` field names to actual DB column names |
+| `_build_mtd_where_from_original` | 11713 | Converts a YTD where-clause to MTD by pinning to a single month |
+
+---
+
+# **How the routing decision is made**
+
+```
+User query
+    │
+    ├─ is_entity_pl_query() or is_gb_pl_query()?
+    │       ├─ is_gb_pl_summary_query? → _build_gb_pl_summary_sql
+    │       ├─ 'ebit' in query?
+    │       │       ├─ GB level → _build_ebit_sql
+    │       │       └─ Entity level → _build_entity_pl_ebit_sql
+    │       ├─ 'total direct cost'? → _build_direct_cost_sql
+    │       ├─ 'corporate/indirect cost'? → _build_indirect_cost_sql
+    │       ├─ 'gross margin'? → _build_gross_margin_sql [P&L exclusions ON]
+    │       ├─ cost_class detected? → _build_cost_class_intent → (resource/travel/other)
+    │       └─ default → _build_entity_pl_intent (entity_category grouping)
+    │
+    ├─ get_matching_calculation() → matched a kpi_trigger?
+    │       └─ billing_utilization / pyramid_mix / attrition / capacity / budget etc.
+    │              → specific _build_*_sql builder
+    │
+    └─ No match → compile_sql()
+            └─ LLM-generated structured intent → generic SUM/GROUP BY query
+```
+
+Investment/CAPEX/PMO never enters this chain — it's routed at the orchestrator level when `schema_type === 'investment_capex_pmo'` and goes straight to `execute_investment_query`.

@@ -1,0 +1,23 @@
+PRIO	Analysis Name	Example Prompt	Expected Output	Comments	Matasma Comments (19/05/2026 02:03 PM)	Bosch Clarification (27/05/2026 03:11 PM)
+1	Month wise cost comparison	What is the Outsourcing cost for Entity P&L for BGSW in INR for YTD Mar'2026. Give month on month comparison from Jan to Mar 2026	Should give only respective month cost and its comparison instead of YTD	Data is available. Logic: YTD of current month − YTD of previous month for month-on-month data.	Acknowledged. Month-on-month logic (YTD current month − YTD previous month) is clear.	
+2	Combination capacity analysis – Any combination questions	What is outsourcing average and end capacity	Answer both the questions distinctly. Currently it adds up average and end capacity.	Data is available. Logic needs to be implemented by Matasma team.	Acknowledged. Average capacity and end capacity will be returned as two separate figures.	
+2	Comparative cost analysis	Compare Mar'26 vs Mar'25 OS cost	Compare only the requested month. Do not include previous month data. Currently it compares with Feb.	Data is available. Logic needs to be implemented by Matasma team.	Acknowledged. The filter will be restricted strictly to the two specified months.	
+1	Average OS cost	What is the average monthly outsourcing cost in 2025?	Compute average across Jan–Dec 2025.	Data is available. Logic: YTD ÷ number of months.	Acknowledged. Average = YTD ÷ number of elapsed months.	
+2	Comparative analysis	Compare Opex, Outsourcing cost, Internal cost, OHC cost from 2024 to 2025	Show year-wise comparison.	Data is available. Logic needs to be implemented by Matasma team.	Acknowledged. Year-on-year comparison for requested KPIs will be implemented.	
+2	Difference calculation	What is the difference in Opex between Jan and Mar 2026?	Return only the difference.	Data is available. Logic needs to be implemented by Matasma team.	Acknowledged. Difference calculation will be added.	
+2	Highest / Lowest analysis	Which month has the highest outsourcing cost in 2025?	Return highest month and value.	Data is available. Logic needs to be implemented by Matasma team.	Acknowledged. Highest/lowest calculations will be supported.	
+2	Trend analysis	Show outsourcing cost trend for 2025	Month-wise trend.	Data is available.	Acknowledged. Trend visualization logic will be implemented.	
+2	Top N analysis	Top 5 entities by outsourcing cost	Return top 5 entities.	Data is available.	Acknowledged. Top-N ranking will be implemented.	
+2	Bottom N analysis	Bottom 5 entities by outsourcing cost	Return bottom 5 entities.	Data is available.	Acknowledged. Bottom-N ranking will be implemented.	
+2	Percentage contribution	What percentage of Opex is outsourcing cost?	Return percentage contribution.	Data is available. Logic required.	Acknowledged. Percentage contribution calculation will be implemented.	
+2	Multi KPI comparison	Compare Opex, Internal cost and Outsourcing cost	Show comparison for all requested KPIs.	Data is available.	Acknowledged. Multiple KPI comparison will be supported.	
+2	Variance analysis	Variance of Opex between 2024 and 2025	Show absolute and percentage variance.	Data is available.	Acknowledged. Variance calculation will be implemented.	
+2	Entity comparison	Compare BGSW and RBIN outsourcing cost	Entity-wise comparison.	Data is available.	Acknowledged. Entity comparison will be supported.	
+2	Capacity utilization	Show average and end capacity by entity	Return both metrics separately.	Data is available.	Acknowledged. Capacity metrics will be separated.	
+2	Filter handling	Compare only selected months	Apply only requested filters.	Logic needs improvement.	Acknowledged. Only requested filters will be considered.	
+2	Time intelligence	Compare Q1 2025 vs Q1 2024	Quarter-wise comparison.	Data is available.	Acknowledged. Quarter comparison will be supported.	
+2	Aggregation	Total outsourcing cost for FY2025	Return total FY value.	Data is available.	Acknowledged. FY aggregation will be implemented.	
+2	Multi-dimensional analysis	Outsourcing cost by Entity, Cost Center and Month	Multi-dimensional breakdown.	Data is available.	Acknowledged. Multi-dimensional filtering will be implemented.	
+2	Ranking	Rank entities based on outsourcing cost	Return ranking.	Data is available.	Acknowledged. Ranking functionality will be added.	
+2	Dynamic comparison	Compare current selection with previous year	Dynamic comparison logic.	Logic required.	Acknowledged. Previous-year comparison will be implemented.	
+2	Summary response	Summarize outsourcing trend in 2025	Provide concise business summary.	Requires LLM summarization.	Acknowledged. Natural language summary will be improved.	

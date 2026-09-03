@@ -1,0 +1,27 @@
+kind = "web"
+previewPath = "/"
+title = "LedgerLM"
+version = "1.0.0"
+id = "artifacts/ledgerlm-web"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 5000
+
+[services.development]
+run = "cd ../../ledgerlm/ledgerlm && npm run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/ledgerlm-web", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/ledgerlm-web/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "5000"
+BASE_PATH = "/"

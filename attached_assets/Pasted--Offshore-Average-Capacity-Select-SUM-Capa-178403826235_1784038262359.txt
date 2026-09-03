@@ -1,0 +1,85 @@
+---Offshore Average Capacity ----------------------------------------------------
+ Select SUM("Capacity")/month
+ FROM MV_GB_INSIGHTS_ALL 
+WHERE 
+ "Cost Category" = 'GB Wise END Capacity'
+ AND "Year" = 2025
+ AND "Month" <= month
+ AND "Region/Entity" = 'BGSW'
+ AND TRIM("Onsite/Offshore") = 'OFFSHORE'
+ AND "Resource Type" = 'Internal'
+ AND "Sector" <> 'INTERNAL'
+ AND "Service Area" NOT IN ('Corporate','RBEI_CORPORATE','SDS_CORPORATE')
+
+---Offshore End Capacity --------------------------------------------------------
+ Select SUM("Capacity")
+ FROM MV_GB_INSIGHTS_ALL 
+WHERE 
+ "Cost Category" = 'GB Wise END Capacity'
+ AND "Year" = 2025
+ AND "Month" = month
+ AND "Region/Entity" = 'BGSW'
+ AND "Onsite/Offshore" = 'OFFSHORE'
+ AND "Resource Type" = 'Internal'
+  AND "Sector" <> 'INTERNAL'
+ AND "Service Area" NOT IN ('Corporate','RBEI_CORPORATE','SDS_CORPORATE')
+ 
+ ---Outsoursing Average Capacity------------------------------------------------
+ Select SUM("Capacity")/2 
+ FROM MV_GB_INSIGHTS_ALL 
+WHERE 
+ "Cost Category" = 'GB Wise END Capacity'
+ AND "Year" = 2025
+ AND "Month" <= month
+ AND "Region/Entity" = 'BGSW'
+ AND TRIM("Onsite/Offshore") = 'OFFSHORE'
+ AND "Resource Type" = 'External'
+ AND "Service Area" NOT IN ('Corporate','RBEI_CORPORATE','SDS_CORPORATE')
+
+---Outsoursing End Capacity-----------------------------------------------------
+ Select SUM("Capacity")
+ FROM MV_GB_INSIGHTS_ALL 
+WHERE 
+ "Cost Category" = 'GB Wise END Capacity'
+ AND "Year" = 2025
+ AND "Month" = month
+ AND "Region/Entity" = 'BGSW'
+ AND "Onsite/Offshore" = 'OFFSHORE'
+ AND "Resource Type" = 'External'
+ AND "Service Area" NOT IN ('Corporate','RBEI_CORPORATE','SDS_CORPORATE')
+ 
+ 
+ ---Revenue------------------------------------------------------------------
+ Select SUM("Amount in USD")/1000000
+ FROM MV_GB_INSIGHTS_ALL WHERE 
+ "Cost Category" = 'Revenue Summary' 
+ AND "Year" = 2025
+ AND "Month" = month
+ --AND "Region/Entity" = 'BGSW' -- Needed for Entity level (IN,VN,MX)
+ --AND "Include/Exclude" = 'Include'  -- Needed only for World wide and not for individual entities
+ --AND "New Service Area" = 'SX' -- Needed for MS and SX
+
+--Budget/Avg Cap
+--((Revenue) / (Avg Offshore + Avg Outsourcing))/ <<month>>
+Capacity Mix %
+Avg Offshore / Total (Offshore+outsourcing)
+Avg Outsourcing / Total (Offshore+outsourcing)
+Attrition% =(  (Attrition / Avg Headcount )/month )* 12
+Attrition 
+Select 
+ (Select (SUM("Attrition"))
+ FROM MV_GB_INSIGHTS_ALL WHERE 
+ "Cost Category" = 'Attrition' 
+ AND "Region/Entity" = 'BGSW'
+ AND "Year" = 2025
+AND “Month” = month
+ AND "Resource Type" = 'Internal'
+ Avg Headcount
+ Select SUM("Capacity")/month
+ FROM MV_GB_INSIGHTS_ALL WHERE 
+ "Cost Category" = 'GB Wise END Capacity'
+ AND "Year" = 2025
+AND "Month" <= month
+ AND "Region/Entity" = 'BGSW'
+ AND "Resource Type" = 'Internal'
+

@@ -1,0 +1,1 @@
+- [SSO Group-to-Role Mapping](sso-group-role-mapping.md) — N Azure AD groups → any role per domain; JSONB ssoGroupMappings on domains; 15-min background sync deactivates removed users

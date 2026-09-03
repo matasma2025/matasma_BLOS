@@ -1,0 +1,67 @@
+Hi Team, 
+
+As discussed,  update on the LedgerLM deployment and to request your support on a few pending infrastructure items.
+
+Development Environment: Status Update
+The development environment has been successfully migrated from the previous VM setup (http://20.193.250.55/) and is now accessible at https://Genie-Finance-d.bosch.tech. The application is up and running; however, Microsoft SSO has not yet been enabled as it requires an Entra ID App Registration to be created and linked to this environment.
+
+Request: Entra ID App Registration for Development Environment
+
+Could you please assist with creating the App Registration by following the steps below?
+
+Step 1: Create the App Registration
+Navigate to portal.azure.com (Bosch tenant) - Microsoft Entra ID - App registrations - New registration
+
+Fill in the following:
+Name: LedgerLM
+Supported account types: Accounts in this organizational directory only (Bosch – Single tenant)
+Redirect URI: Platform: Web | URL: https://Genie-Finance-d.bosch.tech/api/auth/sso/microsoft/callback
+Click Register
+
+Step 2: Copy Credentials
+Once registered, please share the following from the Overview page:
+Application (Client) ID
+Directory (Tenant) ID
+
+Step 3: Create a Client Secret
+Go to Certificates & secrets → New client secret
+Description: LedgerLM SSO | Expiry: 24 months (or per Bosch policy)
+Please share the secret Value immediately after creation (it is only visible once)
+
+Step 4: Add API Permissions
+Go to API permissions - Add a permission - Microsoft Graph - Delegated permissions
+Select and add: openid, profile, email
+Click Grant admin consent for Bosch
+
+
+QA Environment: Pending Items
+We also have two outstanding items for the QA environment that are currently blocking our deployment:
+
+Entra ID Tenant ID for SSO,As mentioned in the below email by tejas , the Azure AD / Entra ID configuration for the QA environment is yet to be created. Could you please confirm the timeline for this?
+
+While creating for QA environment - this steps is followed  for SSO 
+
+Fill in the following:
+Name: LedgerLM
+Supported account types: Accounts in this organizational directory only (Bosch – Single tenant)
+Redirect URI: Platform: Web | URL: https://Genie-Finance-d.bosch.tech/api/auth/sso/microsoft/callback
+Click Register
+
+
+Azure Key Vault Access: The Key Vault provisioning and access grant for our App Service is still pending. This is a critical dependency, the App Service should be  connected to Key Vault. Could you please help when this can be completed?
+
+
+Estimated Timeline: Post Infrastructure Handover
+Once the above items are provisioned and access credentials are shared, here is our estimated delivery timeline:
+Activity
+Estimated Duration
+Application deployment & environment configuration
+1 – 2 business days
+SSO integration, end-to-end testing & issue resolution
+1 – 2 business days
+Final validation & sign-off for new environment
+2 – 3 business days
+Total estimated timeline after handover
+Approximately 1 week
+
+Please let us know if you need any additional information or would prefer a quick alignment call to discuss.

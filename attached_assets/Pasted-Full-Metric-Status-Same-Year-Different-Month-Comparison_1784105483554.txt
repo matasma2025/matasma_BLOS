@@ -1,0 +1,54 @@
+Full Metric Status — Same-Year Different-Month Comparisons
+✅ Group 1 — Work correctly (no YTD expansion needed)
+These do simple monthly SUM/ratio — no _expand_month_filter_for_ytd call. They return correct data for any period combination already.
+Metric	Builder
+EBIT	_build_ebit_sql
+Resource Cost	_build_resource_cost_sql
+Travel Cost	_build_travel_cost_sql
+Other Direct Cost	_build_other_direct_cost_sql
+Direct Cost	_build_direct_cost_sql
+Indirect Cost	_build_indirect_cost_sql
+Gross Margin	_build_gross_margin_sql
+Revenue (GB P&L)	_build_gb_pl_revenue_sql
+Revenue	_build_revenue_sql
+Billing Utilization	_build_billing_utilization_sql
+SX/MS Internal Utilization	_build_sx/ms_internal_utilization_sql
+SX/MS Outsourcing Utilization	_build_sx/ms_outsourcing_utilization_sql
+Available Capacity (END)	_build_available_capacity_sql
+Price Mix	_build_price_mix_sql
+Total Capacity (END)	_build_total_capacity_end_sql
+Offshore Capacity (END)	_build_offshore_capacity_end_sql
+Outsourcing Capacity (END)	_build_outsourcing_capacity_end_sql
+Pyramid Mix (by level / salary)	_build_pyramid_mix_individual/salary_sql
+Budget Total WW	_build_budget_total_ww_sql
+Budget Offshore	_build_budget_offshore_sql
+Budget Outsourcing	_build_budget_outsourcing_sql
+✅ Group 2 — Already fixed (cross-period short-circuit in place)
+Metric	Builder	Status
+Internal Capacity Mix %	_build_internal_capacity_mix_sql	✅ fixed previously
+External Capacity Mix %	_build_external_capacity_mix_sql	✅ fixed today
+❌ Group 3 — Broken for same-year different months (need fix)
+All 8 of these call _expand_month_filter_for_ytd. When the __raw__ OR-pair (year=2025 AND month=2) OR (year=2025 AND month=3) arrives, the function grabs only the first month = N match (Feb=2), expands to month IN (1,2), drops the year constraint, and returns wrong data.
+Sub-group A — Have window-function path already (is_comparison_month), straightforward fix
+Exact same pattern as internal/external capacity mix. CTE body is already written, just need the OR-pair detection block at the top.
+#	Metric	Builder	What goes wrong
+1	Total Avg Capacity	_build_total_capacity_avg_sql	YTD range only covers Jan-Feb; Mar missing from result
+2	Offshore Avg Capacity	_build_offshore_capacity_avg_sql	Same — wrong YTD range, Mar dropped
+3	Outsourcing Avg Capacity	_build_outsourcing_capacity_avg_sql	Same — wrong YTD range, Mar dropped
+Sub-group B — Simple aggregates, need window functions added in the short-circuit
+No is_comparison_month branch. Currently returns 1 aggregate row for the whole period. Need running YTD window function in the cross-period short-circuit.
+#	Metric	Builder	What goes wrong
+4	Attrition %	_build_attrition_pct_sql	Single row for all months combined; Feb/Mar indistinguishable
+5	Pyramid Mix %	_build_pyramid_mix_sql	Same — one row for entire period, no per-month breakdown
+Sub-group C — Revenue (MTD) + Capacity (YTD) joined, complex CTE structure
+#	Metric	Builder	What goes wrong
+6	Budget per Capacity	_build_budget_per_capacity_sql	max_month set to first month only; wrong capacity divisor
+7	Budget per Avg Cap (WW)	_build_budget_per_avg_capacity_ww_sql	MTD revenue at wrong month; YTD capacity range wrong
+8	Budget per Avg Cap (Entity)	_build_budget_per_avg_capacity_entity_sql	Same as WW but per entity
+Implementation Plan
+Sub-group	Builders	Fix approach	Effort
+A (3 builders)	Total / Offshore / Outsourcing Capacity Avg	Copy-paste cross-period block from external capacity mix, swap CASE WHEN conditions	Low
+B (2 builders)	Attrition %, Pyramid Mix %	Add window-function CTE in the short-circuit: running YTD numerator/denominator per (entity, year, month)	Medium
+C (3 builders)	Budget per Capacity × 3	Per-period CTE approach: one revenue CTE + one capacity CTE per requested (year, month), union results	Medium-High
+Total: 8 builders, all in semantic_sql_service.py.
+ 

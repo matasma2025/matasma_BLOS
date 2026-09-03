@@ -1,0 +1,303 @@
+# ================================
+# LedgerLM GPU-Enabled Dockerfile
+# ================================
+# For Bosch VM with NVIDIA Tesla T4 GPU
+# CUDA 12.2 Support
+ 
+# ================================
+# Stage 1: Build Node.js Frontend + Backend
+# ================================
+FROM node:20-bookworm AS node-builder
+
+WORKDIR /app
+# Copy package files first
+COPY package*.json ./
+# Install dependencies
+RUN npm ci --legacy-peer-deps
+
+# Verify glibc version
+RUN ldd --version
+
+# Rebuild Rollup native binary
+RUN npm rebuild rollup
+
+# Copy application source
+COPY client ./client
+COPY server ./server
+COPY shared ./shared
+COPY attached_assets ./attached_assets
+COPY tsconfig.json ./
+COPY tailwind.config.ts ./
+COPY postcss.config.js ./
+COPY vite.config.production.ts ./vite.config.ts
+
+# Build application
+RUN npm run build
+
+# Verify frontend build
+RUN echo "=== Verifying frontend build ===" \
+ && ls -la server/public/ \
+ && test -f server/public/index.html \
+ && echo "=== Frontend build successful ==="
+
+# ================================
+# Stage 2: Production Image with GPU Support
+# ================================
+FROM nvidia/cuda:12.4.1-runtime-ubuntu22.04
+ 
+# Install Node.js 20
+RUN apt-get update && apt-get install -y curl gnupg && \
+    curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+    apt-get install -y nodejs
+ 
+# Install Python and system dependencies
+RUN apt-get update && \
+    apt-get upgrade -y && \
+    apt-get install -y --no-install-recommends \
+    python3 \
+    python3-pip \
+    python3-venv \
+    tesseract-ocr \
+    poppler-utils \
+    nginx \
+    supervisor \
+    curl \
+ && apt-get clean \
+ && rm -rf /var/lib/apt/lists/*
+ 
+WORKDIR /app
+ 
+# Copy package files
+COPY package*.json ./
+
+# Copy the exact node_modules from the build stage
+COPY --from=node-builder /app/node_modules ./node_modules
+RUN node -v \
+ && npm -v \
+ && npm ls drizzle-kit \
+ && npm ls drizzle-orm \
+ && ls -la node_modules/drizzle-orm \
+ && ls -la node_modules/drizzle-kit
+
+# Install tsx for running TypeScript server in production
+RUN npm install -g tsx
+ 
+COPY --from=node-builder /app/server ./server
+COPY --from=node-builder /app/shared ./shared
+COPY --from=node-builder /app/attached_assets ./attached_assets
+COPY --from=node-builder /app/tsconfig.json ./
+COPY --from=node-builder /app/vite.config.ts ./
+COPY --from=node-builder /app/package*.json ./
+
+# Copy drizzle config for database migrations
+COPY drizzle.config.ts ./
+
+# Copy pre-push scripts (extension creation etc.)
+COPY scripts ./scripts
+ 
+# Verify frontend files exist
+RUN echo "=== Verifying production frontend files ===" && ls -la server/public/ && test -f server/public/index.html && echo "=== Production frontend files verified ==="
+# Setup Python Backend
+# ================================
+WORKDIR /app/python_backend
+ 
+# Copy Python requirements first for caching
+COPY python_backend/requirements.txt ./
+ 
+# Create virtual environment and install dependencies
+RUN python3 -m venv /opt/venv && /opt/venv/bin/pip install --upgrade pip && /opt/venv/bin/pip install --no-cache-dir --upgrade -r requirements.txt
+ 
+# Copy Python backend code
+COPY python_backend ./
+ 
+# ================================
+# Configure Nginx
+# ================================
+WORKDIR /app
+ 
+# Remove default Nginx config
+RUN rm -f /etc/nginx/sites-enabled/default
+ 
+# Create Nginx configuration
+RUN printf 'server { \n\
+    listen 80; \n\
+    server_name genie-finance-d.bosch.tech; \n\
+    \n\
+    add_header X-Frame-Options "SAMEORIGIN" always; \n\
+    add_header X-Content-Type-Options "nosniff" always; \n\
+    add_header X-XSS-Protection "1; mode=block" always; \n\
+    \n\
+    client_max_body_size 500M; \n\
+    \n\
+    proxy_connect_timeout 3600; \n\
+    proxy_send_timeout 3600; \n\
+    proxy_read_timeout 3600; \n\
+    send_timeout 3600; \n\
+    \n\
+    location / { \n\
+        proxy_pass http://127.0.0.1:5000; \n\
+        proxy_http_version 1.1; \n\
+        proxy_set_header Upgrade $http_upgrade; \n\
+        proxy_set_header Connection "upgrade"; \n\
+        proxy_set_header Host $host; \n\
+        proxy_cache_bypass $http_upgrade; \n\
+        proxy_set_header X-Real-IP $remote_addr; \n\
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; \n\
+        proxy_set_header X-Forwarded-Proto $scheme; \n\
+    } \n\
+    \n\
+    location /api/python/ { \n\
+        proxy_pass http://127.0.0.1:8000/; \n\
+        proxy_set_header Host $host; \n\
+        proxy_set_header X-Real-IP $remote_addr; \n\
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; \n\
+        proxy_connect_timeout 3600; \n\
+        proxy_send_timeout 3600; \n\
+        proxy_read_timeout 3600; \n\
+    } \n\
+}' > /etc/nginx/sites-available/ledgerlm && sed -i 's/\r$//' /etc/nginx/sites-available/ledgerlm
+ 
+# Enable site
+RUN ln -sf /etc/nginx/sites-available/ledgerlm /etc/nginx/sites-enabled/
+ 
+# Test Nginx config
+RUN nginx -t
+ 
+# ================================
+# Configure Supervisor (Process Manager)
+# ================================
+RUN printf '[supervisord] \n\
+nodaemon=true \n\
+user=root \n\
+logfile=/var/log/supervisor/supervisord.log \n\
+pidfile=/var/run/supervisord.pid \n\
+\n\
+[program:nginx] \n\
+command=/usr/sbin/nginx -g "daemon off;" \n\
+autostart=true \n\
+autorestart=true \n\
+stdout_logfile=/dev/stdout \n\
+stdout_logfile_maxbytes=0 \n\
+stderr_logfile=/dev/stderr \n\
+stderr_logfile_maxbytes=0 \n\
+\n\
+[program:node-backend] \n\
+command=/usr/bin/tsx server/index.ts \n\
+directory=/app \n\
+environment=NODE_ENV="production" \n\
+autostart=true \n\
+autorestart=true \n\
+startsecs=10 \n\
+stdout_logfile=/dev/stdout \n\
+stdout_logfile_maxbytes=0 \n\
+stderr_logfile=/dev/stderr \n\
+stderr_logfile_maxbytes=0 \n\
+\n\
+[program:python-backend] \n\
+command=/opt/venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000 \n\
+directory=/app/python_backend \n\
+autostart=true \n\
+autorestart=true \n\
+startsecs=5 \n\
+stdout_logfile=/dev/stdout \n\
+stdout_logfile_maxbytes=0 \n\
+stderr_logfile=/dev/stderr \n\
+stderr_logfile_maxbytes=0' > /etc/supervisor/conf.d/ledgerlm.conf && sed -i 's/\r$//' /etc/supervisor/conf.d/ledgerlm.conf
+ 
+# Create directories
+RUN mkdir -p /app/uploads /var/log/supervisor && chmod 777 /app/uploads
+ 
+# Create startup script that runs migrations then starts supervisor
+# Use sed to remove any Windows carriage returns
+# RUN printf '#!/bin/bash\nset -e\necho "=== Running database migrations ==="\ncd /app && npx drizzle-kit push --force 2>&1 || echo "Migration warning (continuing anyway)"\necho "=== Starting services ==="\nexec /usr/bin/supervisord -c /etc/supervisor/supervisord.conf\n' > /app/start.sh && sed -i 's/\r$//' /app/start.sh && chmod +x /app/start.sh
+# RUN printf '#!/bin/bash\nset -e\necho "=== Skipping database migrations ==="\necho "=== Starting services ==="\nexec /usr/bin/supervisord -c /etc/supervisor/supervisord.conf\n' > /app/start.sh && sed -i 's/\r$//' /app/start.sh && chmod +x /app/start.sh
+RUN printf '#!/bin/bash\n\
+set +e\n\
+\n\
+echo "========================================="\n\
+echo "LedgerLM Container Startup"\n\
+echo "========================================="\n\
+\n\
+cd /app\n\
+\n\
+echo "Current directory:"\n\
+pwd\n\
+\n\
+echo "Contents of /app:"\n\
+ls -la\n\
+\n\
+echo "Contents of server:"\n\
+ls -la server || true\n\
+\n\
+echo "Contents of server/utils:"\n\
+ls -R server/utils || true\n\
+\n\
+echo ""\n\
+echo "===== Node & NPM ====="\n\
+node -v\n\
+npm -v\n\
+\n\
+echo ""\n\
+echo "===== Installed Drizzle Packages ====="\n\
+npm ls drizzle-kit || true\n\
+npm ls drizzle-orm || true\n\
+\n\
+echo ""\n\
+echo "===== Drizzle Directories ====="\n\
+ls -la node_modules/drizzle-kit || true\n\
+ls -la node_modules/drizzle-orm || true\n\
+\n\
+echo ""\n\
+echo "===== Environment Variables ====="\n\
+echo "DB_AUTH_MODE=$DB_AUTH_MODE"\n\
+echo "DB_HOST=$DB_HOST"\n\
+echo "DB_USER=$DB_USER"\n\
+echo "DB_NAME=$DB_NAME"\n\
+echo "IDENTITY_ENDPOINT=${IDENTITY_ENDPOINT:+Present}"\n\
+echo "IDENTITY_HEADER=${IDENTITY_HEADER:+Present}"\n\
+echo "========================================="\n\
+\n\
+echo ""\n\
+echo "===== Drizzle Version ====="\n\
+npx drizzle-kit --version || true\n\
+\n\
+echo ""\n\
+echo "===== Looking for gel-core ====="\n\
+find node_modules -name "*gel*" || true\n\
+\n\
+echo ""\n\
+echo "===== Creating PostgreSQL extensions (pgvector, pg_trgm) ====="\n\
+echo "NOTE: Azure Portal prerequisite — Server parameters → azure.extensions → VECTOR must be enabled first"\n\
+npm run db:prepare\n\
+DB_EXIT=$?\n\
+\n\
+echo "db:prepare Exit Code: $DB_EXIT"\n\
+\n\
+if [ $DB_EXIT -eq 0 ]; then\n\
+    echo "========================================="\n\
+    echo "✅ Extensions created + schema push successful"\n\
+    echo "========================================="\n\
+else\n\
+    echo "========================================="\n\
+    echo "❌ db:prepare failed (extensions or schema push)"\n\
+    echo "  If error is about vector extension: go to Azure Portal →"\n\
+    echo "  PostgreSQL server → Server parameters → azure.extensions"\n\
+    echo "  → add VECTOR and PG_TRGM → Save → redeploy"\n\
+    echo "========================================="\n\
+fi\n\
+\n\
+echo ""\n\
+echo "[2/2] Starting Supervisor..."\n\
+exec /usr/bin/supervisord -c /etc/supervisor/supervisord.conf\n' \
+> /app/start.sh \
+&& sed -i 's/\r$//' /app/start.sh \
+&& chmod +x /app/start.sh
+# Expose port
+EXPOSE 80
+ 
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=3 CMD curl -fsS http://localhost/api/health || exit 1
+ 
+# Start with migration script
+CMD ["/app/start.sh"]
+

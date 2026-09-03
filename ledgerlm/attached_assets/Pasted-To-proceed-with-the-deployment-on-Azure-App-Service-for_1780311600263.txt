@@ -1,0 +1,50 @@
+To proceed with the deployment on Azure App Service for Containers, we request to provision the following infrastructure and share the corresponding access details with us.
+1. Infrastructure to be Provisioned by Bosch IT
+
+
+Resource
+Specification Required
+Azure Container Registry (ACR)
+To store and manage the Docker image
+Azure App Service Plan
+P2v3 4 vCores 16 GB Medium-heavy workloadsas the application container runs both Node.js and Python services
+Azure App Service (Web App for Containers)
+Linux-based App Service connected to the ACR
+Azure Database for PostgreSQL – Flexible Server
+PostgreSQL Flexible Server with pgvector extension enabled (mandatory for AI/vector search functionality)
+Azure Key Vault
+To securely store application secrets and credentials
+Azure Region
+Please confirm the preferred Azure region for deployment and data residency compliance
+2. Security & Access Details Required
+Once the environment is provisioned, kindly share the following:
+ACR login server URL and access credentials
+PostgreSQL server hostname, port, database name, and admin credentials
+Key Vault URI and access details (Managed Identity or Service Principal with read permissions)
+App Service URL / custom domain (if applicable, e.g., ledgerlm.bosch.com)
+Azure AD / Entra ID Tenant ID for SSO configuration
+Any IP allowlist, firewall, or VNet restrictions applicable during deployment
+3. Security & Compliance Clarifications
+Please confirm the following security requirements:
+Should the App Service be publicly accessible, or restricted via Private Endpoint / VNet integration?
+Will Bosch provide the TLS certificate and custom domain, or should we proceed with the default *.azurewebsites.net domain initially?
+Note: Please let us know if there is any other Security & Compliance 
+
+4. Estimated Timeline 
+Once the infrastructure is provisioned and the required access is shared:
+
+
+Activity
+Estimated Duration
+Application deployment & environment configuration
+1 -  2 business days
+SSO integration with Bosch Entra ID
+1 - 2 business days
+UAT support & issue resolution for new deployed Environment
+2 - 3 business days
+Total estimated timeline after environment handover
+Approximately 1 week
+Additionally, please let us know the expected timeline for the architecture diagram approval so we can plan the deployment activities accordingly.
+If the above looks good, kindly proceed with provisioning the environment. Once completed, please share the access credentials and endpoint details so that we can begin the deployment activities immediately.
+Please note that any issues identified post-deployment — such as environment-specific configuration, network connectivity, or access-related issues — will be handled by us as part of the deployment support and resolved promptly.
+Also, kindly confirm whether this provisioning is intended only for the QA/UAT environment, so we can align the configuration accordingly before proceeding.

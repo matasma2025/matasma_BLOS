@@ -1,0 +1,194 @@
+Sindhe Prithvi (SO/OPM123-IN)<Prithvi.Sindhe@in.bosch.com>
+
+​Kumar Mikkilineni Pavan (MS/ECL52) <MikkilineniPavan.Kumar@in.bosch.com>;​Sindhe Prithvi (SO/OPM123-IN) <Prithvi.Sindhe@in.bosch.com>;​Shaik Mohammed Jafar Hussain (MS/ECL5) <JafarHussain.ShaikMohammed@bosch.com>;​Kumar Mikkilineni Pavan (MS/ECL52) <MikkilineniPavan.Kumar@in.bosch.com>​
+​Gohad Atul Anil (BGSW/BDO) <AtulAnil.Gohad@in.bosch.com>;​Srikantaswamy Bisilavaadi (BGSW/BDO-PG BGSW/BDO-ITE) <Srikantaswamy.Bisilavaadi@in.bosch.com>;​Hema M L (BGSW/BDO-IT) <Hema.ML@in.bosch.com>;​Mallikarjuna Swamy Arjun (SO/OPM123-IN) <Arjun.MallikarjunaSwamy@in.bosch.com>;​Chaitra Kundyolanda Muthappa (SO/OPM123-IN) <Chaitra.Muthappa@in.bosch.com>;​Srinivas Dhondi (BGSW/BDO-AII1) <Srinivas.Dhondi@in.bosch.com>;​Siva Chidambaram B (BD/APA-IPM4 BD/APA-IN-Sq3) <Siva.Chidambaram@de.bosch.com>;​Varma Dhruv (MS/ECL51) <Dhruv.Varma@in.bosch.com>;​Shet Girish (BD/APA-IPM4 BD/APA-IN-Sq2) <Girish.Shet@in.bosch.com>;​Mallya Chandrashekar (BD/SWD-BEA7) <Chandra.shekar@in.bosch.com>;​Benno Oommen (BD/SWD-BEA6) <Benno.Oommen@in.bosch.com>;​R Ralf (SO/OPM123-IN) <Ralf.R@in.bosch.com>​
+CAUTION: This email originated from outside of the organization. Do not click links or open attachments unless you recognize the sender and know the content is safe.
+
+Dear Dev Teams,(marked in BCC)
+
+ 
+
+Please review the below security advisory from Bosch CERT regarding the critical NPM supply chain attack affecting Keyv and related packages.
+
+Request you to perform the necessary checks across your applications, CI/CD pipelines, developer workstations, and all environments (including PoC, Sandbox, Dev, QA, and Prod), and confirm your status by EOD today.
+
+ 
+
+Please treat this as a high-priority activity.
+
+ 
+
+For any questions or support, please reach out to:
+
+Shaik Mohammed Jafar Hussain (MS/ECL5)
+Kumar Mikkilineni Pavan (MS/ECL52)
+ 
+
+Kindly forward this communication to the relevant team members if required.
+
+
+- Project teams - CIA-MBR, LogisticsAI, LedgerLM, QA Copilot, ETT LPC& TOC, heyBGSW, MyBGSW.ai, CIA ACCM, Saarathi.
+
+
+Best regards,
+
+Prithvi Sindhe
+
+Quality and PMO1 (SO/OPM123-IN)
+Bosch Global Software Technologies Private Limited
+(CIN: U72400KA1997PTC023164) | 123, Industrial Layout,
+Hosur Road, Koramangala | Bengaluru 560095 | INDIA | www.bosch-softwaretechnologies.com
+Mobile +91 9632555812 | Fax +91 422 673-1909 | Prithvi.Sindhe@in.bosch.com
+
+​
+
+From: Sriram M A (BGSW/BDO-DT2) <Sriram.MA@in.bosch.com>
+Sent: Friday, August 7, 2026 3:51 PM
+To: Shet Girish (BD/APA-IPM4 BD/APA-IN-Sq2) <Girish.Shet@in.bosch.com>; Sindhe Prithvi (SO/OPM123-IN) <Prithvi.Sindhe@in.bosch.com>
+Subject: FW: [IMP]: Fw: Action Required: NPM supply chain attack Keyv and Cacheable (Shai-Hulud)
+Importance: High
+
+ 
+
+ 
+
+ 
+
+Best regards,
+
+Sriram M A
+BGSW/BDO-DT2
+
+Mobile +91-98865-16572
+
+​
+
+From: Cybersecurity Office One-BGSW <RBEI.ProVIRT@bcn.bosch.com>
+Sent: Friday, August 7, 2026 3:21 PM
+To: Cybersecurity Office One-BGSW <RBEI.ProVIRT@bcn.bosch.com>
+Cc: Anitha R Y (BGSW/ISP BGSW/ISP-CS) <Anitha.RajannaYadukumar@in.bosch.com>
+Subject: [IMP]: Fw: Action Required: NPM supply chain attack Keyv and Cacheable (Shai-Hulud)
+Importance: High
+
+ 
+
+Hello,
+
+ 
+
+We received a critical security advisory concerning a supply chain attack initiated by a set of NPM packages.
+
+ 
+
+We request the Product owners and IT owners (including PoC, sandbox and all environments) to immediately act on the instructions (highlighted in yellow) in the below email. In case of questions, please reach out to your security manager.
+
+ 
+
+ 
+
+Note: Recipients are intentionally marked in BCC to avoid spamming.
+
+ 
+
+Best regards,
+
+Mutyalarao Aripaka
+
+Responsible for Security Governance (BGSW/ISP-CS)
+Bosch Global Software Technologies Private Limited
+(CIN: U72400KA1997PTC023164) | 123, Industrial Layout,
+Hosur Road, Koramangala | Bengaluru 560095 | INDIA | www.bosch-softwaretechnologies.com
+Fax +91 80 6617-0711 | Mutyalarao.Aripaka@in.bosch.com
+
+​
+
+From: Bosch Vulnerability Management (C/CYP-VM)
+Sent: Friday, August 7, 2026 2:41 PM
+To: C/CYG CSB; BBM GB CSO-E; Steinmetz Joachim (PS/EXS); Thaiss Mario (PS/ORG-CS PS/ORG-UAES); Schulze Xaver (BD/DPA-AOC6); Mihajlov Daniel (C/CYP-VM); Fessi Ali (C/CYG-GP); Kiwinski Maciej (C/CYP-VM); Kaiser Ralf (C/CYP-VM); Sureshkumar V S (C/CYE-TR)
+Cc: Lindner Stefan (C/CYC C/CYT); Kuehnlein Juergen (C/CYP); Raidt Fabian (C/CYP-VM); CTI Mailbox (C/CYT-CT)
+Subject: Action Required: NPM supply chain attack Keyv and Cacheable (Shai-Hulud)
+
+ 
+
+Dear CSOs,
+
+ 
+
+We are writing to alert you to a highly critical, active software supply chain attack targeting the widely used key-value storage library keyv and associated npm packages by the same maintainer, first identified on August 4, 2026.
+
+Because these packages are common indirect (transitive) dependencies in JavaScript and Node.js projects, your application or build pipelines may be exposed without your direct knowledge.
+
+ 
+
+Action required to be taken by the CSOs
+Forward this mail with the provided background information and below instructions to your Developer Audiences / Community and ask them to take action, whenever they maintain npm based environments.
+
+ 
+
+Actions taken centrally by C/CY
+
+Cyber Threat Intelligence
+
+Monitoring the threat landscape for new attack patterns to be included into Threat Hunting and communication
+Threat Hunting
+
+Scan for known-malicious indicators in Antivirus and Endpoint Detection and Response logs
+Search for suspicious behavior, such as Process Lineages, File Creation Events and Process Command Lines on machines with Endpoint Detection and Response solution
+Screen Proxy traffic for suspicious outbound traffic and network based indicators of compromise
+ 
+
+ 
+
+Note: There is no central tracking possible of this at the moment. 
+
+If there is a sign of compromise detected by security alerts or threat hunting, the findings will be handled by Bosch CERT.
+
+ 
+
+ 
+
+How to Identify if You are Affected
+
+Please immediately perform the following checks within your development team:
+
+Scan your manifests and lockfiles (package-lock.json, pnpm-lock.yaml, or yarn.lock) for any occurrences of keyv or other packages by the same maintainer.
+Cross-reference found packages with the live tracker of compromised versions on Socket.dev.
+Audit CI/CD pipeline runs and developer machines that executed package installations (npm install or updates) on or after August 4, 2026.
+ 
+
+Critical Escalation & Actions to Take
+
+If you identify a compromised package version in your environment:
+
+Do not open or clone the repository in an IDE or coding agent (the malware triggers automatically on folder open).
+Do not rotate credentials yet. The malware uses an active persistence component; rotating credentials first will trigger it to immediately scrape and exfiltrate your new keys. You must remove the persistence component first.
+Contact Bosch CERT immediately at cert@bosch.com to report the exposure and coordinate incident response.
+ 
+
+Detailed Technical Guide & Remediation Steps
+
+We have prepared a comprehensive, step-by-step technical guide for IT Owners to help you safely locate the persistence components, execute clean-up, handle credential rotation safely, and apply long-term hardening (such as upgrading to npm 12 and utilizing package age delays).
+
+ 
+
+Review the Full IT Owner Technical Action Guide & Reference List.
+
+ 
+
+Thank you for your immediate attention to securing our software supply chain.
+
+ 
+
+Mit freundlichen Grüßen / Best regards
+
+Haron Zatari
+
+Bosch Vulnerability Management (C/CYP-VM)
+Robert Bosch GmbH | Postfach 30 02 20 | 70442 Stuttgart | GERMANY | www.bosch.com
+Besucheradresse: Borsigstraße 4 | 70469 Stuttgart
+Mobil +49 152 24403710 | Haron.Zatari@de.bosch.com
+
+Sitz: Stuttgart, Registergericht: Amtsgericht Stuttgart, HRB 14000;
+Aufsichtsratsvorsitzender: Prof. Dr. Stefan Asenkerschbaumer;
+Geschäftsführung: Dr. Stefan Hartung, Dr. Christian Fischer, Dr. Markus Forschner,
+Stefan Grosch, Dr. Markus Heyn, Dr. Frank Meyer, Katja von Raven, Dr. Tanja Rückert

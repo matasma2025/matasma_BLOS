@@ -1,0 +1,194 @@
+Updated chat title to: What is the Internal capacity mix % for Mar 202...
+🔍 User boschmatasma@in.bosch.com has access to 2 cubes (2 total, filtered by preferences). Metadata loaded for 0 cubes.
+🔍 Semantic SQL enabled for 2 cubes: Bosch testing - KPI_2026 (in.bosch.com), Bosch testing - KPI (in.bosch.com)
+🔍 Semantic SQL query for cube Bosch testing - KPI_2026 (bda96aeb-284b-4447-bec0-174a9d5b2f52) domain in.bosch.com: "What is the Internal capacity mix % for Mar 2025 and Jan 2026 for BGSW"
+🔍 Semantic SQL query for cube Bosch testing - KPI (e2eb7941-1d18-4e63-9ae8-f3180601f67b) domain in.bosch.com: "What is the Internal capacity mix % for Mar 2025 and Jan 2026 for BGSW"
+🔍 Enterprise ENABLED - sending company_ids to Python: ["002cf1d1-e03d-4ea0-9af5-15f2d0531243"]
+🔍 Cube filtering ENABLED - sending 2 cube_ids to Python
+📤 RAG request for user 888e0809-e8ed-46c7-a5be-2ddec902aa80: {
+  enterpriseEnabled: true,
+  hasCompanyIds: true,
+  companyIdsCount: 1,
+  hasCubeIds: true,
+  cubeIdsCount: 2,
+  personalDocsCount: 0
+}
+[Python Backend] INFO:api.routes.semantic_sql:Intent check: domain=in.bosch.com, is_nemko=False, cube_id=bda96aeb-284b-4447-bec0-174a9d5b2f52, row_count=833742
+[Python Backend] INFO:services.semantic_sql_service:Detected entity filters from query: [{'column': 'region_entity', 'operator': '=', 'value': 'BGSW', 'matched_term': 'BGSW'}]
+[Python Backend] INFO:services.semantic_sql_service:Matched calculation by trigger 'internal capacity mix': Internal Capacity Mix
+INFO:services.semantic_sql_service:Matched calculation: Internal Capacity Mix
+[Python Backend] INFO:services.semantic_sql_service:Using dynamic schema context for cube bda96aeb-284b-4447-bec0-174a9d5b2f52
+[Python Backend] INFO:services.semantic_sql_service:FAST PATH: Skipping OpenAI for KPI calculation: Internal Capacity Mix
+[Python Backend] INFO:services.semantic_sql_service:Built fast KPI intent: year=[2025], month=[[1, 3]], group_by=['month', 'region_entity']
+[Python Backend] INFO:services.semantic_sql_service:Detected time scope: specific
+INFO:services.semantic_sql_service:Time scope 'specific': Skipping default time filter
+INFO:services.semantic_sql_service:Added default cost_category = 'GB Wise END Capacity' for capacity query
+[Python Backend] INFO:services.semantic_sql_service:Added default metric for GB Wise END Capacity: SUM(capacity)
+INFO:services.semantic_sql_service:Skipped include_exclude filter: entity/SX/MS revenue query does not need it
+[Python Backend] INFO:     127.0.0.1:55067 - "POST /api/v2/semantic-sql/intent HTTP/1.1" 200 OK
+📊 Comparison query skipped: query text has 2 years (2025, 2026)
+[Python Backend] INFO:api.routes.semantic_sql:Intent check: domain=in.bosch.com, is_nemko=False, cube_id=e2eb7941-1d18-4e63-9ae8-f3180601f67b, row_count=1672154
+[Python Backend] INFO:services.semantic_sql_service:Detected entity filters from query: [{'column': 'region_entity', 'operator': '=', 'value': 'BGSW', 'matched_term': 'BGSW'}]
+[Python Backend] INFO:services.semantic_sql_service:Matched calculation by trigger 'internal capacity mix': Internal Capacity Mix
+INFO:services.semantic_sql_service:Matched calculation: Internal Capacity Mix
+[Python Backend] INFO:services.semantic_sql_service:Using dynamic schema context for cube e2eb7941-1d18-4e63-9ae8-f3180601f67b
+[Python Backend] INFO:services.semantic_sql_service:FAST PATH: Skipping OpenAI for KPI calculation: Internal Capacity Mix
+[Python Backend] INFO:services.semantic_sql_service:Built fast KPI intent: year=[2025], month=[[1, 3]], group_by=['month', 'region_entity']
+INFO:services.semantic_sql_service:Detected time scope: specific
+INFO:services.semantic_sql_service:Time scope 'specific': Skipping default time filter
+INFO:services.semantic_sql_service:Added default cost_category = 'GB Wise END Capacity' for capacity query
+[Python Backend] INFO:services.semantic_sql_service:Added default metric for GB Wise END Capacity: SUM(capacity)
+INFO:services.semantic_sql_service:Skipped include_exclude filter: entity/SX/MS revenue query does not need it
+[Python Backend] INFO:     127.0.0.1:55068 - "POST /api/v2/semantic-sql/intent HTTP/1.1" 200 OK
+📊 Comparison query skipped: query text has 2 years (2025, 2026)
+[Python Backend] C:\Users\SamrithaS\anaconda3\envs\047_LedgerLMBosch_2105_2027\Lib\site-packages\urllib3\connectionpool.py:1110: InsecureRequestWarning: Unverified HTTPS request is being made to host 'ollama.ledgerlm.ai'. Adding certificate verification is strongly advised. See: https://urllib3.readthedocs.io/en/latest/advanced-usage.html#tls-warnings
+  warnings.warn(
+[Python Backend] INFO:api.routes.rag:Query embedded: 1024-dim vector (provider: ollama)
+[Python Backend] INFO:database:No document IDs provided - returning empty results (not searching all documents)
+[Python Backend] INFO:api.routes.rag:get_enterprise_chunks called with company_ids: ['002cf1d1-e03d-4ea0-9af5-15f2d0531243'], cube_ids: ['bda96aeb-284b-4447-bec0-174a9d5b2f52', 'e2eb7941-1d18-4e63-9ae8-f3180601f67b'], user_id: 888e0809-e8ed-46c7-a5be-2ddec902aa80, embedding_col: embedding
+[Python Backend] INFO:api.routes.rag:\U0001f512 Cube filtering ENABLED - querying only from 2 accessible cubes via embedding
+[Python Backend] INFO:api.routes.rag:get_enterprise_chunks returning 0 chunks for company_ids: ['002cf1d1-e03d-4ea0-9af5-15f2d0531243']
+[Python Backend] INFO:     127.0.0.1:55071 - "POST /api/v2/rag/query HTTP/1.1" 200 OK
+[Python Backend] INFO:api.routes.semantic_sql:Executing structured query for cube bda96aeb-284b-4447-bec0-174a9d5b2f52
+[Python Backend] INFO:services.semantic_sql_service:Plan type detection: is_plan=False, plan_type=None, page=None, particulars=Capacity, year=2025, month=3
+INFO:services.semantic_sql_service:compile_sql: domain='in.bosch.com', is_nemko=False, use_calculation='internal capacity mix'
+[Python Backend] INFO:services.semantic_sql_service:compile_sql: use_calculation='Internal Capacity Mix' pre-set in intent, dispatching directly to compile_calculation_sql (bypassing LLM routing)
+INFO:services.semantic_sql_service:_inject_time_from_query: upgraded single year= to year IN [2025, 2026] (query has multiple years)
+[Python Backend] INFO:services.semantic_sql_service:_inject_time_from_query: cross-month cross-year pairs [(3, 2025), (1, 2026)] \u2192 raw OR filter to avoid Cartesian product
+[Python Backend] INFO:services.semantic_sql_service:[DB-LOOKUP] Starting DB lookup for calc='internal capacity mix', cube_id=bda96aeb-284b-4447-bec0-174a9d5b2f52
+[Python Backend] INFO:services.semantic_sql_service:[DB-LOOKUP] Candidates to try: ['internal capacity mix', 'internal capacity']
+[Python Backend] INFO:services.semantic_sql_service:[DB-LOOKUP] Result: Internal Capacity Mix | has_template=False | db_error=None
+INFO:services.semantic_sql_service:[DB-TEMPLATE] calc_rule found for 'Internal Capacity Mix' but sql_template is empty. Falling back to Python builders.
+INFO:services.semantic_sql_service:Skipping resource_type filter for capacity mix calculation: internal capacity mix
+[Python Backend] INFO:services.semantic_sql_service:Direct METRIC_CATALOG routing: internal_capacity_mix -> _build_internal_capacity_mix_sql
+[Python Backend] INFO:services.semantic_sql_service:Expanded literal month=3 to month IN ([1, 2, 3]) for YTD calculation
+INFO:services.semantic_sql_service:_expand_month_filter_for_ytd: Returning max_month=3
+[Python Backend] INFO:services.semantic_sql_service:Generated Internal Capacity Mix SQL (COMPARISON window YTD, months [3])
+INFO:api.routes.semantic_sql:
+============================================================
+[SQL_EXEC] metric     = internal_capacity_mix
+[SQL_EXEC] params     = ['bda96aeb-284b-4447-bec0-174a9d5b2f52', 'BGSW']
+[SQL_EXEC] sql        =
+ 
+                WITH raw AS (
+                    SELECT
+                        month, region_entity, year,
+                        SUM(CASE
+                            WHEN LOWER(TRIM(resource_type)) = 'internal'
+                            AND LOWER(TRIM(onsite_offshore)) = 'offshore'
+                            AND (sector IS NULL OR LOWER(TRIM(sector)) != 'internal')
+ 
+                            AND (service_area IS NULL OR service_area NOT IN ('Corporate', 'RBEI_CORPORATE', 'SDS_CORPORATE'))
+                            THEN capacity ELSE 0
+                        END) AS offshore_sum,
+                        SUM(CASE
+                            WHEN LOWER(TRIM(resource_type)) = 'external'
+                            AND LOWER(TRIM(onsite_offshore)) = 'offshore'
+                            AND (service_area IS NULL OR service_area NOT IN ('Corporate', 'RBEI_CORPORATE', 'SDS_CORPORATE'))
+                            AND employee_number IS NOT NULL AND employee_number != '' AND employee_number != '0' AND employee_number != '0.0'
+                            THEN capacity ELSE 0
+                        END) AS outsourcing_sum
+                    FROM cube_fact_data
+                    WHERE cube_id = %s AND region_entity = %s AND month IN ('1', '2', '3')
+                      AND cost_category = 'GB Wise END Capacity'
+                    GROUP BY month, region_entity, year
+                ),
+                ytd_agg AS (
+                    SELECT
+                        region_entity, year, month,
+                        ROUND(SUM(offshore_sum) OVER (PARTITION BY region_entity, year ORDER BY month::int ROWS UNBOUNDED PRECEDING) / NULLIF(month::int, 0), 2) AS offshore_capacity,
+                        ROUND(SUM(outsourcing_sum) OVER (PARTITION BY region_entity, year ORDER BY month::int ROWS UNBOUNDED PRECEDING) / NULLIF(month::int, 0), 2) AS outsourcing_capacity,
+                        ROUND(
+                            100.0 * SUM(offshore_sum) OVER (PARTITION BY region_entity, year ORDER BY month::int ROWS UNBOUNDED PRECEDING)
+                            / NULLIF(
+                                SUM(offshore_sum) OVER (PARTITION BY region_entity, year ORDER BY month::int ROWS UNBOUNDED PRECEDING)
+                                + SUM(outsourcing_sum) OVER (PARTITION BY region_entity, year ORDER BY month::int ROWS UNBOUNDED PRECEDING),
+                                0
+                            ),
+                            2
+                        ) AS internal_mix_pct
+                    FROM raw
+                )
+                SELECT * FROM ytd_agg
+                WHERE month::int IN (3)
+                ORDER BY internal_mix_pct DESC
+ 
+============================================================
+[Python Backend] INFO:api.routes.semantic_sql:[SQL_RESULT] metric=internal_capacity_mix | rows=1 | time=427ms
+[Python Backend] INFO:api.routes.semantic_sql:Fact data only: 1 rows
+[Python Backend] INFO:     127.0.0.1:55086 - "POST /api/v2/semantic-sql/query HTTP/1.1" 200 OK
+[Python Backend] INFO:api.routes.semantic_sql:Executing structured query for cube e2eb7941-1d18-4e63-9ae8-f3180601f67b
+INFO:services.semantic_sql_service:Plan type detection: is_plan=False, plan_type=None, page=None, particulars=Capacity, year=2025, month=3
+INFO:services.semantic_sql_service:compile_sql: domain='in.bosch.com', is_nemko=False, use_calculation='internal capacity mix'
+INFO:services.semantic_sql_service:compile_sql: use_calculation='Internal Capacity Mix' pre-set in intent, dispatching directly to compile_calculation_sql (bypassing LLM routing)
+INFO:services.semantic_sql_service:_inject_time_from_query: upgraded single year= to year IN [2025, 2026] (query has multiple years)
+[Python Backend] INFO:services.semantic_sql_service:_inject_time_from_query: cross-month cross-year pairs [(3, 2025), (1, 2026)] \u2192 raw OR filter to avoid Cartesian product
+INFO:services.semantic_sql_service:[DB-LOOKUP] Starting DB lookup for calc='internal capacity mix', cube_id=e2eb7941-1d18-4e63-9ae8-f3180601f67b
+[Python Backend] INFO:services.semantic_sql_service:[DB-LOOKUP] Candidates to try: ['internal capacity mix', 'internal capacity']
+[Python Backend] INFO:services.semantic_sql_service:[DB-LOOKUP] Result: Internal Capacity Mix | has_template=False | db_error=None
+INFO:services.semantic_sql_service:[DB-TEMPLATE] calc_rule found for 'Internal Capacity Mix' but sql_template is empty. Falling back to Python builders.
+[Python Backend] INFO:services.semantic_sql_service:Skipping resource_type filter for capacity mix calculation: internal capacity mix
+INFO:services.semantic_sql_service:Direct METRIC_CATALOG routing: internal_capacity_mix -> _build_internal_capacity_mix_sql
+INFO:services.semantic_sql_service:Expanded literal month=3 to month IN ([1, 2, 3]) for YTD calculation
+INFO:services.semantic_sql_service:_expand_month_filter_for_ytd: Returning max_month=3
+INFO:services.semantic_sql_service:Generated Internal Capacity Mix SQL (COMPARISON window YTD, months [3])
+INFO:api.routes.semantic_sql:
+============================================================
+[SQL_EXEC] metric     = internal_capacity_mix
+[SQL_EXEC] params     = ['e2eb7941-1d18-4e63-9ae8-f3180601f67b', 'BGSW']
+[SQL_EXEC] sql        =
+ 
+                WITH raw AS (
+                    SELECT
+                        month, region_entity, year,
+                        SUM(CASE
+                            WHEN LOWER(TRIM(resource_type)) = 'internal'
+                            AND LOWER(TRIM(onsite_offshore)) = 'offshore'
+                            AND (sector IS NULL OR LOWER(TRIM(sector)) != 'internal')
+ 
+                            AND (service_area IS NULL OR service_area NOT IN ('Corporate', 'RBEI_CORPORATE', 'SDS_CORPORATE'))
+                            THEN capacity ELSE 0
+                        END) AS offshore_sum,
+                        SUM(CASE
+                            WHEN LOWER(TRIM(resource_type)) = 'external'
+                            AND LOWER(TRIM(onsite_offshore)) = 'offshore'
+                            AND (service_area IS NULL OR service_area NOT IN ('Corporate', 'RBEI_CORPORATE', 'SDS_CORPORATE'))
+                            AND employee_number IS NOT NULL AND employee_number != '' AND employee_number != '0' AND employee_number != '0.0'
+                            THEN capacity ELSE 0
+                        END) AS outsourcing_sum
+                    FROM cube_fact_data
+                    WHERE cube_id = %s AND region_entity = %s AND month IN ('1', '2', '3')
+                      AND cost_category = 'GB Wise END Capacity'
+                    GROUP BY month, region_entity, year
+                ),
+                ytd_agg AS (
+                    SELECT
+                        region_entity, year, month,
+                        ROUND(SUM(offshore_sum) OVER (PARTITION BY region_entity, year ORDER BY month::int ROWS UNBOUNDED PRECEDING) / NULLIF(month::int, 0), 2) AS offshore_capacity,
+                        ROUND(SUM(outsourcing_sum) OVER (PARTITION BY region_entity, year ORDER BY month::int ROWS UNBOUNDED PRECEDING) / NULLIF(month::int, 0), 2) AS outsourcing_capacity,
+                        ROUND(
+                            100.0 * SUM(offshore_sum) OVER (PARTITION BY region_entity, year ORDER BY month::int ROWS UNBOUNDED PRECEDING)
+                            / NULLIF(
+                                SUM(offshore_sum) OVER (PARTITION BY region_entity, year ORDER BY month::int ROWS UNBOUNDED PRECEDING)
+                                + SUM(outsourcing_sum) OVER (PARTITION BY region_entity, year ORDER BY month::int ROWS UNBOUNDED PRECEDING),
+                                0
+                            ),
+                            2
+                        ) AS internal_mix_pct
+                    FROM raw
+                )
+                SELECT * FROM ytd_agg
+                WHERE month::int IN (3)
+                ORDER BY internal_mix_pct DESC
+ 
+============================================================
+[Python Backend] INFO:api.routes.semantic_sql:[SQL_RESULT] metric=internal_capacity_mix | rows=1 | time=437ms
+[Python Backend] INFO:api.routes.semantic_sql:Fact data only: 1 rows
+[Python Backend] INFO:     127.0.0.1:55067 - "POST /api/v2/semantic-sql/query HTTP/1.1" 200 OK
+✅ Semantic SQL returned 1 rows from Bosch testing - KPI
+✅ Semantic SQL returned 1 rows from Bosch testing - KPI_2026
+12:17:27 PM [express] GET /api/chats 200 in 71ms :: [{"id":"c12c796c-d011-4885-a45b-2f7f914dbada","us…
+12:17:27 PM [express] GET /api/chats/c12c796c-d011-4885-a45b-2f7f914dbada 200 in 73ms :: {"id":"c12c7…
+12:17:27 PM [express] GET /api/chats/c12c796c-d011-4885-a45b-2f7f914dbada/documents 304 in 77ms :: []
+12:17:27 PM [express] GET /api/chats/c12c796c-d011-4885-a45b-2f7f914dbada/messages 200 in 82ms :: [{"…
+12:17:27 PM [express] POST /api/chats/c12c796c-d011-4885-a45b-2f7f914dbada/messages/stream 200 in 215…

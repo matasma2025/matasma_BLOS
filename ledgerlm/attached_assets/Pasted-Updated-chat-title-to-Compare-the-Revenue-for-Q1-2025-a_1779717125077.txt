@@ -1,0 +1,82 @@
+Updated chat title to: Compare the Revenue for Q1 2025 and Q1 2026 for...
+🔍 User boschmatasma@in.bosch.com has access to 1 cubes (2 total, filtered by preferences). Metadata loaded for 0 cubes.
+🔍 Semantic SQL enabled for 1 cubes: Bosch testing - KPI (in.bosch.com)
+[AI Router] RAG will use Azure OpenAI for domain in.bosch.com (embedding: text-embedding-3-large)
+🔍 Semantic SQL query for cube Bosch testing - KPI (e2eb7941-1d18-4e63-9ae8-f3180601f67b) domain in.bosch.com: "Compare the Revenue for Q1 2025 and Q1 2026 for BGSW"
+[AI Router] Semantic SQL intent will use Azure OpenAI for domain in.bosch.com
+🔍 Enterprise ENABLED - sending company_ids to Python: ["002cf1d1-e03d-4ea0-9af5-15f2d0531243"]
+🔍 Cube filtering ENABLED - sending 1 cube_ids to Python
+📤 RAG request for user 888e0809-e8ed-46c7-a5be-2ddec902aa80: {
+  enterpriseEnabled: true,
+  hasCompanyIds: true,
+  companyIdsCount: 1,
+  hasCubeIds: true,
+  cubeIdsCount: 1,
+  personalDocsCount: 0
+}
+[Python Backend] INFO:api.routes.semantic_sql:Intent check: domain=in.bosch.com, is_nemko=False, cube_id=e2eb7941-1d18-4e63-9ae8-f3180601f67b, row_count=2505896
+[Python Backend] INFO:services.semantic_sql_service:Detected entity filters from query: [{'column': 'region_entity', 'operator': '=', 'value': 'BGSW', 'matched_term': 'bgsw'}]
+[Python Backend] INFO:services.semantic_sql_service:Matched calculation by trigger 'revenue for': Revenue Summary
+INFO:services.semantic_sql_service:Matched calculation: Revenue Summary
+[Python Backend] INFO:services.semantic_sql_service:Using dynamic schema context for cube e2eb7941-1d18-4e63-9ae8-f3180601f67b
+[Python Backend] INFO:services.semantic_sql_service:FAST PATH: Skipping OpenAI for KPI calculation: Revenue Summary
+[Python Backend] INFO:services.semantic_sql_service:Fast KPI: quarters detected \u2192 months [1, 2, 3]
+INFO:services.semantic_sql_service:Built fast KPI intent: year=[2025], month=[[1, 2, 3]], group_by=['month', 'region_entity']
+[Python Backend] INFO:services.semantic_sql_service:Detected time scope: specific
+INFO:services.semantic_sql_service:Time scope 'specific': Skipping default time filter
+INFO:services.semantic_sql_service:Added default cost_category = 'Revenue' for revenue query (mtd=False, ytd=False)
+INFO:services.semantic_sql_service:Added default metric for Revenue: SUM(amount_usd)
+[Python Backend] INFO:services.semantic_sql_service:Skipped include_exclude filter: entity/SX/MS revenue query does not need it
+[Python Backend] INFO:     127.0.0.1:54509 - "POST /api/v2/semantic-sql/intent HTTP/1.1" 200 OK
+📊 Comparison query skipped: query text has 2 years (2025, 2026)
+[Python Backend] INFO:services.vector_store:[Azure Embeddings] Using deployment 'text-embedding-3-large' at https://ledgerlm-openai.openai.azure.com
+[Python Backend] INFO:api.routes.rag:Query embedded: 3072-dim vector (provider: azure_openai)
+[Python Backend] C:\Users\SamrithaS\anaconda3\envs\047_LedgerLMBosch_2105_2027\Lib\site-packages\urllib3\connectionpool.py:1110: InsecureRequestWarning: Unverified HTTPS request is being made to host 'ollama.ledgerlm.ai'. Adding certificate verification is strongly advised. See: https://urllib3.readthedocs.io/en/latest/advanced-usage.html#tls-warnings
+  warnings.warn(
+[Python Backend] C:\Users\SamrithaS\anaconda3\envs\047_LedgerLMBosch_2105_2027\Lib\site-packages\urllib3\connectionpool.py:1110: InsecureRequestWarning: Unverified HTTPS request is being made to host 'ollama.ledgerlm.ai'. Adding certificate verification is strongly advised. See: https://urllib3.readthedocs.io/en/latest/advanced-usage.html#tls-warnings
+  warnings.warn(
+[Python Backend] C:\Users\SamrithaS\anaconda3\envs\047_LedgerLMBosch_2105_2027\Lib\site-packages\urllib3\connectionpool.py:1110: InsecureRequestWarning: Unverified HTTPS request is being made to host 'ollama.ledgerlm.ai'. Adding certificate verification is strongly advised. See: https://urllib3.readthedocs.io/en/latest/advanced-usage.html#tls-warnings
+  warnings.warn(
+[Python Backend] INFO:database:No document IDs provided - returning empty results (not searching all documents)
+[Python Backend] INFO:api.routes.rag:get_enterprise_chunks called with company_ids: ['002cf1d1-e03d-4ea0-9af5-15f2d0531243'], cube_ids: ['e2eb7941-1d18-4e63-9ae8-f3180601f67b'], user_id: 888e0809-e8ed-46c7-a5be-2ddec902aa80, embedding_col: embedding_3072
+[Python Backend] INFO:api.routes.rag:\U0001f512 Cube filtering ENABLED - querying only from 1 accessible cubes via embedding_3072
+[Python Backend] INFO:api.routes.rag:get_enterprise_chunks returning 0 chunks for company_ids: ['002cf1d1-e03d-4ea0-9af5-15f2d0531243']
+[Python Backend] INFO:     127.0.0.1:54511 - "POST /api/v2/rag/query HTTP/1.1" 200 OK
+[Python Backend] INFO:api.routes.semantic_sql:Executing structured query for cube e2eb7941-1d18-4e63-9ae8-f3180601f67b
+INFO:services.semantic_sql_service:Plan type detection: is_plan=False, plan_type=None, page=None, particulars=None, year=2025, month=None
+INFO:services.semantic_sql_service:compile_sql: domain='in.bosch.com', is_nemko=False, use_calculation='revenue summary'
+INFO:services.semantic_sql_service:compile_sql: use_calculation='Revenue Summary' pre-set in intent, dispatching directly to compile_calculation_sql (bypassing LLM routing)
+[Python Backend] INFO:services.semantic_sql_service:_inject_time_from_query: upgraded single year= to year IN [2025, 2026] (query has multiple years)
+INFO:services.semantic_sql_service:[DB-LOOKUP] Starting DB lookup for calc='revenue summary', cube_id=e2eb7941-1d18-4e63-9ae8-f3180601f67b
+[Python Backend] INFO:services.semantic_sql_service:[DB-LOOKUP] Candidates to try: ['revenue summary']
+[Python Backend] INFO:services.semantic_sql_service:[DB-LOOKUP] Result: None | has_template=False | db_error=None
+[Python Backend] INFO:services.semantic_sql_service:[DB-TEMPLATE] No DB record for 'revenue summary' � trying Python builders.
+INFO:services.semantic_sql_service:Generated Revenue SQL (column=amount_usd, alias=revenue, divided by 1M)
+INFO:api.routes.semantic_sql:
+============================================================
+[SQL_EXEC] metric     = revenue
+[SQL_EXEC] params     = []
+[SQL_EXEC] sql        =
+ 
+            SELECT
+                month, region_entity, year,
+                ROUND((SUM(amount_usd) / 1000000.0)::numeric, 2) as revenue
+            FROM cube_fact_data
+            WHERE cube_id = 'e2eb7941-1d18-4e63-9ae8-f3180601f67b' AND year IN (2025, 2026) AND month IN (1, 2, 3) AND region_entity = 'BGSW'
+              AND cost_category = 'Revenue Summary'
+            GROUP BY month, region_entity, year
+            ORDER BY revenue DESC
+ 
+============================================================
+[Python Backend] INFO:api.routes.semantic_sql:[SQL_RESULT] metric=revenue | rows=6 | time=150ms
+[Python Backend] INFO:     127.0.0.1:54526 - "POST /api/v2/semantic-sql/query HTTP/1.1" 200 OK
+✅ Semantic SQL returned 6 rows from Bosch testing - KPI
+[Python Backend] INFO:api.routes.semantic_sql:Fact data only: 6 rows
+[AI Router] Using Azure OpenAI for domain in.bosch.com (model: gpt-5.2)
+[Azure OpenAI] Using deployment gpt-5.2 at https://ledgerlm-openai.openai.azure.com
+7:19:12 PM [express] GET /api/chats 200 in 73ms :: [{"id":"430621ba-ecf6-464d-97e2-b3c4f9597773","us…
+7:19:12 PM [express] GET /api/chats/430621ba-ecf6-464d-97e2-b3c4f9597773 200 in 79ms :: {"id":"43062…
+7:19:12 PM [express] GET /api/chats/430621ba-ecf6-464d-97e2-b3c4f9597773/messages 200 in 88ms :: [{"…
+7:19:12 PM [express] POST /api/chats/430621ba-ecf6-464d-97e2-b3c4f9597773/messages/stream 200 in 194…
+7:19:12 PM [express] GET /api/chats/430621ba-ecf6-464d-97e2-b3c4f9597773/documents 304 in 123ms :: []
+7:19:12 PM [express] GET /api/chats/430621ba-ecf6-464d-97e2-b3c4f9597773/has-messages 200 in 167ms :…

@@ -1,0 +1,31 @@
+kind = "slides"
+previewPath = "/ledgerlm-security-arch/"
+title = "LedgerLM Security Architecture Diagram"
+version = "1.0.0"
+id = "artifacts/ledgerlm-security-arch"
+router = "path"
+
+[[integratedSkills]]
+name = "slides"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/ledgerlm-security-arch/" ]
+localPort = 3002
+
+[services.development]
+run = "pnpm --filter @workspace/ledgerlm-security-arch run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/ledgerlm-security-arch", "run", "build" ]
+publicDir = "artifacts/ledgerlm-security-arch/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "3002"
+BASE_PATH = "/ledgerlm-security-arch/"

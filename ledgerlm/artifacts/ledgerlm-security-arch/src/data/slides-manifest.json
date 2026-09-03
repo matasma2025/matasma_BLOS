@@ -1,0 +1,82 @@
+[
+  {
+    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "position": 1,
+    "filepath": "src/pages/slides/Slide01Title.tsx",
+    "title": "LedgerLM Security Architecture",
+    "description": "Title slide — Granular security architecture diagrams for Bosch Cyber Security MS/ECL51 review",
+    "speakerNotes": ""
+  },
+  {
+    "id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+    "position": 2,
+    "filepath": "src/pages/slides/Slide02NetworkPerimeter.tsx",
+    "title": "System Perimeter & Network Zones",
+    "description": "Azure network architecture — TLS termination, internal port isolation, VNet private endpoints, HTTP security headers",
+    "speakerNotes": ""
+  },
+  {
+    "id": "c3d4e5f6-a7b8-9012-cdef-123456789012",
+    "position": 3,
+    "filepath": "src/pages/slides/Slide03AuthFlow.tsx",
+    "title": "Authentication Flow",
+    "description": "Dual auth path — Email OTP (bcrypt, rate-limited) and Azure AD OIDC SSO with group-based role mapping",
+    "speakerNotes": ""
+  },
+  {
+    "id": "d4e5f6a7-b8c9-0123-def0-234567890123",
+    "position": 4,
+    "filepath": "src/pages/slides/Slide04SessionSecurity.tsx",
+    "title": "Session Security & Cookie Policy",
+    "description": "PostgreSQL-backed sessions, httpOnly/Secure/SameSite=Strict cookie config, HSTS, SESSION_SECRET startup guard",
+    "speakerNotes": ""
+  },
+  {
+    "id": "e5f6a7b8-c9d0-1234-ef01-345678901234",
+    "position": 5,
+    "filepath": "src/pages/slides/Slide05RBAC.tsx",
+    "title": "Role-Based Access Control",
+    "description": "Three-tier RBAC — Super Admin, Tenant Admin, Standard/Member — middleware enforcement chain, HTTP 401/403 responses",
+    "speakerNotes": ""
+  },
+  {
+    "id": "f6a7b8c9-d0e1-2345-f012-456789012345",
+    "position": 6,
+    "filepath": "src/pages/slides/Slide06MultiTenantIsolation.tsx",
+    "title": "Multi-Tenant Data Isolation",
+    "description": "Logical tenant isolation via domain_id scoping — all 25+ tables, vector search, Python backend enforcement",
+    "speakerNotes": ""
+  },
+  {
+    "id": "a7b8c9d0-e1f2-3456-0123-567890123456",
+    "position": 7,
+    "filepath": "src/pages/slides/Slide07SecretManagement.tsx",
+    "title": "Azure Key Vault Secret Pipeline",
+    "description": "Secret injection flow — Key Vault references to App Service env vars, fail-safe startup guard, encrypted connector credentials",
+    "speakerNotes": ""
+  },
+  {
+    "id": "b8c9d0e1-f2a3-4567-1234-678901234567",
+    "position": 8,
+    "filepath": "src/pages/slides/Slide08DataEncryption.tsx",
+    "title": "Encryption — Transit & Rest",
+    "description": "TLS 1.2+ in transit, AES-256 at rest (Azure), bcrypt OTPs, AES-encrypted connector credentials",
+    "speakerNotes": ""
+  },
+  {
+    "id": "c9d0e1f2-a3b4-5678-2345-789012345678",
+    "position": 9,
+    "filepath": "src/pages/slides/Slide09AIQueryPipeline.tsx",
+    "title": "AI Query Pipeline — Security Controls",
+    "description": "LLM scope minimization, parameterized SQL, tenant-scoped vector search, deterministic KPI builders",
+    "speakerNotes": ""
+  },
+  {
+    "id": "d0e1f2a3-b4c5-6789-3456-890123456789",
+    "position": 10,
+    "filepath": "src/pages/slides/Slide10SecurityPosture.tsx",
+    "title": "TARA Requirements — Implementation Summary",
+    "description": "All SR controls mapped to implemented status, plus outstanding infrastructure recommendations",
+    "speakerNotes": ""
+  }
+]

@@ -1,0 +1,146 @@
+[
+  {
+    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567801",
+    "position": 1,
+    "filepath": "src/pages/slides/Slide01Title.tsx",
+    "title": "LedgerLM — Title",
+    "description": "Title slide: LedgerLM System Architecture & TARA Security Evidence for Bosch CS Review",
+    "speakerNotes": ""
+  },
+  {
+    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567802",
+    "position": 2,
+    "filepath": "src/pages/slides/Slide02Overview.tsx",
+    "title": "Application Overview",
+    "description": "What is LedgerLM: multi-tenant AI financial platform, active tenants, hosting platform, security posture",
+    "speakerNotes": ""
+  },
+  {
+    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567803",
+    "position": 3,
+    "filepath": "src/pages/slides/Slide03Architecture.tsx",
+    "title": "High-Level Architecture",
+    "description": "Full system architecture diagram: users, Azure App Service, Nginx, Node.js, Python, and all Azure services",
+    "speakerNotes": ""
+  },
+  {
+    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567804",
+    "position": 4,
+    "filepath": "src/pages/slides/Slide04NodePython.tsx",
+    "title": "Application Backends",
+    "description": "Node.js/Express (port 5000) and Python/FastAPI (port 8000) component responsibilities and stack",
+    "speakerNotes": ""
+  },
+  {
+    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567805",
+    "position": 5,
+    "filepath": "src/pages/slides/Slide05DbAzureServices.tsx",
+    "title": "Azure Services",
+    "description": "PostgreSQL, Azure OpenAI, Key Vault, Blob Storage, Azure AD/Entra ID, ACR and Anaplan",
+    "speakerNotes": ""
+  },
+  {
+    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567806",
+    "position": 6,
+    "filepath": "src/pages/slides/Slide06QueryFlow.tsx",
+    "title": "AI Query Flow",
+    "description": "5-step data flow for AI financial queries: session auth, fast/AI path, semantic SQL, GPT-5.2 response",
+    "speakerNotes": ""
+  },
+  {
+    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567807",
+    "position": 7,
+    "filepath": "src/pages/slides/Slide07IngestionFlow.tsx",
+    "title": "Document Ingestion Pipeline",
+    "description": "5-step pipeline: Azure Blob → Python parser → vector embeddings → PostgreSQL → available for queries",
+    "speakerNotes": ""
+  },
+  {
+    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567808",
+    "position": 8,
+    "filepath": "src/pages/slides/Slide08AuthFlow.tsx",
+    "title": "Authentication Flow",
+    "description": "OTP passwordless flow and Azure AD SSO/OIDC flow with session cookie flags and rate limiting",
+    "speakerNotes": ""
+  },
+  {
+    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567809",
+    "position": 9,
+    "filepath": "src/pages/slides/Slide09NetworkMultitenant.tsx",
+    "title": "Network Architecture & Multi-Tenancy",
+    "description": "Azure network topology and logical tenant isolation by domain_id with isolation guarantees",
+    "speakerNotes": ""
+  },
+  {
+    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567810",
+    "position": 10,
+    "filepath": "src/pages/slides/Slide10DeploymentStack.tsx",
+    "title": "Deployment & Technology Stack",
+    "description": "CI/CD pipeline from Replit through GitHub to ACR to Azure App Service, plus full technology stack table",
+    "speakerNotes": ""
+  },
+  {
+    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567811",
+    "position": 11,
+    "filepath": "src/pages/slides/Slide11TaraSummary.tsx",
+    "title": "TARA Security Summary",
+    "description": "Summary table of all 19 TARA requirements by category: 18 implemented, 1 partial, 0 pending",
+    "speakerNotes": ""
+  },
+  {
+    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567812",
+    "position": 12,
+    "filepath": "src/pages/slides/Slide12AuthControls.tsx",
+    "title": "Authentication & RBAC Controls",
+    "description": "SR-AUTH-01 through SR-AUTHZ-01: session middleware, OTP bcrypt, rate limiting, RBAC middleware with code evidence",
+    "speakerNotes": ""
+  },
+  {
+    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567813",
+    "position": 13,
+    "filepath": "src/pages/slides/Slide13DataProtection.tsx",
+    "title": "Data Protection",
+    "description": "SR-DATA-01/02/03: TLS in transit, AES-256 at rest, Azure Key Vault secret management with startup enforcement",
+    "speakerNotes": ""
+  },
+  {
+    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567814",
+    "position": 14,
+    "filepath": "src/pages/slides/Slide14InputSession.tsx",
+    "title": "Input Security & Session Management",
+    "description": "SR-INPUT-01/02/03 and SR-SESSION-01: SQL injection, XSS, clickjacking prevention and secure cookie configuration",
+    "speakerNotes": ""
+  },
+  {
+    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567815",
+    "position": 15,
+    "filepath": "src/pages/slides/Slide15NetworkAudit.tsx",
+    "title": "Network Security & Audit Logging",
+    "description": "SR-NET-01/02 CORS control and DB SSL, SR-AUDIT-01 Pino structured logging with query audit table",
+    "speakerNotes": ""
+  },
+  {
+    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567816",
+    "position": 16,
+    "filepath": "src/pages/slides/Slide16GapsRemediation.tsx",
+    "title": "Gaps & Remediation Plan",
+    "description": "4 known gaps: SSL cert verification, account lockout, global rate limiting, CSRF tokens with timelines",
+    "speakerNotes": ""
+  },
+  {
+    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567817",
+    "position": 17,
+    "filepath": "src/pages/slides/Slide17TestCases.tsx",
+    "title": "Security Test Cases",
+    "description": "9 passing security test cases: TC-AUTH, TC-AUTHZ, TC-INPUT, TC-SESSION, TC-NET, TC-AUDIT",
+    "speakerNotes": ""
+  },
+  {
+    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567818",
+    "position": 18,
+    "filepath": "src/pages/slides/Slide18PolicyClosing.tsx",
+    "title": "Policy Compliance & Summary",
+    "description": "Bosch policy compliance table, 95% TARA posture, closing summary and contact information",
+    "speakerNotes": ""
+  }
+]

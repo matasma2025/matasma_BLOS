@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>LedgerLM — Source Code Security Scanning Report</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', Arial, sans-serif; background: #f4f6fb; color: #1a1a2e; font-size: 14px; }
+.cover { background: linear-gradient(135deg,#0f1e3d 0%,#1a3a6b 60%,#0d5ca8 100%); color:white; padding:56px 72px 48px; }
+.cover h1 { font-size:32px; font-weight:700; margin-bottom:6px; }
+.cover h2 { font-size:16px; font-weight:400; opacity:.75; margin-bottom:36px; }
+.meta-row { display:flex; gap:48px; flex-wrap:wrap; }
+.meta-item { font-size:11px; opacity:.6; text-transform:uppercase; letter-spacing:.5px; }
+.meta-item strong { display:block; font-size:14px; opacity:1; color:white; margin-top:3px; text-transform:none; letter-spacing:0; }
+.wrap { max-width:1080px; margin:0 auto; padding:40px 40px 0; }
+h3 { font-size:16px; font-weight:700; border-left:4px solid #1a3a6b; padding-left:12px; margin:36px 0 14px; color:#0f1e3d; }
+.kpi-grid { display:grid; grid-template-columns:repeat(6,1fr); gap:12px; margin-bottom:28px; }
+.kpi { background:white; border-radius:8px; padding:16px 10px; text-align:center; box-shadow:0 1px 5px rgba(0,0,0,.07); }
+.kpi .num { font-size:30px; font-weight:800; }
+.kpi .lbl { font-size:10px; color:#777; text-transform:uppercase; letter-spacing:.4px; margin-top:3px; }
+.kpi.c-ok .num   { color:#27ae60; }
+.kpi.c-crit .num { color:#c0392b; }
+.kpi.c-high .num { color:#d35400; }
+.kpi.c-med .num  { color:#c9a000; }
+.kpi.c-low .num  { color:#27ae60; }
+table { width:100%; border-collapse:collapse; background:white; border-radius:8px; overflow:hidden; box-shadow:0 1px 5px rgba(0,0,0,.07); margin-bottom:24px; font-size:13px; }
+th { background:#0f1e3d; color:white; padding:9px 14px; text-align:left; font-weight:500; font-size:11px; text-transform:uppercase; letter-spacing:.4px; }
+td { padding:8px 14px; border-bottom:1px solid #f0f2f7; vertical-align:top; }
+tr:last-child td { border-bottom:none; }
+tr:hover td { background:#f8f9ff; }
+.badge { display:inline-block; padding:2px 9px; border-radius:10px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; white-space:nowrap; }
+.badge.critical { background:#fdecea; color:#c0392b; }
+.badge.high     { background:#fef1e6; color:#d35400; }
+.badge.medium   { background:#fefbe6; color:#b8860b; }
+.badge.low      { background:#eafaf1; color:#1e8449; }
+.badge.ok       { background:#eafaf1; color:#1e8449; }
+.mono { font-family:'Consolas','Courier New',monospace; font-size:12px; }
+.callout { background:#eef4ff; border-left:4px solid #3498db; padding:12px 16px; border-radius:0 6px 6px 0; font-size:13px; margin-bottom:18px; line-height:1.6; }
+.callout.warn { background:#fff8ec; border-color:#e67e22; }
+.section-intro { font-size:13px; color:#555; margin-bottom:14px; line-height:1.6; }
+.footer { text-align:center; color:#aaa; font-size:11px; padding:28px 40px 40px; border-top:1px solid #e8eaf0; margin-top:40px; }
+@media print { body{background:white;} .wrap{max-width:100%;padding:0 20px;} .cover{-webkit-print-color-adjust:exact;print-color-adjust:exact;} }
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <h1>LedgerLM — Security Scanning Report</h1>
+  <h2>AI-Powered Financial Analysis Platform &nbsp;·&nbsp; Bosch Enterprise Deployment</h2>
+  <div class="meta-row">
+    <div class="meta-item">Scan Date<strong>2026-07-30</strong></div>
+    <div class="meta-item">Report Version<strong>1.0</strong></div>
+    <div class="meta-item">Scope<strong>Node.js + Python AI Backend</strong></div>
+    <div class="meta-item">Scanners<strong>npm audit · Semgrep SAST · HoundDog</strong></div>
+    <div class="meta-item">Classification<strong>CONFIDENTIAL</strong></div>
+  </div>
+</div>
+
+<div class="wrap">
+
+<h3>Executive Summary</h3>
+<div class="kpi-grid">
+  <div class="kpi c-ok">   <div class="num">0</div> <div class="lbl">Critical Deps</div></div>
+  <div class="kpi c-high"> <div class="num">5</div>  <div class="lbl">High-Sev Pkgs</div></div>
+  <div class="kpi c-crit"> <div class="num">2</div>  <div class="lbl">Critical Code</div></div>
+  <div class="kpi c-high"> <div class="num">3</div>  <div class="lbl">High SAST</div></div>
+  <div class="kpi c-med">  <div class="num">6</div>  <div class="lbl">Medium Findings</div></div>
+  <div class="kpi c-low">  <div class="num">57</div> <div class="lbl">Low Findings</div></div>
+</div>
+<div class="callout">
+  <strong>Overall Risk: MEDIUM.</strong> No critical dependency vulnerabilities were found.
+  Only 5 unique packages carry confirmed HIGH-severity CVEs. The 2 critical data-flow findings relate
+  to secrets/PII handling in logs and API responses — these are the highest-priority items.
+  All issues have clear, low-effort remediations.
+</div>
+
+<!-- ========== SECTION 1 ========== -->
+<h3>1. Dependency Vulnerability Audit</h3>
+<p class="section-intro">
+  <strong>Tool:</strong> npm audit &nbsp;|&nbsp;
+  <strong>Scope:</strong> Node.js package graph (539 unique packages, direct + transitive) &nbsp;|&nbsp;
+  <strong>0 CRITICAL · 5 HIGH unique packages</strong>
+</p>
+<div class="callout warn">
+  <strong>Recommended action:</strong> run <code>npm audit fix</code> to auto-upgrade 4 of 5 packages.
+  <code>xlsx</code> has no automatic fix — evaluate replacing with <code>exceljs</code> which is actively maintained.
+</div>
+<table>
+  <thead>
+    <tr>
+      <th>Severity</th><th>Package</th><th>CVE / Advisory Summary</th><th>Fix</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><span class="badge high">HIGH</span></td>
+      <td class="mono">drizzle-orm</td>
+      <td>SQL injection via improperly escaped SQL identifiers</td>
+      <td class="mono">drizzle-orm@0.45.2</td>
+    </tr>
+    <tr>
+      <td><span class="badge high">HIGH</span></td>
+      <td class="mono">fast-xml-parser</td>
+      <td>Repeated DOCTYPE declarations reset entity expansion limits (XXE-adjacent)</td>
+      <td class="mono">npm audit fix</td>
+    </tr>
+    <tr>
+      <td><span class="badge high">HIGH</span></td>
+      <td class="mono">nodemailer</td>
+      <td>SMTP command injection via unsanitised <code>envelope.size</code> parameter</td>
+      <td class="mono">nodemailer@9.0.3</td>
+    </tr>
+    <tr>
+      <td><span class="badge high">HIGH</span></td>
+      <td class="mono">vite</td>
+      <td>Path traversal in optimised deps <code>.map</code> handling; launch-editor NTLMv2 hash leak</td>
+      <td class="mono">vite@8.2.0</td>
+    </tr>
+    <tr>
+      <td><span class="badge high">HIGH</span></td>
+      <td class="mono">xlsx</td>
+      <td>Prototype pollution; Regular Expression DoS (ReDoS)</td>
+      <td>No auto-fix — consider replacing with <code>exceljs</code></td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ========== SECTION 2 ========== -->
+<h3>2. Static Application Security Testing (SAST)</h3>
+<p class="section-intro">
+  <strong>Tool:</strong> Semgrep &nbsp;|&nbsp;
+  <strong>Scope:</strong> TypeScript / JavaScript source (<code>server/</code>, <code>client/</code>, <code>shared/</code>) &nbsp;|&nbsp;
+  <strong>6 findings: 3 HIGH · 3 MEDIUM</strong>
+</p>
+<table>
+  <thead>
+    <tr><th>Severity</th><th>Category</th><th>Finding</th><th>Recommended Fix</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><span class="badge high">HIGH</span></td>
+      <td>SQL Injection Risk</td>
+      <td>User-supplied values passed through dynamic query builder without full parameterisation in cube service</td>
+      <td>Enforce ORM-only query paths; review <span class="mono">server/services/cubeService.ts</span></td>
+    </tr>
+    <tr>
+      <td><span class="badge high">HIGH</span></td>
+      <td>Error Handling</td>
+      <td>Unhandled promise rejections may expose internal stack traces in API error responses</td>
+      <td>Add global error handler that strips stack info in production (<span class="mono">NODE_ENV=production</span>)</td>
+    </tr>
+    <tr>
+      <td><span class="badge high">HIGH</span></td>
+      <td>Session Management</td>
+      <td>Session token not regenerated on privilege escalation (role change)</td>
+      <td>Call <span class="mono">req.session.regenerate()</span> on any role or permission change</td>
+    </tr>
+    <tr>
+      <td><span class="badge medium">MEDIUM</span></td>
+      <td>Secrets in Code</td>
+      <td>Hardcoded fallback OTP value in seed data (test accounts only; not in production path)</td>
+      <td>Remove hardcoded OTPs; retrieve from Azure Key Vault or environment variables</td>
+    </tr>
+    <tr>
+      <td><span class="badge medium">MEDIUM</span></td>
+      <td>Sensitive Logging</td>
+      <td>Email addresses and token values may appear in application logs</td>
+      <td>Apply field-masking middleware to logger; use structured log filtering</td>
+    </tr>
+    <tr>
+      <td><span class="badge medium">MEDIUM</span></td>
+      <td>Cryptography</td>
+      <td>Use of deprecated cryptographic helper with weak default key-derivation settings</td>
+      <td>Migrate to <span class="mono">argon2</span> or enforce <span class="mono">bcrypt</span> with cost ≥ 12</td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ========== SECTION 3 ========== -->
+<h3>3. Data-Flow &amp; Privacy Scan — Critical / Medium (5 findings)</h3>
+<p class="section-intro">
+  <strong>Tool:</strong> HoundDog &nbsp;|&nbsp;
+  <strong>Scope:</strong> Full source — secrets, PII, and sensitive data flows &nbsp;|&nbsp;
+  <strong>2 CRITICAL · 3 MEDIUM</strong>
+</p>
+<table>
+  <thead>
+    <tr><th>Severity</th><th>Rule</th><th>Finding</th><th>Location</th><th>Remediation</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><span class="badge critical">CRITICAL</span></td>
+      <td class="mono">secrets-in-source</td>
+      <td>Potential secret / credential value (hardcoded OTP) detected in source code</td>
+      <td class="mono">server/seed.ts</td>
+      <td>Remove hardcoded OTP values; use Azure Key Vault or environment variables</td>
+    </tr>
+    <tr>
+      <td><span class="badge critical">CRITICAL</span></td>
+      <td class="mono">sensitive-data-log</td>
+      <td>Sensitive user data (email / session token) may flow into application logs</td>
+      <td class="mono">server/routes.ts</td>
+      <td>Mask or omit sensitive fields before logging; use structured log filtering</td>
+    </tr>
+    <tr>
+      <td><span class="badge medium">MEDIUM</span></td>
+      <td class="mono">pii-in-response</td>
+      <td>User PII fields included in API response without field-level filtering</td>
+      <td class="mono">server/routes/auth.ts</td>
+      <td>Apply response serialiser to strip sensitive fields before sending</td>
+    </tr>
+    <tr>
+      <td><span class="badge medium">MEDIUM</span></td>
+      <td class="mono">sql-injection-risk</td>
+      <td>Dynamic query construction path detected without full parameterisation</td>
+      <td class="mono">server/services/cubeService.ts</td>
+      <td>Use parameterised queries or ORM-only query construction throughout</td>
+    </tr>
+    <tr>
+      <td><span class="badge medium">MEDIUM</span></td>
+      <td class="mono">error-info-leak</td>
+      <td>Raw error objects returned to client may expose internal file paths or stack traces</td>
+      <td class="mono">server/middleware/errorHandler.ts</td>
+      <td>Return sanitised error messages in production; log full errors server-side only</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>3b. Data-Flow &amp; Privacy Scan — Low (57 findings)</h3>
+<p class="section-intro">
+  57 low-severity data-flow findings — all relate to user-input-to-downstream-operation flows
+  that require review for completeness of validation. No immediate exploitability identified.
+  Recommended to address in next sprint cycle.
+</p>
+<table>
+  <thead>
+    <tr><th>Severity</th><th>Rule</th><th>Description</th><th>Scope</th><th>Remediation</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><span class="badge low">LOW</span></td>
+      <td class="mono">data-flow-audit</td>
+      <td>Data flow from user input to downstream operation — validate completeness of sanitisation</td>
+      <td class="mono">server/services/analysisService.ts (57 locations)</td>
+      <td>Ensure all user input is validated and sanitised at the API entry point before propagation</td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ========== SECTION 4 ========== -->
+<h3>4. Python Backend — Dependency Review</h3>
+<p class="section-intro">
+  <strong>Scope:</strong> <span class="mono">python_backend/requirements.txt</span> (27 direct packages) &nbsp;|&nbsp;
+  All packages pinned to known stable versions. No CVEs identified at time of scan.
+</p>
+<table>
+  <thead>
+    <tr><th>Package</th><th>Version</th><th>Purpose</th><th>Status</th></tr>
+  </thead>
+  <tbody>
+    <tr><td class="mono">fastapi</td><td>0.104.1</td><td>API framework</td><td><span class="badge ok">CLEAN</span></td></tr>
+    <tr><td class="mono">openai</td><td>1.12.0</td><td>OpenAI SDK</td><td><span class="badge ok">CLEAN</span></td></tr>
+    <tr><td class="mono">azure-identity</td><td>1.16.0</td><td>Azure Managed Identity auth</td><td><span class="badge ok">CLEAN</span></td></tr>
+    <tr><td class="mono">SQLAlchemy</td><td>2.0.23</td><td>Database ORM</td><td><span class="badge ok">CLEAN</span></td></tr>
+    <tr><td class="mono">psycopg2-binary</td><td>2.9.9</td><td>PostgreSQL driver</td><td><span class="badge ok">CLEAN</span></td></tr>
+    <tr><td class="mono">pdfplumber / PyPDF2</td><td>0.11.10 / 3.0.1</td><td>Document processing</td><td><span class="badge ok">CLEAN</span></td></tr>
+    <tr><td class="mono">requests</td><td>2.31.0</td><td>HTTP client</td><td><span class="badge ok">CLEAN</span></td></tr>
+    <tr><td colspan="3" style="color:#777;font-size:12px">+ 20 additional packages — all clean at time of scan</td><td><span class="badge ok">CLEAN</span></td></tr>
+  </tbody>
+</table>
+
+<!-- ========== SECTION 5 ========== -->
+<h3>5. Scan Coverage &amp; Methodology</h3>
+<table>
+  <thead>
+    <tr><th>Scanner</th><th>Tool</th><th>Scope</th><th>Findings</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Dependency Audit</strong></td>
+      <td>npm audit (Node.js)</td>
+      <td>All direct + transitive npm packages (539 unique packages)</td>
+      <td><span class="badge ok">0 CRITICAL</span> &nbsp;<span class="badge high">5 HIGH</span></td>
+    </tr>
+    <tr>
+      <td><strong>SAST</strong></td>
+      <td>Semgrep (TypeScript / JS)</td>
+      <td><span class="mono">server/</span>, <span class="mono">client/</span>, <span class="mono">shared/</span></td>
+      <td>6 findings: 3 HIGH · 3 MEDIUM</td>
+    </tr>
+    <tr>
+      <td><strong>Data-Flow</strong></td>
+      <td>HoundDog privacy scanner</td>
+      <td>Full source — secrets, PII, unsafe data flows</td>
+      <td>64 findings: 2 CRITICAL · 3 MEDIUM · 57 LOW · 2 INFO</td>
+    </tr>
+    <tr>
+      <td><strong>Python Backend</strong></td>
+      <td>Manual + pip review</td>
+      <td><span class="mono">python_backend/requirements.txt</span> (27 packages)</td>
+      <td>All packages clean</td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ========== SECTION 6 ========== -->
+<h3>6. Prioritised Remediation Plan</h3>
+<table>
+  <thead>
+    <tr><th>#</th><th>Priority</th><th>Action</th><th>Effort</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1</td>
+      <td><span class="badge critical">CRITICAL</span></td>
+      <td>Remove hardcoded OTP secrets from <span class="mono">server/seed.ts</span>; use Azure Key Vault or environment variables</td>
+      <td>Low — a few hours</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td><span class="badge critical">CRITICAL</span></td>
+      <td>Mask sensitive fields (email, tokens) before writing to application logs in <span class="mono">server/routes.ts</span></td>
+      <td>Low — a few hours</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td><span class="badge high">HIGH</span></td>
+      <td>Upgrade <span class="mono">drizzle-orm → 0.45.2</span>, <span class="mono">nodemailer → 9.0.3</span>, <span class="mono">vite → 8.2.0</span> and run <span class="mono">npm audit fix</span></td>
+      <td>Low — hours</td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td><span class="badge high">HIGH</span></td>
+      <td>Fix 3 SAST HIGH findings: parameterise cube query builder, sanitise error responses, add session token regeneration on role change</td>
+      <td>Medium — 2–3 days</td>
+    </tr>
+    <tr>
+      <td>5</td>
+      <td><span class="badge medium">MEDIUM</span></td>
+      <td>Apply response field serialiser to strip PII; migrate password hashing to argon2 or bcrypt cost ≥ 12</td>
+      <td>Medium — 1–2 days</td>
+    </tr>
+    <tr>
+      <td>6</td>
+      <td><span class="badge medium">MEDIUM</span></td>
+      <td>Evaluate replacing <span class="mono">xlsx</span> with <span class="mono">exceljs</span> (actively maintained, no known CVEs)</td>
+      <td>Medium — 1 day</td>
+    </tr>
+    <tr>
+      <td>7</td>
+      <td><span class="badge low">LOW</span></td>
+      <td>Review 57 low-severity data-flow findings in next sprint; implement consistent input validation at all API entry points</td>
+      <td>Ongoing</td>
+    </tr>
+  </tbody>
+</table>
+
+</div>
+<div class="footer">
+  LedgerLM Security Scanning Report &nbsp;·&nbsp; Scan Date: 2026-07-30 &nbsp;·&nbsp;
+  Scanners: npm audit · Semgrep · HoundDog &nbsp;·&nbsp;
+  <strong>CONFIDENTIAL — For Internal Use Only</strong>
+</div>
+
+</body>
+</html>

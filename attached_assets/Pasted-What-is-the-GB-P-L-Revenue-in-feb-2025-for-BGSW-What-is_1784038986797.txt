@@ -1,0 +1,105 @@
+What is the GB P&L Revenue in feb 2025 for BGSW
+What is the resource cost for BGSW for Feb 2025
+What is the travel cost for BGSW for Feb 2025
+What is the Other Direct Cost for BGSW for Feb 2025
+What is the Total Direct Cost for BGSW for Feb 2025
+What is the Total Indirect  Cost for BGSW for Feb 2025
+What is the Corporate Cost  for BGSW for Feb 2025
+What is the GB P&L ebit for Feb 2025 for BGSW
+
+
+What is the Entity P&L Revenue in feb  2025 for BGSW in INR
+What is the Employee Benefit for Entity P&L in feb  2025 for BGSW in INR
+What is the Outsourcing cost for Entity P&L in feb  2025 for BGSW in INR
+What is the Revenue software for Entity P&L in feb  2025 for BGSW in INR
+What is the Facility Cost for Entity P&L in feb  2025 for BGSW in INR
+What is the Consultancy Charges for Entity P&L in feb  2025 for BGSW in INR
+What is the Travel Expenses for Entity P&L in feb  2025 for BGSW in INR
+What is the Revenue Hardware for Entity P&L in feb  2025 for BGSW in INR
+What is the Welfare Cost for Entity P&L in feb  2025 for BGSW in INR
+What is the Material Cost for Entity P&L in feb  2025 for BGSW in INR
+What is the Other Expenses for Entity P&L in feb  2025 for BGSW in INR
+What is the Depreciation for Entity P&L in feb  2025 for BGSW in INR
+What is the Total Cost for Entity P&L in feb  2025 for BGSW in INR
+What is the Entity P&L EBIT in feb  2025 for BGSW in INR
+
+
+What is the Budget (mUSD) for Feb 2025 For BGSW
+What is the Budget / Average Capacity for Feb 2025 for BGSW
+What is the Price Mix Ratio for Feb 2025 for BGSW
+What is the Attrition rate for Feb 2025 for BGSW
+What is the Offshore end capacity for Feb 2025 for BGSW
+What is the Offshore Avg capacity for Feb 2025 for BGSW
+What is the Outsourcing end capacity for Feb 2025 for BGSW
+What is the Outsourcing avg capacity for Feb 2025 for BGSW
+What is the Internal capacity mix for Feb 2025 for BGSW
+What is the External capacity mix for Feb 2025 for BGSW
+What is the pyramid mix for Feb 2025 by salary level for BGSW
+
+What is the MS Budget (mUSD) for Feb 2025 For BGSW
+What is the MS Budget / Average Capacity for Feb 2025 for BGSW
+What is the MS Price Mix Ratio for Feb 2025 for BGSW
+What is the MS Attrition rate for Feb 2025 for BGSW
+What is the MS Offshore end capacity for Feb 2025 for BGSW
+What is the MS Offshore Avg capacity for Feb 2025 for BGSW
+What is the MS Outsourcing end capacity for Feb 2025 for BGSW
+What is the MS Outsourcing avg capacity for Feb 2025 for BGSW
+What is the MS Internal capacity mix for Feb 2025 for BGSW
+What is the MS External capacity mix for Feb 2025 for BGSW
+What is the MS pyramid mix for Feb 2025 by salary level for BGSW
+What is the MS Intenal Utilization% for Feb 2025 for BGSW
+What is the MS Outsourcing Utilization% for Feb 2025 for BGSW
+
+What is the SX Budget (mUSD) for Feb 2025 For BGSW
+What is the SX Budget / Average Capacity for Feb 2025 for BGSW
+What is the SX Price Mix Ratio for Feb 2025 for BGSW
+What is the SX Attrition rate for Feb 2025 for BGSW
+What is the SX Offshore end capacity for Feb 2025 for BGSW
+What is the SX Offshore Avg capacity for Feb 2025 for BGSW
+What is the SX Outsourcing end capacity for Feb 2025 for BGSW
+What is the SX Outsourcing avg capacity for Feb 2025 for BGSW
+What is the SX Internal capacity mix for Feb 2025 for BGSW
+What is the SX External capacity mix for Feb 2025 for BGSW
+What is the SX pyramid mix for Feb 2025 by salary level for BGSW
+What is the SX Intenal Utilization% for Feb 2025 for BGSW
+What is the SX Outsourcing Utilization% for Feb 2025 for BGSW
+
+What is the PS Budget (mUSD) for Feb 2025 For BGSW
+What is the PS Budget / Average Capacity for Feb 2025 for BGSW
+What is the PS Price Mix Ratio for Feb 2025 for BGSW
+What is the PS Attrition rate for Feb 2025 for BGSW
+What is the PS Offshore end capacity for Feb 2025 for BGSW
+What is the PS Offshore Avg capacity for Feb 2025 for BGSW
+What is the PS Outsourcing end capacity for Feb 2025 for BGSW
+What is the PS Outsourcing avg capacity for Feb 2025 for BGSW
+What is the PS Internal capacity mix for Feb 2025 for BGSW
+What is the PS External capacity mix for Feb 2025 for BGSW
+What is the PS pyramid mix for Feb 2025 by salary level for BGSW
+
+What is the VM Budget (mUSD) for Feb 2025 For BGSW
+What is the VM Budget / Average Capacity for Feb 2025 for BGSW
+What is the VM Price Mix Ratio for Feb 2025 for BGSW
+What is the VM Attrition rate for Feb 2025 for BGSW
+What is the VM Offshore end capacity for Feb 2025 for BGSW
+What is the VM Offshore Avg capacity for Feb 2025 for BGSW
+What is the VM Outsourcing end capacity for Feb 2025 for BGSW
+What is the VM Outsourcing avg capacity for Feb 2025 for BGSW
+What is the VM Internal capacity mix for Feb 2025 for BGSW
+What is the VM External capacity mix for Feb 2025 for BGSW
+What is the VM pyramid mix for Feb 2025 by salary level for BGSW
+
+What is the XC Budget (mUSD) for Feb 2025 For BGSW
+What is the XC Budget / Average Capacity for Feb 2025 for BGSW
+What is the XC Price Mix Ratio for Feb 2025 for BGSW
+What is the XC Attrition rate for Feb 2025 for BGSW
+What is the XC Offshore end capacity for Feb 2025 for BGSW
+What is the XC Offshore Avg capacity for Feb 2025 for BGSW
+What is the XC Outsourcing end capacity for Feb 2025 for BGSW
+What is the XC Outsourcing avg capacity for Feb 2025 for BGSW
+What is the XC Internal capacity mix for Feb 2025 for BGSW
+What is the XC External capacity mix for Feb 2025 for BGSW
+What is the XC pyramid mix for Feb 2025 by salary level for BGSW
+
+What is the Worldwide Budget for Feb 2025 
+What is the Worldwide Budget Offshore for Feb 2025 
+What is the Worldwide Budget Outsourcing for Feb 2025 

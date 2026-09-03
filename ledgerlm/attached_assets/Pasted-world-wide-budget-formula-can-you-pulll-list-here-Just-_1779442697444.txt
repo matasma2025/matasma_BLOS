@@ -1,0 +1,47 @@
+world wide budget formula can you pulll list here
+
+Just now
+
+Analyzing worldwide budget formula (4 seconds)
+Here are the standard worldwide financial budget formulas used across global organisations:
+
+Core Budget Formulas
+#	Formula Name	Formula	Used For
+1	Budget Variance	Actual − Budget	How much over/under budget
+2	Budget Variance %	(Actual − Budget) ÷ Budget × 100	% deviation from plan
+3	Budget Utilisation %	Actual ÷ Budget × 100	How much of budget is consumed
+4	Remaining Budget	Budget − Actual	What's left to spend
+5	Forecast to Complete	Remaining Budget − Committed Costs	Expected spend on remaining work
+6	Full Year Forecast (FYF)	YTD Actual + Remaining Budget	Projected end-of-year spend
+7	Run Rate	YTD Actual ÷ Elapsed Months	Average monthly spend
+8	Annualised Run Rate	Run Rate × 12	Full year projection at current pace
+9	Budget Absorption Rate	YTD Actual ÷ YTD Budget × 100	Pace of spending vs plan
+10	Cost to Budget Ratio	Actual ÷ Budget	Ratio form of utilisation
+Month-on-Month Formulas
+#	Formula Name	Formula	Used For
+11	MoM Actual	YTD(current month) − YTD(previous month)	True monthly cost from YTD data
+12	MoM Growth %	(MoM current − MoM previous) ÷ MoM previous × 100	Monthly trend
+13	MoM Budget	Budget YTD(current) − Budget YTD(previous)	Monthly budget allocation
+14	MoM Variance	MoM Actual − MoM Budget	Monthly over/under
+Year-on-Year Formulas
+#	Formula Name	Formula	Used For
+15	YoY Growth %	(Current Year − Prior Year) ÷ Prior Year × 100	Annual comparison
+16	YoY Variance	Current Year Actual − Prior Year Actual	Absolute change
+17	YoY Budget Change %	(Current Budget − Prior Budget) ÷ Prior Budget × 100	Budget growth rate
+Capacity & Utilisation Formulas
+#	Formula Name	Formula	Used For
+18	Internal Utilisation %	Billed Capacity ÷ Allocated Capacity × 100	MS/SX utilisation (Bosch)
+19	Capacity Variance	Allocated Capacity − Billed Capacity	Unused capacity
+20	Average Capacity	Total Capacity ÷ Number of Months	Average over a period
+21	Headcount Cost	Total OS Cost ÷ Headcount	Cost per person
+22	Offshore/Onsite Ratio	Offshore HC ÷ Total HC × 100	Delivery mix
+Cost Efficiency Formulas
+#	Formula Name	Formula	Used For
+23	Cost per Unit	Total Cost ÷ Units Produced/Delivered	Efficiency measure
+24	Savings vs Budget	Budget − Actual (positive = saving)	Cost savings tracking
+25	CAGR	(End Value ÷ Start Value)^(1÷Years) − 1	Compound annual growth
+26	Break-even Point	Fixed Costs ÷ (Revenue − Variable Cost per Unit)	Profitability threshold
+27	ROI	(Net Benefit − Cost) ÷ Cost × 100	Return on investment
+28	Cost Variance Index (CVI)	Earned Value ÷ Actual Cost	Project cost efficiency
+Which of these do you want implemented in the LedgerLM semantic SQL engine for the Bosch queries?
+

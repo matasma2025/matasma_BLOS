@@ -1,0 +1,101 @@
+S.No	Section	Category	Question	Data Period	Expected Metric / Intent
+1	1 - Revenue	Full Year	Show me revenue for 2025	Jan–Dec 2025	Revenue (all entities)
+2	1 - Revenue	Full Year	Show me revenue for 2026	Jan–Mar 2026	Revenue (all entities)
+3	1 - Revenue	Full Year	Show me revenue	Auto-default (latest data)	Revenue (auto-date)
+4	1 - Revenue	By Month	Show me revenue by month for 2025	Jan–Dec 2025	Revenue per month
+5	1 - Revenue	By Month	Show me revenue by month for 2026	Jan–Mar 2026	Revenue per month
+6	1 - Revenue	Specific Month	Show me revenue for January 2025	Jan 2025	Revenue single month
+7	1 - Revenue	Specific Month	Show me revenue for June 2025	Jun 2025	Revenue single month
+8	1 - Revenue	Specific Month	Show me revenue for December 2025	Dec 2025	Revenue single month
+9	1 - Revenue	Specific Month	Show me revenue for January 2026	Jan 2026	Revenue single month
+10	1 - Revenue	Specific Month	Show me revenue for March 2026	Mar 2026	Revenue single month
+11	1 - Revenue	Month Range	Show me revenue from January to March 2025	Jan–Mar 2025	Revenue month range
+12	1 - Revenue	Month Range	Show me revenue from April to June 2025	Apr–Jun 2025	Revenue month range
+13	1 - Revenue	Month Range	Show me revenue from July to September 2025	Jul–Sep 2025	Revenue month range
+14	1 - Revenue	Month Range	Show me revenue from October to December 2025	Oct–Dec 2025	Revenue month range
+15	1 - Revenue	Month Range	Show me revenue from January to March 2026	Jan–Mar 2026	Revenue month range
+16	1 - Revenue	Quarter	Show me revenue for Q1 2025	Jan–Mar 2025	Revenue by quarter
+17	1 - Revenue	Quarter	Show me revenue for Q2 2025	Apr–Jun 2025	Revenue by quarter
+18	1 - Revenue	Quarter	Show me revenue for Q3 2025	Jul–Sep 2025	Revenue by quarter
+19	1 - Revenue	Quarter	Show me revenue for Q4 2025	Oct–Dec 2025	Revenue by quarter
+20	1 - Revenue	Quarter	Show me revenue for Q1 2026	Jan–Mar 2026	Revenue by quarter
+21	2 - Revenue Dimensions	By Planning GB	Show me revenue by planning GB for 2025	Jan–Dec 2025	Revenue grouped by planning GB
+22	2 - Revenue Dimensions	By Planning GB	Show me revenue by planning GB for Q1 2026	Jan–Mar 2026	Revenue grouped by planning GB
+23	2 - Revenue Dimensions	By Project GB	Show me revenue by project GB for 2025	Jan–Dec 2025	Revenue grouped by project GB
+24	2 - Revenue Dimensions	Onsite vs Offshore	Show me onsite and offshore revenue for 2025	Jan–Dec 2025	Revenue split by location type
+25	2 - Revenue Dimensions	Onsite vs Offshore	Show me onsite and offshore revenue for Q1 2026	Jan–Mar 2026	Revenue split by location type
+26	2 - Revenue Dimensions	By SDS	Show me revenue by SDS for 2025	Jan–Dec 2025	Revenue grouped by SDS
+27	2 - Revenue Dimensions	By Org Level	Show me revenue by organization level for 2025	Jan–Dec 2025	Revenue by org level
+28	2 - Revenue Dimensions	Fixed Price / T&M	Show me fixed price and T&M revenue for 2025	Jan–Dec 2025	Revenue by revenue type
+29	2 - Revenue Dimensions	Fixed Price / T&M	Show me fixed price and T&M revenue for Q1 2026	Jan–Mar 2026	Revenue by revenue type
+30	2 - Revenue Dimensions	By Month + Entity	Show me revenue by month and entity for 2025	Jan–Dec 2025	Revenue by month and region entity
+31	3 - Other KPIs	Headcount	Show me headcount for 2025	Jan–Dec 2025	Headcount
+32	3 - Other KPIs	Headcount	Show me headcount for 2026	Jan–Mar 2026	Headcount
+33	3 - Other KPIs	Headcount	Show me headcount by month for 2025	Jan–Dec 2025	Headcount per month
+34	3 - Other KPIs	Headcount	Show me headcount from January to March 2026	Jan–Mar 2026	Headcount month range
+35	3 - Other KPIs	Billing Utilization	Show me billing utilization for 2025	Jan–Dec 2025	Billing Utilization %
+36	3 - Other KPIs	Billing Utilization	Show me billing utilization for Q1 2026	Jan–Mar 2026	Billing Utilization %
+37	3 - Other KPIs	EBIT	Show me EBIT for 2025	Jan–Dec 2025	EBIT (mUSD)
+38	3 - Other KPIs	EBIT	Show me EBIT for Q1 2026	Jan–Mar 2026	EBIT (mUSD)
+39	3 - Other KPIs	Gross Margin	Show me gross margin for 2025	Jan–Dec 2025	Gross Margin
+40	3 - Other KPIs	Gross Margin	Show me gross margin for Q1 2026	Jan–Mar 2026	Gross Margin
+41	4 - Cost Metrics	Direct Cost	Show me direct cost for 2025	Jan–Dec 2025	Direct Cost
+42	4 - Cost Metrics	Direct Cost	Show me direct cost for Q1 2026	Jan–Mar 2026	Direct Cost
+43	4 - Cost Metrics	Indirect Cost	Show me indirect cost for 2025	Jan–Dec 2025	Indirect Cost
+44	4 - Cost Metrics	Indirect Cost	Show me indirect cost for Q1 2026	Jan–Mar 2026	Indirect Cost
+45	4 - Cost Metrics	Resource Cost	Show me resource cost for 2025	Jan–Dec 2025	Resource Cost
+46	4 - Cost Metrics	Resource Cost	Show me resource cost from January to March 2026	Jan–Mar 2026	Resource Cost month range
+47	4 - Cost Metrics	Travel Cost	Show me travel cost for 2025	Jan–Dec 2025	Travel Cost
+48	4 - Cost Metrics	Travel Cost	Show me travel cost for Q1 2026	Jan–Mar 2026	Travel Cost
+49	4 - Cost Metrics	Attrition	Show me attrition for 2025	Jan–Dec 2025	Attrition %
+50	4 - Cost Metrics	Price Mix	Show me price mix for 2025	Jan–Dec 2025	Price Mix Ratio
+51	5 - GB P&L	Full Year	Show me GB P&L for 2025	Jan–Dec 2025	GB P&L all cost categories
+52	5 - GB P&L	Full Year	Show me GB P&L for 2026	Jan–Mar 2026	GB P&L all cost categories
+53	5 - GB P&L	No Date	Show me GB P&L	Auto-default (latest data)	GB P&L auto-date
+54	5 - GB P&L	By Month	Show me GB P&L by month for 2025	Jan–Dec 2025	GB P&L per month
+55	5 - GB P&L	Specific Month	Show me GB P&L for January 2025	Jan 2025	GB P&L single month
+56	5 - GB P&L	Specific Month	Show me GB P&L for June 2025	Jun 2025	GB P&L single month
+57	5 - GB P&L	Specific Month	Show me GB P&L for December 2025	Dec 2025	GB P&L single month
+58	5 - GB P&L	Specific Month	Show me GB P&L for March 2026	Mar 2026	GB P&L single month
+59	5 - GB P&L	Month Range	Show me GB P&L from January to March 2025	Jan–Mar 2025	GB P&L month range
+60	5 - GB P&L	Month Range	Show me GB P&L from July to December 2025	Jul–Dec 2025	GB P&L H2 2025
+61	5 - GB P&L	Month Range	Show me GB P&L from January to March 2026	Jan–Mar 2026	GB P&L month range
+62	5 - GB P&L	Quarter	Show me GB P&L for Q1 2025	Jan–Mar 2025	GB P&L Q1 2025
+63	5 - GB P&L	Quarter	Show me GB P&L for Q3 2025	Jul–Sep 2025	GB P&L Q3 2025
+64	5 - GB P&L	Quarter	Show me GB P&L for Q1 2026	Jan–Mar 2026	GB P&L Q1 2026
+65	5 - GB P&L	By Planning GB	Show me GB P&L by planning GB for 2025	Jan–Dec 2025	GB P&L by planning GB
+66	6 - Entity P&L	Full Year	Show me entity P&L for 2025	Jan–Dec 2025	Entity P&L all categories
+67	6 - Entity P&L	Full Year	Show me entity P&L for 2026	Jan–Mar 2026	Entity P&L all categories
+68	6 - Entity P&L	No Date	Show me entity P&L	Auto-default (latest data)	Entity P&L auto-date
+69	6 - Entity P&L	By Month	Show me entity P&L by month for 2025	Jan–Dec 2025	Entity P&L per month
+70	6 - Entity P&L	Specific Month	Show me entity P&L for January 2025	Jan 2025	Entity P&L single month
+71	6 - Entity P&L	Specific Month	Show me entity P&L for June 2025	Jun 2025	Entity P&L single month
+72	6 - Entity P&L	Specific Month	Show me entity P&L for March 2026	Mar 2026	Entity P&L single month
+73	6 - Entity P&L	Month Range	Show me entity P&L from January to March 2025	Jan–Mar 2025	Entity P&L month range
+74	6 - Entity P&L	Month Range	Show me entity P&L from October to December 2025	Oct–Dec 2025	Entity P&L Q4 2025
+75	6 - Entity P&L	Month Range	Show me entity P&L from January to March 2026	Jan–Mar 2026	Entity P&L month range
+76	6 - Entity P&L	Quarter	Show me entity P&L for Q2 2025	Apr–Jun 2025	Entity P&L Q2 2025
+77	6 - Entity P&L	Quarter	Show me entity P&L for Q4 2025	Oct–Dec 2025	Entity P&L Q4 2025
+78	6 - Entity P&L	Quarter	Show me entity P&L for Q1 2026	Jan–Mar 2026	Entity P&L Q1 2026
+79	7 - Month on Month	Revenue MoM	Show me month on month revenue for 2025	Jan–Dec 2025	Revenue MoM with growth %
+80	7 - Month on Month	Revenue MoM	Show me month on month revenue from January to March 2026	Jan–Mar 2026	Revenue MoM with growth %
+81	7 - Month on Month	Revenue MoM	Show me revenue MoM for Q1 2025	Jan–Mar 2025	Revenue MoM Q1 2025
+82	7 - Month on Month	Revenue MoM	Show me month by month revenue for Q3 2025	Jul–Sep 2025	Revenue MoM Q3 2025
+83	7 - Month on Month	GB P&L MoM	Show me month on month GB P&L for 2025	Jan–Dec 2025	GB P&L MoM with growth %
+84	7 - Month on Month	GB P&L MoM	Show me month on month GB P&L from January to March 2026	Jan–Mar 2026	GB P&L MoM with growth %
+85	7 - Month on Month	Entity P&L MoM	Show me month on month entity P&L for 2025	Jan–Dec 2025	Entity P&L MoM with growth %
+86	7 - Month on Month	Entity P&L MoM	Show me month by month entity P&L for Q1 2026	Jan–Mar 2026	Entity P&L MoM Q1 2026
+87	7 - Month on Month	Headcount MoM	Show me month on month headcount for 2025	Jan–Dec 2025	Headcount MoM with growth %
+88	7 - Month on Month	Average Monthly	Show me average monthly revenue for 2025	Jan–Dec 2025	Revenue avg per month (YTD / months)
+89	8 - Comparison	Revenue	Show me revenue 2025 vs 2026	2025 vs 2026	Year-over-year revenue comparison
+90	8 - Comparison	Revenue	Show me revenue January 2025 versus January 2026	Jan 2025 vs Jan 2026	Month vs same month prior year
+91	8 - Comparison	Revenue	Compare revenue from January to March 2025 versus January to March 2026	Q1 2025 vs Q1 2026	Q1 YoY comparison
+92	8 - Comparison	GB P&L	Show me GB P&L 2025 versus 2026	2025 vs 2026	GB P&L year comparison
+93	8 - Comparison	Entity P&L	Show me entity P&L 2025 vs 2026	2025 vs 2026	Entity P&L year comparison
+94	8 - Comparison	Headcount	Compare headcount 2025 and 2026	2025 vs 2026	Headcount year comparison
+95	9 - Entity Filters	BGSW (India)	Show me revenue for BGSW in 2025	Jan–Dec 2025	Revenue — India entity only
+96	9 - Entity Filters	BGSW (India)	Show me revenue for India from January to March 2026	Jan–Mar 2026	Revenue — India alias
+97	9 - Entity Filters	BGSV (Vietnam)	Show me revenue for BGSV in 2025	Jan–Dec 2025	Revenue — Vietnam entity only
+98	9 - Entity Filters	BGSV (Vietnam)	Show me entity P&L for BGSV in 2025	Jan–Dec 2025	Entity P&L — Vietnam only
+99	9 - Entity Filters	BGSJ (Japan)	Show me revenue for BGSJ in 2025	Jan–Dec 2025	Revenue — Japan entity only
+100	9 - Entity Filters	BGSG (Germany)	Show me revenue for BGSG in 2025	Jan–Dec 2025	Revenue — Germany entity only

@@ -1,0 +1,84 @@
+Hi Team, 
+
+As Discussed, We've Deployed Development Environment which was in VM previously it was routed to "http://20.193.250.55/" now is available "Genie-Finance-d.bosch.tech" domain 
+
+SSO Is not enabled for this environment as we need entra ID created and linked to development environment 
+
+Request @M Tejas (BGSW/BDO-IT) or @Subin Joseph (BGSW/BDO-IT) to help on this to created 
+
+Refer to create the below steps to create it 
+
+PART 1 — Create the App Registration
+1. Go to → portal.azure.com (Bosch tenant)
+2. Search bar → type "Microsoft Entra ID" → click it
+3. Left sidebar → App registrations
+4. Click "+ New registration"
+5. Fill in:
+      Name                    : LedgerLM
+      Supported account types : "Accounts in this organizational 
+                                 directory only (Bosch only - Single tenant)"
+      Redirect URI:
+         Platform             : Web
+         URL                  : https://Genie-Finance-d.bosch.tech/api/auth/sso/microsoft/callback
+6. Click "Register"
+________________________________________
+PART 2 — Copy your credentials
+After registration opens automatically:
+7. Copy → "Application (client) ID"   ← this is your CLIENT ID
+8. Copy → "Directory (tenant) ID"     ← this is your TENANT ID
+Keep these — you'll paste into LedgerLM domain settings.
+________________________________________
+PART 3 — Create a Client Secret
+9.  Left sidebar → Certificates & secrets
+10. Click "+ New client secret"
+11. Fill in:
+        Description : LedgerLM SSO
+        Expires     : 24 months (or as per Bosch policy)
+12. Click "Add"
+13. IMMEDIATELY copy the "Value" column ← this is your CLIENT SECRET
+    (It hides after you leave this page — copy it now)
+________________________________________
+PART 4 — Add API Permissions
+14. Left sidebar → API permissions
+15. Click "+ Add a permission"
+16. Click "Microsoft Graph"
+17. Click "Delegated permissions"
+18. Search and check:
+        openid
+        profile
+        email
+19. Click "Add permissions"
+20. Click "Grant admin consent for Bosch" → Yes
+    (Needs an admin account — ask IT if you don't have admin rights)
+
+For QA Environment 
+- as mentioned in below mail - Azure AD / Entra ID Tenant ID for SSO configuration  yet be crreated get a confirmation
+for Azure key Vault access to provisioning is pending - please let us when we can get
+this key point where we cna connect app service and key vault then app work
+
+Once the infrastructure is provisioned and the required access is shared:
+
+Activity
+Estimated Duration
+Application deployment & environment configuration according to new Architecture
+1 -  2 business days
+SSO integration with Bosch Entra ID and test Access across the App and test the Scenarios and fic the issue if ther is anyhting
+1 - 2 business days
+Resolution for new deployed Environment
+2 - 3 business days
+Total estimated timeline after environment handover
+Approximately 1 week
+
+
+Thanks and Regards,
+
+
+
+Rahitha KS | Consultant
+Matasma Digital Technologies | 2nd Floor,
+S2, 104, 13th Main Road, Sector 5, HSR Layout,
+Bengaluru, Karnataka | 560102, India
+rahitha@matasma.com| www.matasma.com
+(+91) – 7339216527
+
+
