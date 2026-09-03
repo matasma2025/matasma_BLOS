@@ -1,0 +1,2 @@
+export const CURRENT_TERMS_VERSION = "1.0";
+export const CURRENT_TERMS_EFFECTIVE_DATE = "July 15, 2026";

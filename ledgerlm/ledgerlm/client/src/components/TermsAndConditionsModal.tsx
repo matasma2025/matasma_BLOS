@@ -1,31 +1,65 @@
 import { useState, useEffect } from 'react';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollText, ShieldCheck, UserCheck, Lock, AlertTriangle, Brain, Database, Copyright, EyeOff, Server, Activity, Scale, RefreshCw, XCircle, Gavel, Sparkles, Phone } from 'lucide-react';
-
-const SESSION_KEY = 'ledgerlm_terms_accepted_session';
+import { apiRequest, queryClient } from '@/lib/queryClient';
+import { CURRENT_TERMS_EFFECTIVE_DATE, CURRENT_TERMS_VERSION } from '@shared/terms';
 
 interface TermsAndConditionsModalProps {
   open?: boolean;
   onClose?: () => void;
 }
 
+interface TermsStatus {
+  currentVersion: string;
+  effectiveDate: string;
+  needsAcceptance: boolean;
+  acceptedAt: string | null;
+  acceptedVersion: string | null;
+}
+
+function formatAcceptedAt(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(date);
+}
+
 export function TermsAndConditionsModal({ open: controlledOpen, onClose }: TermsAndConditionsModalProps = {}) {
   const [internalOpen, setInternalOpen] = useState(false);
   const [acknowledged, setAcknowledged] = useState(false);
 
+  const termsQuery = useQuery<TermsStatus>({
+    queryKey: ['/api/legal/terms/status'],
+  });
+
+  const acceptMutation = useMutation({
+    mutationFn: () => apiRequest<TermsStatus>('POST', '/api/legal/terms/accept', {}),
+    onSuccess: (status) => {
+      queryClient.setQueryData(['/api/legal/terms/status'], status);
+      setInternalOpen(false);
+    },
+  });
+
   useEffect(() => {
-    if (controlledOpen === undefined && !sessionStorage.getItem(SESSION_KEY)) {
+    if (
+      controlledOpen === undefined &&
+      (termsQuery.data?.needsAcceptance || termsQuery.isError)
+    ) {
       setInternalOpen(true);
     }
-  }, [controlledOpen]);
+  }, [controlledOpen, termsQuery.data?.needsAcceptance, termsQuery.isError]);
 
   // Reset checkbox whenever modal opens
   useEffect(() => {
     const isOpen = controlledOpen !== undefined ? controlledOpen : internalOpen;
-    if (isOpen) setAcknowledged(false);
-  }, [controlledOpen, internalOpen]);
+    if (isOpen && !acceptMutation.isPending) setAcknowledged(false);
+  }, [controlledOpen, internalOpen, acceptMutation.isPending]);
 
   const isViewOnly = controlledOpen !== undefined;
   const open = isViewOnly ? controlledOpen : internalOpen;
@@ -34,8 +68,7 @@ export function TermsAndConditionsModal({ open: controlledOpen, onClose }: Terms
     if (isViewOnly) {
       onClose?.();
     } else {
-      sessionStorage.setItem(SESSION_KEY, '1');
-      setInternalOpen(false);
+      acceptMutation.mutate();
     }
   };
 
@@ -54,9 +87,11 @@ export function TermsAndConditionsModal({ open: controlledOpen, onClose }: Terms
           </div>
           <h2 className="text-xl font-bold text-foreground text-center">Terms and Conditions for LedgerLM</h2>
           <div className="flex items-center gap-3 text-xs text-muted-foreground">
-            <span className="bg-muted px-2 py-0.5 rounded-full font-medium">Version 1.0</span>
+            <span className="bg-muted px-2 py-0.5 rounded-full font-medium">
+              Version {termsQuery.data?.currentVersion ?? CURRENT_TERMS_VERSION}
+            </span>
             <span>•</span>
-            <span>Effective: July 15, 2026</span>
+            <span>Effective: {termsQuery.data?.effectiveDate ?? CURRENT_TERMS_EFFECTIVE_DATE}</span>
             <span>•</span>
             <span>Issued by BGSW</span>
           </div>
@@ -228,6 +263,23 @@ export function TermsAndConditionsModal({ open: controlledOpen, onClose }: Terms
 
         {/* Footer: acknowledgement checkbox + button */}
         <div className="px-8 py-5 border-t bg-muted/30 space-y-4">
+          {isViewOnly && (
+            <div className="rounded-md bg-primary/5 px-3 py-2 text-xs text-muted-foreground">
+              {termsQuery.isLoading ? (
+                'Loading acceptance record…'
+              ) : termsQuery.data?.acceptedAt ? (
+                <>
+                  Accepted on {formatAcceptedAt(termsQuery.data.acceptedAt)}
+                  {termsQuery.data.acceptedVersion
+                    ? ` · Version ${termsQuery.data.acceptedVersion}`
+                    : ''}
+                </>
+              ) : (
+                'This account has not accepted the current version yet.'
+              )}
+            </div>
+          )}
+
           {/* Acknowledgement checkbox — interactive in accept mode, read-only in view-only */}
           <label className={`flex items-start gap-3 ${isViewOnly ? 'cursor-default opacity-70' : 'cursor-pointer group'}`}>
             <Checkbox
@@ -242,12 +294,18 @@ export function TermsAndConditionsModal({ open: controlledOpen, onClose }: Terms
             </span>
           </label>
 
+          {acceptMutation.isError && !isViewOnly && (
+            <p className="text-xs text-destructive">
+              We could not save your acceptance. Please try again.
+            </p>
+          )}
+
           <Button
             onClick={handleAccept}
-            disabled={!isViewOnly && !acknowledged}
+            disabled={!isViewOnly && (!acknowledged || acceptMutation.isPending)}
             className="w-full h-11 text-base font-medium rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isViewOnly ? 'Close' : 'Accept & Close'}
+            {isViewOnly ? 'Close' : acceptMutation.isPending ? 'Saving…' : 'Accept & Close'}
           </Button>
         </div>
       </DialogContent>

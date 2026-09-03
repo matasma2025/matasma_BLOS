@@ -1,1 +1,2 @@
 - [SSO Group-to-Role Mapping](sso-group-role-mapping.md) — N Azure AD groups → any role per domain; JSONB ssoGroupMappings on domains; 15-min background sync deactivates removed users
+- [Terms acceptance versioning](terms-acceptance-versioning.md) — material legal-text changes must bump the terms version so every user explicitly accepts the new revision

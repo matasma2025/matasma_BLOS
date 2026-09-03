@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type Chat, type InsertChat, type Message, type InsertMessage, type Document, type InsertDocument, type Board, type InsertBoard, type BoardTemplate, type InsertBoardTemplate, type BoardThread, type InsertBoardThread, type BoardDocument, type InsertBoardDocument, type BoardDataSource, type InsertBoardDataSource, type InsertQueryAudit, type QueryAudit, type Company, type InsertCompany, type CompanyMembership, type InsertCompanyMembership, type UserSettings, type InsertUserSettings, type EnterpriseDocument, type InsertEnterpriseDocument, type OtpCode, type InsertOtpCode, type DeviceTrust, type InsertDeviceTrust, type SchedulerConfig, type InsertSchedulerConfig, type Domain, type InsertDomain, type DomainUser, type InsertDomainUser, type DomainSchedulerConfig, type InsertDomainSchedulerConfig, type KioskFaqDocument, type InsertKioskFaqDocument, type KioskChat, type InsertKioskChat, type KioskMessage, type InsertKioskMessage, type KioskFaqEntry, type InsertKioskFaqEntry, type DomainApiConnector, type InsertDomainApiConnector, type Cube, type InsertCube, type CubeUserAccess, type InsertCubeUserAccess, type CubeMetadata, type InsertCubeMetadata, type AzureBlobFileRegistry, users, chats, messages, documents, boards, boardTemplates, boardThreads, boardDocuments, boardDataSources, chatDocuments, queryAudit, companies, companyMemberships, userSettings, enterpriseDocuments, enterpriseDocumentProcessing, otpCodes, deviceTrust, schedulerConfig, domains, domainUsers, domainSchedulerConfig, kioskFaqDocuments, kioskChats, kioskMessages, kioskFaqEntries, domainApiConnectors, cubes, cubeUserAccess, cubeMetadata, azureBlobFileRegistry } from "@shared/schema";
+import { type User, type InsertUser, type Chat, type InsertChat, type Message, type InsertMessage, type Document, type InsertDocument, type Board, type InsertBoard, type BoardTemplate, type InsertBoardTemplate, type BoardThread, type InsertBoardThread, type BoardDocument, type InsertBoardDocument, type BoardDataSource, type InsertBoardDataSource, type InsertQueryAudit, type QueryAudit, type Company, type InsertCompany, type CompanyMembership, type InsertCompanyMembership, type UserSettings, type InsertUserSettings, type TermsAcceptance, type InsertTermsAcceptance, type EnterpriseDocument, type InsertEnterpriseDocument, type OtpCode, type InsertOtpCode, type DeviceTrust, type InsertDeviceTrust, type SchedulerConfig, type InsertSchedulerConfig, type Domain, type InsertDomain, type DomainUser, type InsertDomainUser, type DomainSchedulerConfig, type InsertDomainSchedulerConfig, type KioskFaqDocument, type InsertKioskFaqDocument, type KioskChat, type InsertKioskChat, type KioskMessage, type InsertKioskMessage, type KioskFaqEntry, type InsertKioskFaqEntry, type DomainApiConnector, type InsertDomainApiConnector, type Cube, type InsertCube, type CubeUserAccess, type InsertCubeUserAccess, type CubeMetadata, type InsertCubeMetadata, type AzureBlobFileRegistry, users, chats, messages, documents, boards, boardTemplates, boardThreads, boardDocuments, boardDataSources, chatDocuments, queryAudit, companies, companyMemberships, userSettings, termsAcceptances, enterpriseDocuments, enterpriseDocumentProcessing, otpCodes, deviceTrust, schedulerConfig, domains, domainUsers, domainSchedulerConfig, kioskFaqDocuments, kioskChats, kioskMessages, kioskFaqEntries, domainApiConnectors, cubes, cubeUserAccess, cubeMetadata, azureBlobFileRegistry } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, asc, count, and, sql as sqlOp, inArray } from "drizzle-orm";
 import bcrypt from "bcryptjs";
@@ -89,6 +89,9 @@ export interface IStorage {
   getUserSettings(userId: string): Promise<UserSettings | undefined>;
   createUserSettings(settings: InsertUserSettings): Promise<UserSettings>;
   updateUserSettings(userId: string, updates: Partial<InsertUserSettings>): Promise<UserSettings | undefined>;
+
+  getTermsAcceptance(userId: string, termsVersion: string): Promise<TermsAcceptance | undefined>;
+  recordTermsAcceptance(acceptance: InsertTermsAcceptance): Promise<TermsAcceptance>;
   
   getEnterpriseDocuments(companyId: string): Promise<EnterpriseDocumentListItem[]>;
   getEnterpriseDocumentsByDomain(domainId: string): Promise<EnterpriseDocumentListItem[]>;
@@ -574,6 +577,38 @@ export class DbStorage implements IStorage {
       .where(eq(userSettings.userId, userId))
       .returning();
     return result[0];
+  }
+
+  async getTermsAcceptance(userId: string, termsVersion: string): Promise<TermsAcceptance | undefined> {
+    const result = await db.select()
+      .from(termsAcceptances)
+      .where(and(
+        eq(termsAcceptances.userId, userId),
+        eq(termsAcceptances.termsVersion, termsVersion),
+      ));
+    return result[0];
+  }
+
+  async recordTermsAcceptance(acceptance: InsertTermsAcceptance): Promise<TermsAcceptance> {
+    const inserted = await db.insert(termsAcceptances)
+      .values(acceptance)
+      .onConflictDoNothing({
+        target: [termsAcceptances.userId, termsAcceptances.termsVersion],
+      })
+      .returning();
+
+    if (inserted[0]) {
+      return inserted[0];
+    }
+
+    const existing = await this.getTermsAcceptance(
+      acceptance.userId,
+      acceptance.termsVersion,
+    );
+    if (!existing) {
+      throw new Error("Terms acceptance could not be recorded");
+    }
+    return existing;
   }
 
   async getEnterpriseDocuments(companyId: string): Promise<EnterpriseDocumentListItem[]> {

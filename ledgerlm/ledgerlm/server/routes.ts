@@ -65,6 +65,7 @@ import {
 import { writeAuditLog, extractIp } from "./services/auditLogger";
 import { runBackup, listBackups } from "./services/backupService";
 import { listRetentionPolicies, updateRetentionPolicy, runRetentionEngine } from "./services/retentionEngine";
+import { CURRENT_TERMS_EFFECTIVE_DATE, CURRENT_TERMS_VERSION } from "@shared/terms";
 
 const signinSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -468,6 +469,18 @@ async function ensureUserAccountForDomainUser(
 
 export async function registerRoutes(app: Express): Promise<Server> {
 
+  const getTermsStatus = async (userId: string) => {
+    const acceptance = await storage.getTermsAcceptance(userId, CURRENT_TERMS_VERSION);
+
+    return {
+      currentVersion: CURRENT_TERMS_VERSION,
+      effectiveDate: CURRENT_TERMS_EFFECTIVE_DATE,
+      needsAcceptance: !acceptance,
+      acceptedAt: acceptance?.acceptedAt?.toISOString() ?? null,
+      acceptedVersion: acceptance?.termsVersion ?? null,
+    };
+  };
+
   // ── SG-41: CSRF token vending endpoint ───────────────────────────────────
   // Generates a random per-session token on first call and returns it.
   // The client fetches this once after login and sends it as x-csrf-token
@@ -677,6 +690,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch {
       return res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.get("/api/legal/terms/status", requireAuth, async (req, res) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
+
+      return res.json(await getTermsStatus(userId));
+    } catch (error) {
+      console.error("Terms status error:", error);
+      return res.status(500).json({ error: "Failed to fetch terms status" });
+    }
+  });
+
+  app.post("/api/legal/terms/accept", requireAuth, async (req, res) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
+
+      await storage.recordTermsAcceptance({
+        userId,
+        termsVersion: CURRENT_TERMS_VERSION,
+        ipAddress: extractIp(req),
+        userAgent: req.get("user-agent") ?? null,
+      });
+
+      writeAuditLog({
+        userId,
+        action: "TERMS_ACCEPTED",
+        resource: "terms_and_conditions",
+        resourceId: CURRENT_TERMS_VERSION,
+        ipAddress: extractIp(req),
+        status: "success",
+        details: {
+          termsVersion: CURRENT_TERMS_VERSION,
+          effectiveDate: CURRENT_TERMS_EFFECTIVE_DATE,
+        },
+      }).catch(() => {});
+
+      return res.json(await getTermsStatus(userId));
+    } catch (error) {
+      console.error("Terms acceptance error:", error);
+      return res.status(500).json({ error: "Failed to record terms acceptance" });
     }
   });
 

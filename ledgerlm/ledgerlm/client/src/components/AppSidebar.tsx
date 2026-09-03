@@ -811,10 +811,10 @@ export function AppSidebar() {
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => setShowTermsModal(true)}
-                  data-testid="menu-item-bosch-principles"
+                  data-testid="menu-item-terms-and-conditions"
                 >
                   <ScrollText className="w-4 h-4 mr-2" />
-                  Bosch Collective Principles
+                  Terms & Conditions
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
@@ -879,10 +879,10 @@ export function AppSidebar() {
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => setShowTermsModal(true)}
-                  data-testid="menu-item-bosch-principles"
+                  data-testid="menu-item-terms-and-conditions"
                 >
                   <ScrollText className="w-4 h-4 mr-2" />
-                  Bosch Collective Principles
+                  Terms & Conditions
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem

@@ -57,6 +57,20 @@ export const otpCodes = pgTable("otp_codes", {
   contextIdx: index("otp_codes_context_idx").on(table.context),
 }));
 
+export const termsAcceptances = pgTable("terms_acceptances", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  termsVersion: varchar("terms_version", { length: 20 }).notNull(),
+  acceptedAt: timestamp("accepted_at", { withTimezone: true }).notNull().defaultNow(),
+  ipAddress: varchar("ip_address", { length: 45 }),
+  userAgent: text("user_agent"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  userVersionUnique: unique("terms_acceptances_user_version_unique").on(table.userId, table.termsVersion),
+  userIdIdx: index("terms_acceptances_user_id_idx").on(table.userId),
+  versionIdx: index("terms_acceptances_version_idx").on(table.termsVersion),
+}));
+
 export const deviceTrust = pgTable("device_trust", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
@@ -1214,6 +1228,12 @@ export const insertUserSettingsSchema = createInsertSchema(userSettings).omit({
   updatedAt: true,
 });
 
+export const insertTermsAcceptanceSchema = createInsertSchema(termsAcceptances).omit({
+  id: true,
+  acceptedAt: true,
+  createdAt: true,
+});
+
 export const insertEnterpriseDocumentSchema = createInsertSchema(enterpriseDocuments).omit({
   id: true,
   uploadedAt: true,
@@ -1416,6 +1436,8 @@ export type InsertCompanyMembership = z.infer<typeof insertCompanyMembershipSche
 export type CompanyMembership = typeof companyMemberships.$inferSelect;
 export type InsertUserSettings = z.infer<typeof insertUserSettingsSchema>;
 export type UserSettings = typeof userSettings.$inferSelect;
+export type InsertTermsAcceptance = z.infer<typeof insertTermsAcceptanceSchema>;
+export type TermsAcceptance = typeof termsAcceptances.$inferSelect;
 export type InsertEnterpriseDocument = z.infer<typeof insertEnterpriseDocumentSchema>;
 export type EnterpriseDocument = typeof enterpriseDocuments.$inferSelect;
 export type InsertEnterpriseDocumentChunk = z.infer<typeof insertEnterpriseDocumentChunkSchema>;
