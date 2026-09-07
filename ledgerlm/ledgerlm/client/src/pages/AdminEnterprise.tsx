@@ -50,9 +50,7 @@ interface DomainInfo {
 
 interface EnterpriseDocument {
   id: string;
-  companyId: string;
   fileName: string;
-  filePath: string;
   fileSize: number;
   fileType: string;
   source: string;
@@ -87,7 +85,6 @@ interface ConfiguredConnector {
 
 interface AutomationLog {
   id: string;
-  companyId: string;
   status: string;
   triggerType: string;
   triggeredBy?: string;
@@ -110,15 +107,12 @@ interface DocumentVersion {
   id: string;
   fileName: string;
   version: number;
-  filePath: string;
   fileSize: string;
   fileType: string;
   source: string;
   isActive: boolean;
   uploadedAt: string;
   uploadedBy: string;
-  previousVersionId?: string;
-  metadata?: any;
   cubeId?: string | null;
 }
 

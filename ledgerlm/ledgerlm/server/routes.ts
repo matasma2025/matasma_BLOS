@@ -76,6 +76,33 @@ import {
   updateBoardDtoSchema,
   validateEnterpriseDisplayName,
 } from "@shared/inputValidators";
+import {
+  toPublicBoard,
+  toPublicAutomationLog,
+  toPublicChat,
+  toPublicDocument,
+  toPublicDocumentVersion,
+  toPublicEnterpriseDocument,
+} from "./publicDtos";
+
+async function serializeAutomationLogs(logs: any[]) {
+  const userIds = [...new Set(logs.map((log) => log.triggeredBy).filter(Boolean))];
+  const usersById = new Map(
+    await Promise.all(
+      userIds.map(async (id) => {
+        const user = await storage.getUser(id);
+        return [id, user?.displayName || user?.username || "User"] as const;
+      }),
+    ),
+  );
+
+  return logs.map(({ companyId: _companyId, triggeredBy, details: _details, ...log }) =>
+    toPublicAutomationLog(
+      log,
+      triggeredBy ? usersById.get(triggeredBy) : "Scheduled",
+    ),
+  );
+}
 
 const signinSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -1050,7 +1077,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const chats = await storage.getChats(userId);
-      res.json(chats);
+      res.json(chats.map(toPublicChat));
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch chats" });
     }
@@ -1075,7 +1102,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .json({ error: "Forbidden - you don't have access to this chat" });
       }
 
-      res.json(chat);
+      res.json(toPublicChat(chat));
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch chat" });
     }
@@ -1105,7 +1132,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       const chat = await storage.createChat(data);
-      res.status(201).json(chat);
+      res.status(201).json(toPublicChat(chat));
     } catch (error) {
       console.error("Chat creation error:", error);
 
@@ -1155,7 +1182,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         req.params.id,
         title.trim(),
       );
-      res.json(updatedChat);
+      res.json(updatedChat ? toPublicChat(updatedChat) : updatedChat);
     } catch (error) {
       console.error("Chat update error:", error);
       res.status(500).json({ error: "Failed to update chat" });
@@ -1654,7 +1681,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         req.params.chatId,
         userId,
       );
-      res.json(documents);
+      res.json(documents.map(toPublicDocument));
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch chat documents" });
     }
@@ -1815,7 +1842,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const documents = await storage.getDocuments(userId);
-      res.json(documents);
+      res.json(documents.map(toPublicDocument));
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch documents" });
     }
@@ -1887,7 +1914,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         details:    { fileName: safeName, fileSize: req.file.size, mimeType: req.file.mimetype },
       }).catch(() => {});
 
-      res.status(201).json(document);
+      res.status(201).json(toPublicDocument(document));
     } catch (error) {
       console.error("Document upload error:", error);
       res
@@ -2563,7 +2590,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const boards = await storage.getBoards(userId);
-      res.json(boards);
+      res.json(boards.map(toPublicBoard));
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch boards" });
     }
@@ -2587,7 +2614,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .json({ error: "Forbidden - you don't have access to this board" });
       }
 
-      res.json(board);
+      res.json(toPublicBoard(board));
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch board" });
     }
@@ -2607,7 +2634,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const data = { ...parsed, userId };
 
       const board = await storage.createBoard(data);
-      res.status(201).json(board);
+      res.status(201).json(toPublicBoard(board));
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: boardValidationError(error) });
@@ -2665,7 +2692,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         templateId:  "templateId" in changes ? changes.templateId : board.templateId,
         settings:    ("settings" in changes ? changes.settings : board.settings) as any,
       });
-      res.json(updated);
+      res.json(updated ? toPublicBoard(updated) : updated);
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: boardValidationError(error) });
@@ -3007,7 +3034,7 @@ ${intentDef.question}`;
       }
 
       const threads = await storage.getBoardThreads(req.params.id, userId);
-      res.json(threads);
+      res.json(threads.map(toPublicChat));
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch board threads" });
     }
@@ -3080,7 +3107,7 @@ ${intentDef.question}`;
       }
 
       const documents = await storage.getBoardDocuments(req.params.id, userId);
-      res.json(documents);
+      res.json(documents.map(toPublicDocument));
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch board documents" });
     }
@@ -3269,7 +3296,7 @@ ${intentDef.question}`;
         const documents = await storage.getEnterpriseDocuments(
           req.params.companyId,
         );
-        res.json(documents);
+        res.json(documents.map(toPublicEnterpriseDocument));
       } catch (error) {
         res.status(500).json({ error: "Failed to fetch enterprise documents" });
       }
@@ -3339,9 +3366,8 @@ ${intentDef.question}`;
           ),
         );
         filesPersisted = true;
-        filesPersisted = true;
 
-        res.status(201).json(documents);
+        res.status(201).json(documents.map(toPublicEnterpriseDocument));
       } catch (error) {
         if (!filesPersisted) await cleanupUploadedFiles(files);
         res
@@ -3974,7 +4000,7 @@ ${intentDef.question}`;
       const limit = parseInt(req.query.limit as string) || 20;
       const logs = await anaplanAutomation.getRecentLogs(companyId, limit);
 
-      res.json({ logs });
+      res.json({ logs: await serializeAutomationLogs(logs) });
     } catch (error: any) {
       console.error("Error fetching Anaplan logs:", error);
       res.status(500).json({ error: 'Internal server error' });
@@ -4801,14 +4827,14 @@ ${intentDef.question}`;
           }
           const documents =
             await storage.getEnterpriseDocumentsByDomain(domainId);
-          return res.json(documents);
+          return res.json(documents.map(toPublicEnterpriseDocument));
         }
 
         const domain = (req as any).domain;
         const documents = await storage.getEnterpriseDocumentsByDomain(
           domain.id,
         );
-        res.json(documents);
+        res.json(documents.map(toPublicEnterpriseDocument));
       } catch (error: any) {
         console.error("Error fetching domain enterprise documents:", error);
         res.status(500).json({ error: 'Internal server error' });
@@ -4991,7 +5017,7 @@ ${intentDef.question}`;
           }
         }
 
-        res.status(201).json({ documents, job_id: jobId });
+        res.status(201).json({ documents: documents.map(toPublicEnterpriseDocument), job_id: jobId });
       } catch (error: any) {
         if (!filesPersisted) await cleanupUploadedFiles(files);
         console.error("Error uploading domain enterprise documents:", error);
@@ -5264,7 +5290,7 @@ ${intentDef.question}`;
         console.log(
           `[AUDIT] Document ${document.name} cube assignment updated to ${cubeId || "none"} by ${user.username}`,
         );
-        res.json(updatedDoc);
+        res.json(updatedDoc ? toPublicEnterpriseDocument(updatedDoc) : updatedDoc);
       } catch (error: any) {
         console.error("Error updating document cube assignment:", error);
         res.status(500).json({ error: 'Internal server error' });
@@ -5339,19 +5365,16 @@ ${intentDef.question}`;
         }
 
         // Map documents with uploader display names
-        const versions = documents.map((doc) => ({
+        const versions = documents.map((doc) => toPublicDocumentVersion({
           id: doc.id,
           fileName: doc.name,
           version: doc.version,
-          filePath: doc.filePath,
           fileSize: doc.fileSize,
           fileType: doc.fileType,
           source: doc.source,
           isActive: doc.isActive === 1,
           uploadedAt: doc.uploadedAt,
           uploadedBy: usersData[doc.uploadedBy] || "System",
-          previousVersionId: doc.previousVersionId,
-          metadata: doc.anaplanMetadata,
           cubeId: doc.cubeId,
         }));
 
@@ -5605,7 +5628,7 @@ ${intentDef.question}`;
           limit,
         );
 
-        res.json({ logs });
+        res.json({ logs: await serializeAutomationLogs(logs) });
       } catch (error: any) {
         console.error("Error fetching domain Anaplan logs:", error);
         res.status(500).json({ error: 'Internal server error' });
