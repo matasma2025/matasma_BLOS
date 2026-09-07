@@ -17,6 +17,7 @@ import { SchemaIntelligenceStudio } from '@/components/SchemaIntelligenceStudio'
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { isSafeDisplayText } from '@shared/inputValidators';
 
 interface Cube {
   id: string;
@@ -74,6 +75,32 @@ const SOURCE_TYPE_OPTIONS = [
   { value: 'azure_blob', label: 'Azure Blob Storage', icon: Cloud, description: 'Sync documents from Azure Blob container' },
   { value: 'all', label: 'All Sources', icon: Layers, description: 'Accept data from any configured source' },
 ];
+
+const CUBE_NAME_MAX = 60;
+const CUBE_DESCRIPTION_MAX = 280;
+const CUBE_NAME_CHARACTERS = /^[A-Za-z0-9 _&().,/'-]+$/;
+
+function validateCubeName(value: string): string | null {
+  const normalized = value.normalize('NFC').trim();
+  if (!normalized) return 'Cube name is required';
+  if (normalized.length > CUBE_NAME_MAX) {
+    return `Cube name must be at most ${CUBE_NAME_MAX} characters`;
+  }
+  if (!CUBE_NAME_CHARACTERS.test(normalized)) {
+    return "Cube name may contain letters, numbers, spaces, and . , - _ & ( ) / ' only";
+  }
+  return null;
+}
+
+function validateCubeDescription(value: string): string | null {
+  if (value.length > CUBE_DESCRIPTION_MAX) {
+    return `Cube description must be at most ${CUBE_DESCRIPTION_MAX} characters`;
+  }
+  if (!isSafeDisplayText(value)) {
+    return 'Cube description contains unsafe characters or content';
+  }
+  return null;
+}
 
 function getSourceTypeInfo(sourceType: string) {
   return SOURCE_TYPE_OPTIONS.find(opt => opt.value === sourceType) || SOURCE_TYPE_OPTIONS[0];
@@ -239,6 +266,11 @@ export function CubeManagement({ domainId, domainName, isSuperAdmin }: CubeManag
   // Mutations
   const createCubeMutation = useMutation({
     mutationFn: async () => {
+      const nameError = validateCubeName(newCubeName);
+      if (nameError) throw new Error(nameError);
+      const descriptionError = validateCubeDescription(newCubeDescription);
+      if (descriptionError) throw new Error(descriptionError);
+
       const ingestionConfig: any = {};
       
       // Anaplan configuration
@@ -313,9 +345,17 @@ export function CubeManagement({ domainId, domainName, isSuperAdmin }: CubeManag
 
   const updateCubeMutation = useMutation({
     mutationFn: async () => {
+      const nameError = validateCubeName(editCubeName);
+      const nameChanged = editCubeName !== selectedCube!.name;
+      if (nameChanged && nameError) throw new Error(nameError);
+      const originalDescription = selectedCube!.description || '';
+      const descriptionChanged = editCubeDescription !== originalDescription;
+      const descriptionError = validateCubeDescription(editCubeDescription);
+      if (descriptionChanged && descriptionError) throw new Error(descriptionError);
+
       return apiRequest('PUT', `/api/domain-admin/cubes/${selectedCube!.id}`, {
-        name: editCubeName,
-        description: editCubeDescription || null,
+        ...(nameChanged && { name: editCubeName }),
+        ...(descriptionChanged && { description: editCubeDescription || null }),
         sourceType: editCubeSourceType,
         connectorId: editCubeConnectorId,
       });
@@ -558,7 +598,8 @@ export function CubeManagement({ domainId, domainName, isSuperAdmin }: CubeManag
 
   const canProceedToNextStep = () => {
     if (wizardStep === 'basics') {
-      return newCubeName.trim().length > 0;
+      return !validateCubeName(newCubeName) &&
+        !validateCubeDescription(newCubeDescription);
     }
     if (wizardStep === 'source') {
       if (newCubeSourceType === 'anaplan') {
@@ -956,8 +997,12 @@ export function CubeManagement({ domainId, domainName, isSuperAdmin }: CubeManag
                   placeholder="e.g., KPI Metrics, P&L Reports"
                   value={newCubeName}
                   onChange={(e) => setNewCubeName(e.target.value)}
+                  maxLength={CUBE_NAME_MAX}
                   data-testid="input-cube-name"
                 />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {newCubeName.length}/{CUBE_NAME_MAX} characters. Letters, numbers, spaces, and . , - _ &amp; ( ) / ' are allowed.
+                </p>
               </div>
 
               <div>
@@ -971,8 +1016,12 @@ export function CubeManagement({ domainId, domainName, isSuperAdmin }: CubeManag
                   placeholder="Describe what data this cube contains..."
                   value={newCubeDescription}
                   onChange={(e) => setNewCubeDescription(e.target.value)}
+                  maxLength={CUBE_DESCRIPTION_MAX}
                   data-testid="input-cube-description"
                 />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {newCubeDescription.length}/{CUBE_DESCRIPTION_MAX} characters
+                </p>
               </div>
 
               <div>
@@ -1519,8 +1568,12 @@ export function CubeManagement({ domainId, domainName, isSuperAdmin }: CubeManag
                 id="edit-cube-name"
                 value={editCubeName}
                 onChange={(e) => setEditCubeName(e.target.value)}
+                maxLength={CUBE_NAME_MAX}
                 data-testid="input-edit-cube-name"
               />
+              <p className="mt-1 text-xs text-muted-foreground">
+                {editCubeName.length}/{CUBE_NAME_MAX} characters. Letters, numbers, spaces, and . , - _ &amp; ( ) / ' are allowed.
+              </p>
             </div>
             <div>
               <Label htmlFor="edit-cube-description">Description</Label>
@@ -1528,8 +1581,12 @@ export function CubeManagement({ domainId, domainName, isSuperAdmin }: CubeManag
                 id="edit-cube-description"
                 value={editCubeDescription}
                 onChange={(e) => setEditCubeDescription(e.target.value)}
+                maxLength={CUBE_DESCRIPTION_MAX}
                 data-testid="input-edit-cube-description"
               />
+              <p className="mt-1 text-xs text-muted-foreground">
+                {editCubeDescription.length}/{CUBE_DESCRIPTION_MAX} characters
+              </p>
             </div>
             <div>
               <Label>Data Source</Label>
@@ -1553,7 +1610,14 @@ export function CubeManagement({ domainId, domainName, isSuperAdmin }: CubeManag
               <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancel</Button>
               <Button 
                 onClick={() => updateCubeMutation.mutate()}
-                disabled={!editCubeName.trim() || updateCubeMutation.isPending}
+                disabled={
+                  (editCubeName !== selectedCube?.name && !!validateCubeName(editCubeName)) ||
+                  (
+                    editCubeDescription !== (selectedCube?.description || '') &&
+                    !!validateCubeDescription(editCubeDescription)
+                  ) ||
+                  updateCubeMutation.isPending
+                }
                 data-testid="button-confirm-edit-cube"
               >
                 {updateCubeMutation.isPending ? 'Saving...' : 'Save Changes'}

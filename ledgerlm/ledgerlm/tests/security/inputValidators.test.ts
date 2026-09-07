@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   createBoardDtoSchema,
+  createCubeDtoSchema,
+  updateCubeDtoSchema,
   updateBoardDtoSchema,
   validateEnterpriseDisplayName,
 } from "../../shared/inputValidators";
@@ -68,4 +70,52 @@ test("validates enterprise document display names without blocking normal names"
   assert.match(validateEnterpriseDisplayName("%2e%2e%2ffinancials.xlsx") || "", /path/i);
   assert.match(validateEnterpriseDisplayName("%252e%252e%255cfinancials.xlsx") || "", /path/i);
   assert.match(validateEnterpriseDisplayName("a".repeat(252) + ".xlsx") || "", /255 bytes/i);
+});
+
+test("accepts and normalizes ordinary cube names and descriptions", () => {
+  const result = createCubeDtoSchema.parse({
+    name: "  P&L Actuals FY26  ",
+    description: "  Revenue, cost, and margin analysis.  ",
+  });
+
+  assert.equal(result.name, "P&L Actuals FY26");
+  assert.equal(result.description, "Revenue, cost, and margin analysis.");
+});
+
+test("enforces cube lengths, safe characters, and strict DTOs", () => {
+  const rejectedNames = [
+    "",
+    " ".repeat(4),
+    "x".repeat(61),
+    "<script>alert(1)</script>",
+    "%3Cscript%3Ealert(1)%3C/script%3E",
+    "%253Cscript%253Ealert(1)%253C/script%253E",
+    "javascript:alert(1)",
+    "${process.env}",
+    "{{constructor}}",
+    "Cube|command",
+    "Cube\u202Ename",
+  ];
+
+  for (const name of rejectedNames) {
+    assert.equal(
+      createCubeDtoSchema.safeParse({ name }).success,
+      false,
+      `expected cube name to be rejected: ${name}`,
+    );
+  }
+
+  assert.equal(
+    createCubeDtoSchema.safeParse({ name: "Valid Cube", unexpected: true }).success,
+    false,
+  );
+  assert.equal(
+    createCubeDtoSchema.safeParse({ name: "Valid Cube", description: "x".repeat(281) }).success,
+    false,
+  );
+  assert.equal(updateCubeDtoSchema.safeParse({}).success, false);
+  assert.equal(
+    updateCubeDtoSchema.safeParse({ name: "Forecast (FY26) / EMEA" }).success,
+    true,
+  );
 });

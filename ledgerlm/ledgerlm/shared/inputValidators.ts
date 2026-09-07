@@ -84,6 +84,41 @@ export const createBoardDtoSchema = z.object({
 export const updateBoardDtoSchema = z.object(boardFields).strict()
   .refine((value) => Object.keys(value).length > 0, "At least one board field is required");
 
+const CUBE_NAME_CHARACTERS = /^[A-Za-z0-9 _&().,/'-]+$/;
+
+export const cubeNameSchema = z.string()
+  .max(60, "Cube name must be at most 60 characters")
+  .transform((value) => value.normalize("NFC").trim())
+  .refine((value) => value.length > 0, "Cube name is required")
+  .refine(isSafeDisplayText, "Cube name contains unsafe characters or content")
+  .refine(
+    (value) => CUBE_NAME_CHARACTERS.test(value),
+    "Cube name may contain letters, numbers, spaces, and . , - _ & ( ) / ' only",
+  );
+
+export const cubeDescriptionSchema = safeDisplayText("Cube description", 280, true)
+  .nullable()
+  .optional();
+
+const cubeMutableFields = {
+  name: cubeNameSchema.optional(),
+  description: cubeDescriptionSchema,
+  sourceType: z.string().max(50).optional(),
+  connectorId: z.string().max(255).nullable().optional(),
+  ingestionConfig: z.union([z.record(z.unknown()), z.string()]).nullable().optional(),
+};
+
+export const createCubeDtoSchema = z.object({
+  ...cubeMutableFields,
+  name: cubeNameSchema,
+  domainId: z.string().max(255).optional(),
+  schemaType: z.enum(["kpi", "investment_capex_pmo"]).optional().default("kpi"),
+  ingestionConfig: z.record(z.unknown()).nullable().optional(),
+}).strict();
+
+export const updateCubeDtoSchema = z.object(cubeMutableFields).strict()
+  .refine((value) => Object.keys(value).length > 0, "At least one cube field is required");
+
 export function validateEnterpriseDisplayName(name: string): string | null {
   if (!name || Buffer.byteLength(name, "utf8") > 255) {
     return "File name must be between 1 and 255 bytes.";

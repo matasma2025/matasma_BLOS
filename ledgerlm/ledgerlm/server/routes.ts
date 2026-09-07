@@ -73,7 +73,9 @@ import { listRetentionPolicies, updateRetentionPolicy, runRetentionEngine } from
 import { CURRENT_TERMS_EFFECTIVE_DATE, CURRENT_TERMS_VERSION } from "@shared/terms";
 import {
   createBoardDtoSchema,
+  createCubeDtoSchema,
   updateBoardDtoSchema,
+  updateCubeDtoSchema,
   validateEnterpriseDisplayName,
 } from "@shared/inputValidators";
 import {
@@ -149,16 +151,6 @@ const createDomainSchema = z.object({
   aiEmbeddingModel:   z.string().max(100).optional().nullable(),
   aiEmbeddingApiVersion: z.string().max(50).optional().nullable(),
   aiSystemPrompt:     z.string().max(5000).optional().nullable(),
-});
-
-const createCubeSchema = z.object({
-  name:            z.string().min(1).max(255),
-  description:     z.string().max(1000).optional().nullable(),
-  domainId:        z.string().optional(),
-  sourceType:      z.string().max(50).optional(),
-  schemaType:      z.enum(['kpi', 'investment_capex_pmo']).optional().default('kpi'),
-  connectorId:     z.string().optional(),
-  ingestionConfig: z.record(z.unknown()).optional().nullable(),
 });
 
 const uploadDir = path.join(process.cwd(), "uploads");
@@ -7585,7 +7577,7 @@ ${faqContext ? `FAQ KNOWLEDGE BASE:\n${faqContext}` : "No FAQ documentation is c
   // Create a new cube
   app.post("/api/domain-admin/cubes", requireDomainAdmin, async (req, res) => {
     try {
-      const cubeParsed = createCubeSchema.safeParse(req.body);
+      const cubeParsed = createCubeDtoSchema.safeParse(req.body);
       if (!cubeParsed.success) {
         return res.status(400).json({ error: "Invalid request", details: cubeParsed.error.flatten().fieldErrors });
       }
@@ -7595,7 +7587,7 @@ ${faqContext ? `FAQ KNOWLEDGE BASE:\n${faqContext}` : "No FAQ documentation is c
 
       let domainId: string;
       if (isSuperAdmin) {
-        domainId = req.body.domainId;
+        domainId = cubeParsed.data.domainId!;
         if (!domainId) {
           return res
             .status(400)
@@ -7621,7 +7613,8 @@ ${faqContext ? `FAQ KNOWLEDGE BASE:\n${faqContext}` : "No FAQ documentation is c
           });
       }
 
-      const { sourceType, connectorId, ingestionConfig } = req.body;
+      const { sourceType, connectorId } = cubeParsed.data;
+      const ingestionConfig = cubeParsed.data.ingestionConfig as any;
 
       // Snapshot the raw Azure Blob credentials BEFORE any encryption so the
       // auto-connector creation below always gets the plaintext key.
@@ -7651,8 +7644,8 @@ ${faqContext ? `FAQ KNOWLEDGE BASE:\n${faqContext}` : "No FAQ documentation is c
 
       const cube = await storage.createCube({
         domainId,
-        name: name.trim(),
-        description: description?.trim() || null,
+        name,
+        description: description || null,
         sourceType: sourceType || "manual",
         schemaType: (cubeParsed.data.schemaType as 'kpi' | 'investment_capex_pmo') || 'kpi',
         connectorId: connectorId || null,
@@ -7696,7 +7689,7 @@ ${faqContext ? `FAQ KNOWLEDGE BASE:\n${faqContext}` : "No FAQ documentation is c
           const autoConnector = await storage.createDomainApiConnector({
             domainId,
             connectorType: 'azure_blob',
-            name: `${name.trim()} — Azure Blob`,
+            name: `${name} — Azure Blob`,
             enabled: 1,
             config: encryptedConfig,
             tags: [],
@@ -7748,6 +7741,14 @@ ${faqContext ? `FAQ KNOWLEDGE BASE:\n${faqContext}` : "No FAQ documentation is c
     requireDomainAdmin,
     async (req, res) => {
       try {
+        const cubeParsed = updateCubeDtoSchema.safeParse(req.body);
+        if (!cubeParsed.success) {
+          return res.status(400).json({
+            error: "Invalid request",
+            details: cubeParsed.error.flatten().fieldErrors,
+          });
+        }
+
         const isSuperAdmin = (req as any).isSuperAdmin;
         const user = (req as any).user;
         const { cubeId } = req.params;
@@ -7765,19 +7766,16 @@ ${faqContext ? `FAQ KNOWLEDGE BASE:\n${faqContext}` : "No FAQ documentation is c
           }
         }
 
-        const { name, description, sourceType, connectorId, ingestionConfig } =
-          req.body;
+        const { name, description, sourceType, connectorId } = cubeParsed.data;
+        const ingestionConfig = cubeParsed.data.ingestionConfig as any;
 
         const updates: any = {};
         if (name !== undefined) {
-          if (typeof name !== "string" || name.trim().length === 0) {
-            return res.status(400).json({ error: "Cube name cannot be empty" });
-          }
           // Check for duplicate name if name is changing
-          if (name.trim() !== cube.name) {
+          if (name !== cube.name) {
             const existingCube = await storage.getCubeByName(
               cube.domainId,
-              name.trim(),
+              name,
             );
             if (existingCube && existingCube.id !== cubeId) {
               return res
@@ -7787,10 +7785,10 @@ ${faqContext ? `FAQ KNOWLEDGE BASE:\n${faqContext}` : "No FAQ documentation is c
                 });
             }
           }
-          updates.name = name.trim();
+          updates.name = name;
         }
         if (description !== undefined) {
-          updates.description = description?.trim() || null;
+          updates.description = description || null;
         }
         if (sourceType !== undefined) {
           updates.sourceType = sourceType;
