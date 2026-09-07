@@ -63,7 +63,10 @@ import {
   redactSensitiveFields,
 } from "./utils/encryption";
 import { writeAuditLog, extractIp } from "./services/auditLogger";
-import { establishAuthenticatedSession } from "./middleware/sessionBinding";
+import {
+  clearAuthenticationCookies,
+  establishAuthenticatedSession,
+} from "./middleware/sessionBinding";
 import { areAllOwnedBy, isOwnedBy } from "./security/ownership";
 import { runBackup, listBackups } from "./services/backupService";
 import { listRetentionPolicies, updateRetentionPolicy, runRetentionEngine } from "./services/retentionEngine";
@@ -646,7 +649,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = await ensureUserAccountForDomainUser(email, displayName);
 
       // Rotate the session ID and bind the authenticated session to this browser.
-      await establishAuthenticatedSession(req, userId);
+      await establishAuthenticatedSession(req, res, userId);
 
       // Audit: successful SSO login
       writeAuditLog({ userId, action: 'SSO_LOGIN', resource: domainName, ipAddress: extractIp(req as any), status: 'success', details: { email, domain: domainName, role: domainUser.role, triggeredBy: 'login' } });
@@ -665,12 +668,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // because the session cookie persists and /api/auth/me would re-authenticate.
   app.post("/api/auth/logout", (req, res) => {
     req.session.destroy((err) => {
+      clearAuthenticationCookies(res);
+      res.setHeader("Cache-Control", "no-store, private");
       if (err) {
         console.error("[auth] session.destroy error on logout:", err);
+        writeAuditLog({
+          action: "LOGOUT",
+          resource: "auth",
+          ipAddress: extractIp(req),
+          status: "failed",
+          details: { reason: "session_destroy_failed" },
+        }).catch(() => {});
+        return res.status(500).json({ error: "Logout failed" });
       }
-      // Clear the session cookie regardless of destroy outcome
-      res.clearCookie("connect.sid", { path: "/" });
-      res.json({ success: true });
+      writeAuditLog({
+        action: "LOGOUT",
+        resource: "auth",
+        ipAddress: extractIp(req),
+        status: "success",
+      }).catch(() => {});
+      return res.json({ success: true });
     });
   });
 
@@ -820,7 +837,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
 
       if (!requiresOtp) {
-        await establishAuthenticatedSession(req, user.id);
+        await establishAuthenticatedSession(req, res, user.id);
         await storage.updateUserLastLogin(user.id);
 
         await ensureCompanyMembershipForUser(user.id, user.username);
@@ -881,7 +898,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: verification.error });
       }
 
-      await establishAuthenticatedSession(req, user.id);
+      await establishAuthenticatedSession(req, res, user.id);
       await storage.updateUserLastLogin(user.id);
 
       await ensureCompanyMembershipForUser(user.id, user.username);

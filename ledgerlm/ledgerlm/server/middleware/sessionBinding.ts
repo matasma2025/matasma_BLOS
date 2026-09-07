@@ -1,8 +1,45 @@
-import { createHmac, timingSafeEqual } from "crypto";
+import { createHmac, randomBytes, timingSafeEqual } from "crypto";
 import type { NextFunction, Request, Response } from "express";
 
 const SESSION_BINDING_VERSION = 1;
 const DEFAULT_ABSOLUTE_SESSION_AGE_MS = 8 * 60 * 60 * 1000;
+export const SESSION_BINDING_COOKIE = "ledgerlm.binding";
+
+function bindingCookieOptions() {
+  return {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict" as const,
+    path: "/",
+    maxAge: 8 * 60 * 60 * 1000,
+  };
+}
+
+function parseCookie(req: Request, name: string): string | undefined {
+  const cookieHeader = req.headers.cookie;
+  if (!cookieHeader) return undefined;
+
+  for (const part of cookieHeader.split(";")) {
+    const separator = part.indexOf("=");
+    if (separator < 0) continue;
+    const key = part.slice(0, separator).trim();
+    if (key !== name) continue;
+    const value = part.slice(separator + 1).trim();
+    try {
+      return decodeURIComponent(value);
+    } catch {
+      return undefined;
+    }
+  }
+
+  return undefined;
+}
+
+export function clearAuthenticationCookies(res: Response): void {
+  const { maxAge: _maxAge, ...options } = bindingCookieOptions();
+  res.clearCookie("connect.sid", options);
+  res.clearCookie(SESSION_BINDING_COOKIE, options);
+}
 
 function getAbsoluteSessionAgeMs(): number {
   const configured = Number.parseInt(
@@ -69,25 +106,40 @@ function saveSession(req: Request): Promise<void> {
 
 export async function establishAuthenticatedSession(
   req: Request,
+  res: Response,
   userId: string,
 ): Promise<void> {
   await new Promise<void>((resolve, reject) => {
     req.session.regenerate((error) => (error ? reject(error) : resolve()));
   });
 
+  const browserBindingToken = randomBytes(32).toString("base64url");
   req.session.userId = userId;
   req.session.clientBinding = getUserAgentBinding(req);
   req.session.clientNetworkBinding = getNetworkBinding(req);
+  req.session.browserBinding = hashClientSignal(
+    "browser-token",
+    browserBindingToken,
+  );
   req.session.clientBindingVersion = SESSION_BINDING_VERSION;
   req.session.authenticatedAt = Date.now();
   await saveSession(req);
+  res.cookie(
+    SESSION_BINDING_COOKIE,
+    browserBindingToken,
+    bindingCookieOptions(),
+  );
 }
 
 function invalidateSession(
   req: Request,
   res: Response,
   next: NextFunction,
-  reason: "binding_mismatch" | "absolute_timeout",
+  reason:
+    | "binding_mismatch"
+    | "browser_binding_mismatch"
+    | "missing_binding"
+    | "absolute_timeout",
 ): void {
   const userId = req.session.userId;
   console.warn(
@@ -99,7 +151,7 @@ function invalidateSession(
       return next(error);
     }
 
-    res.clearCookie("connect.sid", { path: "/" });
+    clearAuthenticationCookies(res);
     if (req.path.startsWith("/api")) {
       return res.status(401).json({
         error: "Session security validation failed. Please sign in again.",
@@ -121,19 +173,17 @@ export function enforceSessionBinding(
   const now = Date.now();
   const currentUserAgentBinding = getUserAgentBinding(req);
   const currentNetworkBinding = getNetworkBinding(req);
+  const browserBindingToken = parseCookie(req, SESSION_BINDING_COOKIE);
 
-  // Preserve sessions that were created before this control was deployed.
-  // Every new authentication path calls establishAuthenticatedSession directly.
+  // Sessions created before browser-token binding cannot be trusted because a
+  // stolen legacy session could otherwise bind itself on first use.
   if (
     !req.session.clientBinding ||
+    !req.session.browserBinding ||
     req.session.clientBindingVersion !== SESSION_BINDING_VERSION ||
     !req.session.authenticatedAt
   ) {
-    req.session.clientBinding = currentUserAgentBinding;
-    req.session.clientNetworkBinding = currentNetworkBinding;
-    req.session.clientBindingVersion = SESSION_BINDING_VERSION;
-    req.session.authenticatedAt = now;
-    req.session.save((error) => (error ? next(error) : next()));
+    invalidateSession(req, res, next, "missing_binding");
     return;
   }
 
@@ -147,6 +197,17 @@ export function enforceSessionBinding(
 
   if (!safeEqual(req.session.clientBinding, currentUserAgentBinding)) {
     invalidateSession(req, res, next, "binding_mismatch");
+    return;
+  }
+
+  if (
+    !browserBindingToken ||
+    !safeEqual(
+      req.session.browserBinding,
+      hashClientSignal("browser-token", browserBindingToken),
+    )
+  ) {
+    invalidateSession(req, res, next, "browser_binding_mismatch");
     return;
   }
 

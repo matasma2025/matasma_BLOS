@@ -1,12 +1,17 @@
 import { useEffect, useState } from "react";
-import { Switch, Route, useLocation } from "wouter";
+import { Switch, Route } from "wouter";
 import { queryClient, fetchCsrfToken, clearCsrfToken } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
-import { getAuthUser, setAuthUser, clearAuthUser } from "@/lib/auth";
+import {
+  getAuthUser,
+  setAuthUser,
+  clearAuthUser,
+  subscribeToLogout,
+} from "@/lib/auth";
 import { TermsAndConditionsModal } from "@/components/TermsAndConditionsModal";
 import Welcome from "@/pages/Welcome";
 import VerifyOTP from "@/pages/VerifyOTP";
@@ -27,14 +32,13 @@ import NotFound from "@/pages/not-found";
 import Downloads from "@/pages/Downloads";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const [, setLocation] = useLocation();
   // Always start in "checking" — verify against the server on every mount.
   // This catches expired sessions even when in-memory auth state still exists.
   const [authState, setAuthState] = useState<'checking' | 'ok' | 'denied'>('checking');
 
   useEffect(() => {
     // Always validate against the server — in-memory user may be stale if session expired.
-    fetch('/api/auth/me', { credentials: 'include' })
+    fetch('/api/auth/me', { credentials: 'include', cache: 'no-store' })
       .then(r => r.ok ? r.json() : Promise.reject(r))
       .then(async (user) => {
         setAuthUser(user);
@@ -45,13 +49,58 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
       .catch(() => {
         clearAuthUser();
         clearCsrfToken();
+        queryClient.clear();
         setAuthState('denied');
-        setLocation('/');
+        window.location.replace('/');
       });
-  }, [setLocation]);
+  }, []);
 
   if (authState === 'checking') return null;
   return <>{children}</>;
+}
+
+function AuthLifecycle() {
+  useEffect(() => {
+    const forceLoggedOut = () => {
+      clearAuthUser();
+      clearCsrfToken();
+      queryClient.clear();
+      if (window.location.pathname !== "/") {
+        window.location.replace("/");
+      }
+    };
+
+    const revalidateRestoredPage = async (event: PageTransitionEvent) => {
+      if (!event.persisted || window.location.pathname === "/") return;
+
+      try {
+        const response = await fetch("/api/auth/me", {
+          credentials: "include",
+          cache: "no-store",
+        });
+        if (!response.ok) {
+          forceLoggedOut();
+          return;
+        }
+
+        const user = await response.json();
+        setAuthUser(user);
+        await fetchCsrfToken();
+      } catch {
+        forceLoggedOut();
+      }
+    };
+
+    window.addEventListener("pageshow", revalidateRestoredPage);
+    const unsubscribe = subscribeToLogout(forceLoggedOut);
+
+    return () => {
+      window.removeEventListener("pageshow", revalidateRestoredPage);
+      unsubscribe();
+    };
+  }, []);
+
+  return null;
 }
 
 function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -150,6 +199,7 @@ function Router() {
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
+      <AuthLifecycle />
       <TooltipProvider>
         <Toaster />
         <Router />

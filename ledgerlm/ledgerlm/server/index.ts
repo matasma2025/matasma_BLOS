@@ -214,6 +214,18 @@ app.use(session({
     maxAge: 15 * 60 * 1000,  // 15 minutes — Bosch SG-39 / SG-84 requirement
   },
 }));
+
+// Private application data must never be restored from a shared HTTP cache
+// after logout. Versioned static assets are served separately and remain
+// cacheable.
+app.use("/api", (_req, res, next) => {
+  res.setHeader("Cache-Control", "no-store, private");
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("Expires", "0");
+  res.vary("Cookie");
+  next();
+});
+
 app.use(enforceSessionBinding);
 
 // ── Rate limiting ─────────────────────────────────────────────────────────────

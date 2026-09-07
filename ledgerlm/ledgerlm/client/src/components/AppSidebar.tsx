@@ -64,8 +64,12 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useAuthUser, clearAuthUser } from "@/lib/auth";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useAuthUser, clearAuthUser, broadcastLogout } from "@/lib/auth";
+import {
+  queryClient,
+  apiRequest,
+  clearCsrfToken,
+} from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Chat } from "@shared/schema";
 
@@ -172,16 +176,20 @@ export function AppSidebar() {
     // Without this, navigating directly to a protected route after logout would
     // re-authenticate via /api/auth/me (session cookie still valid).
     try {
-      await fetch("/api/auth/logout", {
-        method: "POST",
-        credentials: "include",
-      });
+      await apiRequest("POST", "/api/auth/logout");
     } catch {
-      // Best-effort — proceed with client-side cleanup regardless
+      toast({
+        title: "Logout failed",
+        description: "Your session could not be closed. Please try again.",
+        variant: "destructive",
+      });
+      return;
     }
     clearAuthUser();
+    clearCsrfToken();
     queryClient.clear();
-    setLocation("/");
+    broadcastLogout();
+    window.location.replace("/");
   };
 
   // SG: isCreatingAnalysis state holds the guard for the FULL round-trip

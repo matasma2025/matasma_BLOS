@@ -16,6 +16,8 @@ interface AuthUser {
 // validates it independently and it cannot be used to bypass session auth.
 let _authUser: AuthUser | null = null;
 const AUTH_CHANGE_EVENT = 'ledgerlm_auth_change';
+const AUTH_BROADCAST_CHANNEL = 'ledgerlm_auth';
+const AUTH_STORAGE_EVENT = 'ledgerlm_auth_event';
 
 export function setAuthUser(user: AuthUser) {
   _authUser = user;
@@ -30,6 +32,47 @@ export function getAuthUser(): AuthUser | null {
 export function clearAuthUser() {
   _authUser = null;
   window.dispatchEvent(new Event(AUTH_CHANGE_EVENT));
+}
+
+export function broadcastLogout(): void {
+  if (typeof BroadcastChannel !== 'undefined') {
+    const channel = new BroadcastChannel(AUTH_BROADCAST_CHANNEL);
+    channel.postMessage({ type: 'logout' });
+    channel.close();
+  }
+
+  // Storage events notify other tabs. The value contains no user or credential
+  // data and is removed immediately.
+  try {
+    localStorage.setItem(AUTH_STORAGE_EVENT, `logout:${Date.now()}`);
+    localStorage.removeItem(AUTH_STORAGE_EVENT);
+  } catch {
+    // Storage may be unavailable in restricted browser contexts.
+  }
+}
+
+export function subscribeToLogout(onLogout: () => void): () => void {
+  const channel =
+    typeof BroadcastChannel !== 'undefined'
+      ? new BroadcastChannel(AUTH_BROADCAST_CHANNEL)
+      : null;
+  const handleBroadcast = (event: MessageEvent) => {
+    if (event.data?.type === 'logout') onLogout();
+  };
+  const handleStorage = (event: StorageEvent) => {
+    if (event.key === AUTH_STORAGE_EVENT && event.newValue?.startsWith('logout:')) {
+      onLogout();
+    }
+  };
+
+  channel?.addEventListener('message', handleBroadcast);
+  window.addEventListener('storage', handleStorage);
+
+  return () => {
+    channel?.removeEventListener('message', handleBroadcast);
+    channel?.close();
+    window.removeEventListener('storage', handleStorage);
+  };
 }
 
 /**

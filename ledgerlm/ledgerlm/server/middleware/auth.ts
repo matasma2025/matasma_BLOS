@@ -16,6 +16,7 @@ declare module 'express-session' {
     csrfToken?: string;
     clientBinding?: string;
     clientNetworkBinding?: string;
+    browserBinding?: string;
     clientBindingVersion?: number;
     authenticatedAt?: number;
   }
