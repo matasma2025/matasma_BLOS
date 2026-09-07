@@ -1,0 +1,42 @@
+#10 LACK OF INPUT VALIDATION 
+CVSS4.0 score: 2.1 (AV:A/AC:H/AT:N/PR:L/UI:N/VC:L/VI:L/VA:N/SC:N/SI:N/SA:N) 
+Severity: Low 
+OWASP Category: Web: A03 – Injection 
+CWE ID: NA 
+                              Penetration Testing Report – Initial Assessment 
+  
+Pentest Report  v1.0 - Final   Internal | Bosch Global Software Technologies 
+BGSW - ECL53  Confidential 
+46 
+ 
+Vulnerability 
+Description: 
+During the assessment, it was observed that the application does not 
+properly validate or sanitize user-supplied input fields. As a result, 
+users are able to submit unexpected or malicious payloads, including 
+script tags and other harmful characters, which are stored by the 
+application without any filtering. Although these scripts may not 
+execute in the current workflow, the fact that they are saved in raw 
+form significantly increases the risk of future exploitation, especially 
+if the stored data is displayed elsewhere in a different context or 
+rendered in a browser without adequate output encoding. Improper 
+handling of untrusted input can lead to a range of security issues such 
+as Cross-Site Scripting (XSS), HTML Injection, SQL Injection, or 
+Command Injection, depending on how the backend processes the 
+data. This behavior exposes the application to data manipulation, 
+potential compromise, and unintended functionality abuse. 
+Security Impact: Lack of input validation and sanitization leaves the application 
+vulnerable to XSS, HTML injection, and script injection attacks, which 
+could be exploited if output controls fail, potentially compromising 
+user data, application integrity, and future security. 
+Affected URLs: https://genie-finance-q.bosch.tech/boards  
+https://genie-finance-q.bosch.tech/admin/enterprise  
+Recommendation: It is recommended to implement strict server-side input validation and 
+sanitization for all user-supplied data to ensure that only expected 
+and safe input is accepted. Validation should follow a whitelist 
+approach, rejecting any data that does not conform to the required 
+format. Additionally, apply proper output encoding when displaying 
+stored data to prevent execution of any embedded scripts. These 
+measures significantly reduce the risk of XSS, SQL Injection, 
+Command Injection, HTML Injection, and other input-based attacks. 
+References: Input Validation
