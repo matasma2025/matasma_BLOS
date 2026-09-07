@@ -1,0 +1,67 @@
+#14 EXCESSIVE INFORMATION DISCLOSURE 
+CVSS4.0 Score: 0.0 (AV:A/AC:H/AT:N/PR:L/UI:N/VC:N/VI:N/VA:N/SC:N/SI:N/SA:N) 
+Severity: Info 
+OWASP Category: Web: A05 - Security  Misconfiguration 
+CWE ID: NA  
+Vulnerability 
+Description: 
+During the assessment, it was observed that the application discloses 
+unnecessary internal information in API responses for file upload and 
+board creation operations. The responses included internal identifiers 
+such as userId, storage-related information including filePath, and 
+backend implementation fields such as cloudSource, cloudFileId, and 
+cloudUrl, which are not required for client-side functionality. Exposing 
+such information unnecessarily reveals details about the application's 
+internal architecture and user identifiers, increasing the amount of 
+information available to an attacker during reconnaissance. Disclosure 
+of unnecessary internal identifiers and implementation details may 
+facilitate user enumeration, targeted attacks against user-related 
+                              Penetration Testing Report – Initial Assessment 
+  
+Pentest Report  v1.0 - Final   Internal | Bosch Global Software Technologies 
+BGSW - ECL53  Confidential 
+55 
+ 
+resources, and exploitation of other vulnerabilities such as Insecure 
+Direct Object References (IDOR) or business logic flaws. 
+Security Impact: The disclosure of internal identifiers and implementation details 
+provides attackers with valuable information that can be used to map 
+the application's internal structure and facilitate targeted 
+reconnaissance. This information may increase the likelihood of 
+successful attacks, including user enumeration, IDOR exploitation, 
+and other business logic or access control attacks. 
+Affected URL: https://genie-finance-q.bosch.tech/  
+Recommendation: It is recommended to follow the principle of data minimization and 
+remove unnecessary sensitive or internal information from API 
+responses. The application should return only the data required for 
+client-side operations and avoid exposing internal identifiers or user
+specific details unless explicitly required. Proper authorization checks 
+should also be implemented to prevent unauthorized access to user
+related resources. 
+References: NA 
+Proof of concept:  
+Step 1: Access the create new board feature. In response, observed that it discloses  
+excessive information like user id. 
+ 
+ 
+ 
+                              Penetration Testing Report – Initial Assessment 
+  
+Pentest Report  v1.0 - Final   Internal | Bosch Global Software Technologies 
+BGSW - ECL53  Confidential 
+56 
+ 
+ 
+ 
+Step 2: Similarly for file upload feature it discloses information including filePath, filesize, 
+user id, respectively. 
+ 
+                              Penetration Testing Report – Initial Assessment 
+  
+Pentest Report  v1.0 - Final   Internal | Bosch Global Software Technologies 
+BGSW - ECL53  Confidential 
+57 
+ 
+ 
+ 
+#15 IMPROPER VALIDATION OF HO
