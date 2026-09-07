@@ -52,7 +52,8 @@ export function BoardCreateWizard({ open, onOpenChange }: BoardCreateWizardProps
 
   const createBoardMutation = useMutation({
     mutationFn: async (data: InsertBoard) => {
-      return apiRequest('POST', '/api/boards', data);
+      const { userId: _userId, analysisTemplate: _analysisTemplate, ...payload } = data;
+      return apiRequest('POST', '/api/boards', payload);
     },
     onSuccess: () => {
       queryClient.refetchQueries({ queryKey: ['/api/boards'] });
@@ -102,11 +103,7 @@ export function BoardCreateWizard({ open, onOpenChange }: BoardCreateWizardProps
       }
       
       console.log('Form submission successful, data:', data);
-      const boardData = {
-        ...data,
-        userId: currentUser.id,
-      };
-      createBoardMutation.mutate(boardData);
+      createBoardMutation.mutate(data);
     },
     (errors) => {
       console.log('Form validation errors:', errors);

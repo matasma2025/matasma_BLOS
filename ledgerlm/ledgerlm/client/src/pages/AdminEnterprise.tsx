@@ -453,6 +453,11 @@ export default function AdminEnterprise() {
 
   const validateAndStageFiles = (files: File[]) => {
     const oversized = files.filter(f => f.size > MAX_UPLOAD_BYTES);
+    const unsafeNames = files.filter(f =>
+      f.name.length === 0 || new TextEncoder().encode(f.name).length > 255 ||
+      /[\\/\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F\u202A-\u202E\u2066-\u2069]/.test(f.name) ||
+      /<\s*\/?\s*[a-z!][^>]*>|\{\{|\}\}|\$\{|<%|%>|\b(?:javascript|data|vbscript)\s*:/i.test(f.name)
+    );
     oversized.forEach(f => {
       toast({
         title: "File too large",
@@ -460,7 +465,14 @@ export default function AdminEnterprise() {
         variant: "destructive",
       });
     });
-    const valid = files.filter(f => f.size <= MAX_UPLOAD_BYTES);
+    unsafeNames.forEach(f => {
+      toast({
+        title: "Unsafe file name",
+        description: `"${f.name}" must be a display-safe file name of 255 bytes or fewer.`,
+        variant: "destructive",
+      });
+    });
+    const valid = files.filter(f => f.size <= MAX_UPLOAD_BYTES && !unsafeNames.includes(f));
     if (valid.length > 0) setUploadingFiles(prev => [...prev, ...valid]);
   };
 

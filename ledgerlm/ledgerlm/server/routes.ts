@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import type { Express, RequestHandler } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db, dbAuthMode } from "./db";
@@ -71,6 +71,11 @@ import { areAllOwnedBy, isOwnedBy } from "./security/ownership";
 import { runBackup, listBackups } from "./services/backupService";
 import { listRetentionPolicies, updateRetentionPolicy, runRetentionEngine } from "./services/retentionEngine";
 import { CURRENT_TERMS_EFFECTIVE_DATE, CURRENT_TERMS_VERSION } from "@shared/terms";
+import {
+  createBoardDtoSchema,
+  updateBoardDtoSchema,
+  validateEnterpriseDisplayName,
+} from "@shared/inputValidators";
 
 const signinSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -187,7 +192,14 @@ const ALLOWED_TEXT_EXTENSIONS = new Set(['.txt', '.csv', '.tsv', '.log', '.md'])
 // and collapse to a safe basename. Returns the safe name.
 function sanitiseFilename(raw: string): string {
   // Decode any URL encoding
-  let name = decodeURIComponent(raw).replace(/\0/g, '');
+  let name = raw;
+  try {
+    name = decodeURIComponent(raw);
+  } catch {
+    // The display-name validator will reject unsafe content; retain literal %
+    // characters rather than turning a malformed encoding into a server error.
+  }
+  name = name.replace(/\0/g, '');
   // Strip path traversal
   name = path.basename(name);
   // Remove leading dots (hidden files) and spaces
@@ -200,6 +212,8 @@ function sanitiseFilename(raw: string): string {
 // SG-SEC: Validate the original filename — blocked extension, double-extension,
 // and text/plain extension allowlist. Returns an error string or null if OK.
 function validateFilename(originalname: string, mimetype: string): string | null {
+  const displayNameError = validateEnterpriseDisplayName(originalname);
+  if (displayNameError) return displayNameError;
   const safe = sanitiseFilename(originalname);
   const ext  = path.extname(safe).toLowerCase();
 
@@ -298,6 +312,27 @@ const upload = multer({
     cb(null, true);
   },
 });
+
+// Multer invokes Express' error path before the route handler. Convert malformed
+// multipart input into a client error instead of the default 500 response.
+const enterpriseDocumentUpload: RequestHandler = (req, res, next) => {
+  upload.array("files", 10)(req, res, (error: unknown) => {
+    if (error) {
+      return res.status(400).json({
+        error: error instanceof Error ? error.message : "Invalid upload",
+      });
+    }
+    next();
+  });
+};
+
+function boardValidationError(error: z.ZodError): string {
+  return error.issues[0]?.message || "Invalid board data";
+}
+
+async function cleanupUploadedFiles(files: Express.Multer.File[] | undefined): Promise<void> {
+  await Promise.all((files ?? []).map((file) => fs.unlink(file.path).catch(() => {})));
+}
 
 const PUBLIC_EMAIL_PROVIDERS = [
   "gmail.com",
@@ -2565,15 +2600,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: "Unauthorized - please sign in" });
       }
 
-      const data = insertBoardSchema.parse({
-        ...req.body,
-        userId,
-      });
+      const parsed = createBoardDtoSchema.parse(req.body);
+      if (parsed.templateId && !(await storage.getBoardTemplate(parsed.templateId))) {
+        return res.status(400).json({ error: "Selected board template does not exist" });
+      }
+      const data = { ...parsed, userId };
 
       const board = await storage.createBoard(data);
       res.status(201).json(board);
     } catch (error) {
-      res.status(400).json({ error: "Invalid board data" });
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: boardValidationError(error) });
+      }
+      res.status(500).json({ error: "Failed to create board" });
     }
   });
 
@@ -2612,15 +2651,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!board) return res.status(404).json({ error: "Board not found" });
       if (board.userId !== userId) return res.status(403).json({ error: "Forbidden" });
 
-      const { title, description, templateId, settings } = req.body;
+      const changes = updateBoardDtoSchema.parse(req.body);
+      if (
+        "templateId" in changes &&
+        changes.templateId &&
+        !(await storage.getBoardTemplate(changes.templateId))
+      ) {
+        return res.status(400).json({ error: "Selected board template does not exist" });
+      }
       const updated = await storage.updateBoard(req.params.id, {
-        title:      title      ?? board.title,
-        description: description ?? board.description,
-        templateId:  templateId  ?? board.templateId,
-        settings:    settings    ?? board.settings,
+        title:       changes.title ?? board.title,
+        description: "description" in changes ? changes.description : board.description,
+        templateId:  "templateId" in changes ? changes.templateId : board.templateId,
+        settings:    ("settings" in changes ? changes.settings : board.settings) as any,
       });
       res.json(updated);
     } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: boardValidationError(error) });
+      }
       res.status(500).json({ error: "Failed to update board" });
     }
   });
@@ -3230,14 +3279,16 @@ ${intentDef.question}`;
   app.post(
     "/api/admin/companies/:companyId/documents",
     requireAdmin,
-    upload.array("files", 10),
+    enterpriseDocumentUpload,
     async (req, res) => {
+      const files = req.files as Express.Multer.File[] | undefined;
+      let filesPersisted = false;
       try {
         const adminCompanyId = (req as any).adminCompanyId;
         const userId = (req.session?.userId ?? "");
-        const files = req.files as Express.Multer.File[];
 
         if (req.params.companyId !== adminCompanyId) {
+          await cleanupUploadedFiles(files);
           return res.status(403).json({
             error: "Forbidden",
             message: "You can only upload to your own company",
@@ -3246,6 +3297,14 @@ ${intentDef.question}`;
 
         if (!files || files.length === 0) {
           return res.status(400).json({ error: "No files uploaded" });
+        }
+
+        const unsafeName = files
+          .map((file) => validateEnterpriseDisplayName(file.originalname))
+          .find((error): error is string => error !== null);
+        if (unsafeName) {
+          await cleanupUploadedFiles(files);
+          return res.status(400).json({ error: unsafeName });
         }
 
         // Gate 3 — magic-byte validation for every file; reject and delete any that fail
@@ -3272,16 +3331,19 @@ ${intentDef.question}`;
             storage.createEnterpriseDocument({
               companyId: req.params.companyId,
               uploadedBy: userId,
-              name: sanitiseFilename(file.originalname),
+              name: file.originalname.normalize("NFC"),
               filePath: file.filename,
               fileSize: file.size.toString(),
               fileType: file.mimetype,
             }),
           ),
         );
+        filesPersisted = true;
+        filesPersisted = true;
 
         res.status(201).json(documents);
       } catch (error) {
+        if (!filesPersisted) await cleanupUploadedFiles(files);
         res
           .status(500)
           .json({ error: "Failed to upload enterprise documents" });
@@ -4758,12 +4820,13 @@ ${intentDef.question}`;
   app.post(
     "/api/domain-admin/enterprise-documents",
     requireDomainAdmin,
-    upload.array("files", 10),
+    enterpriseDocumentUpload,
     async (req, res) => {
+      const files = req.files as Express.Multer.File[] | undefined;
+      let filesPersisted = false;
       try {
         const user = (req as any).user;
         const isSuperAdmin = (req as any).isSuperAdmin;
-        const files = req.files as Express.Multer.File[];
         const requestDomainId = req.body.domainId;
         const requestCubeId = req.body.cubeId; // Optional cube assignment
 
@@ -4771,9 +4834,18 @@ ${intentDef.question}`;
           return res.status(400).json({ error: "No files uploaded" });
         }
 
+        const unsafeName = files
+          .map((file) => validateEnterpriseDisplayName(file.originalname))
+          .find((error): error is string => error !== null);
+        if (unsafeName) {
+          await cleanupUploadedFiles(files);
+          return res.status(400).json({ error: unsafeName });
+        }
+
         let domainId: string;
         if (isSuperAdmin) {
           if (!requestDomainId) {
+            await cleanupUploadedFiles(files);
             return res
               .status(400)
               .json({ error: "domainId is required for super admin" });
@@ -4786,6 +4858,7 @@ ${intentDef.question}`;
         // Verify domain exists
         const domain = await storage.getDomain(domainId);
         if (!domain) {
+          await cleanupUploadedFiles(files);
           return res.status(404).json({ error: "Domain not found" });
         }
 
@@ -4794,9 +4867,11 @@ ${intentDef.question}`;
         if (requestCubeId) {
           const cube = await storage.getCube(requestCubeId);
           if (!cube) {
+            await cleanupUploadedFiles(files);
             return res.status(404).json({ error: "Cube not found" });
           }
           if (cube.domainId !== domainId) {
+            await cleanupUploadedFiles(files);
             return res
               .status(403)
               .json({ error: "Cube does not belong to this domain" });
@@ -4843,7 +4918,7 @@ ${intentDef.question}`;
               companyId: company!.id,
               domainId: domainId,
               uploadedBy: user.id,
-              name: sanitiseFilename(file.originalname),
+              name: file.originalname.normalize("NFC"),
               filePath: file.filename,
               fileSize: file.size.toString(),
               fileType: file.mimetype,
@@ -4918,6 +4993,7 @@ ${intentDef.question}`;
 
         res.status(201).json({ documents, job_id: jobId });
       } catch (error: any) {
+        if (!filesPersisted) await cleanupUploadedFiles(files);
         console.error("Error uploading domain enterprise documents:", error);
         res.status(500).json({ error: 'Internal server error' });
       }

@@ -124,8 +124,8 @@ export function BoardEditorDialog({
       if (!isEditing) setTimeout(() => navigate(`/board/${data.id}`), 300);
       else queryClient.invalidateQueries({ queryKey: ['/api/boards', board?.id] });
     },
-    onError: () => {
-      toast({ title: 'Error', description: `Failed to ${isEditing ? 'update' : 'create'} board`, variant: 'destructive' });
+    onError: (error: Error) => {
+      toast({ title: 'Error', description: error.message || `Failed to ${isEditing ? 'update' : 'create'} board`, variant: 'destructive' });
     },
   });
 
@@ -159,13 +159,20 @@ export function BoardEditorDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={(e) => { e.preventDefault(); saveMutation.mutate(formData); }} className="space-y-5">
+          <form onSubmit={(e) => {
+            e.preventDefault();
+            if (!formData.title.trim()) {
+              toast({ title: 'Board name required', description: 'Enter a board name before saving.', variant: 'destructive' });
+              return;
+            }
+            saveMutation.mutate(formData);
+          }} className="space-y-5">
           {/* Title */}
           <div className="space-y-1.5">
             <Label htmlFor="title">Board Name</Label>
             <Input id="title" value={formData.title}
               onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-              placeholder="e.g. BGSW Monthly Variance" required />
+              placeholder="e.g. BGSW Monthly Variance" required maxLength={200} />
           </div>
 
           {/* Description */}
@@ -173,7 +180,7 @@ export function BoardEditorDialog({
             <Label htmlFor="description">Description</Label>
             <Textarea id="description" rows={2} value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              placeholder="Brief description of this board's purpose..." />
+              placeholder="Brief description of this board's purpose..." maxLength={2000} />
           </div>
 
           {/* Analysis Prompts */}
