@@ -482,7 +482,7 @@ export function CubeManagement({ domainId, domainName, isSuperAdmin }: CubeManag
     queryKey: ['/api/domain-admin/cubes', selectedCube?.id, 'metadata'],
     queryFn: async () => {
       const res = await fetch(`/api/domain-admin/cubes/${selectedCube?.id}/metadata`, {
-        headers: { 'x-user-id': localStorage.getItem('userId') || '' },
+        credentials: 'include',
       });
       if (!res.ok) throw new Error('Failed to fetch metadata');
       return res.json();

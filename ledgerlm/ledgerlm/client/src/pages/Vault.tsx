@@ -72,7 +72,6 @@ export default function Vault() {
       const response = await fetch("/api/documents", {
         method: "POST",
         headers: {
-          "x-user-id": user?.id || "",
           ...getCsrfHeaders(),
         },
         credentials: "include",
@@ -103,7 +102,6 @@ export default function Vault() {
           await fetch(`/api/documents/${data.id}/process`, {
             method: "POST",
             headers: {
-              "x-user-id": user?.id || "",
               "Content-Type": "application/json",
               ...getCsrfHeaders(),
             },
@@ -130,7 +128,6 @@ export default function Vault() {
       const response = await fetch(`/api/documents/${id}`, {
         method: "DELETE",
         headers: {
-          "x-user-id": user?.id || "",
           ...getCsrfHeaders(),
         },
         credentials: "include",
@@ -162,7 +159,6 @@ export default function Vault() {
       const response = await fetch(`/api/documents/${id}/process`, {
         method: "POST",
         headers: {
-          "x-user-id": user?.id || "",
           "Content-Type": "application/json",
           ...getCsrfHeaders(),
         },
@@ -210,7 +206,6 @@ export default function Vault() {
       const chatResponse = await fetch("/api/chats", {
         method: "POST",
         headers: {
-          "x-user-id": user?.id || "",
           "Content-Type": "application/json",
           ...getCsrfHeaders(),
         },
@@ -233,7 +228,6 @@ export default function Vault() {
           {
             method: "POST",
             headers: {
-              "x-user-id": user?.id || "",
               "Content-Type": "application/json",
               ...getCsrfHeaders(),
             },
@@ -313,9 +307,7 @@ export default function Vault() {
     try {
       const user = getAuthUser();
       const response = await fetch(`/api/documents/${doc.id}/download`, {
-        headers: {
-          "x-user-id": user?.id || "",
-        },
+        credentials: "include",
       });
 
       if (!response.ok) {

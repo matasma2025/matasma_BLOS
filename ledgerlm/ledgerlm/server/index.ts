@@ -50,6 +50,7 @@ import { runBackup } from "./services/backupService";
 import { startSsoSyncJob } from "./services/ssoSyncJob";
 import rateLimit from "express-rate-limit";
 import { enforceSessionBinding } from "./middleware/sessionBinding";
+import { discardClientIdentityHeaders } from "./middleware/clientIdentity";
 
 const app = express();
 
@@ -102,8 +103,14 @@ app.use(cors({
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  // Keep x-user-id temporarily for older clients; it is discarded below and
+  // never participates in authentication or authorization.
   allowedHeaders: ['Content-Type', 'Authorization', 'x-user-id', 'x-csrf-token'],
 }));
+
+// Identity comes exclusively from the validated server-side session. A client
+// header is spoofable and must never influence authentication or authorization.
+app.use(discardClientIdentityHeaders);
 
 declare module 'http' {
   interface IncomingMessage {

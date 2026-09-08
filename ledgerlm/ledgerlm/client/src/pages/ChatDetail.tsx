@@ -565,9 +565,6 @@ export default function ChatDetail() {
             try {
               const response = await fetch(`/api/documents/${doc.id}/status`, {
                 credentials: "include",
-                headers: {
-                  "x-user-id": currentUser.id,
-                },
               });
               if (response.ok) {
                 statuses[doc.id] = await response.json();
@@ -640,7 +637,6 @@ export default function ChatDetail() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-user-id": currentUser.id,
           ...getCsrfHeaders(),
         },
         credentials: "include",
@@ -807,7 +803,6 @@ export default function ChatDetail() {
       const uploadResponse = await fetch("/api/documents", {
         method: "POST",
         headers: {
-          "x-user-id": currentUser.id,
           ...getCsrfHeaders(),
         },
         credentials: "include",
@@ -829,7 +824,6 @@ export default function ChatDetail() {
       await fetch(`/api/documents/${document.id}/process`, {
         method: "POST",
         headers: {
-          "x-user-id": currentUser.id,
           ...getCsrfHeaders(),
         },
         credentials: "include",

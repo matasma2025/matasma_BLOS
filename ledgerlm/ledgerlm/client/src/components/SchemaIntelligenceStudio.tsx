@@ -1087,7 +1087,6 @@ export function SchemaIntelligenceStudio({ open, onOpenChange, cubeId, cubeName 
     queryFn: async () => {
       const res = await fetch(`/api/domain-admin/cubes/${cubeId}/business-logic`, {
         credentials: 'include',
-        headers: { 'x-user-id': localStorage.getItem('userId') || '' },
       });
       if (!res.ok) throw new Error('Failed to fetch business logic');
       return res.json();

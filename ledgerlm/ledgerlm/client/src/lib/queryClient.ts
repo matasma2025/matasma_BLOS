@@ -1,5 +1,5 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
-import { getAuthUser, clearAuthUser } from "./auth";
+import { clearAuthUser } from "./auth";
 
 // ── SG-41: CSRF token (Synchronizer Token Pattern) ───────────────────────────
 // Stored in memory only (never localStorage). Fetched once after login via
@@ -54,7 +54,6 @@ export async function apiRequest<T = unknown>(
   data?: unknown | undefined,
   isFormData = false,
 ): Promise<T> {
-  const user = getAuthUser();
   const headers: HeadersInit = {};
   
   // Don't set Content-Type for FormData - browser will set it with boundary
@@ -62,10 +61,6 @@ export async function apiRequest<T = unknown>(
     headers["Content-Type"] = "application/json";
   }
   
-  if (user?.id) {
-    headers['x-user-id'] = user.id;
-  }
-
   // SG-41: Inject CSRF token on all state-changing requests
   if (_csrfToken && !['GET', 'HEAD', 'OPTIONS'].includes(method.toUpperCase())) {
     headers['x-csrf-token'] = _csrfToken;
@@ -121,12 +116,7 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const user = getAuthUser();
     const headers: HeadersInit = {};
-    
-    if (user?.id) {
-      headers['x-user-id'] = user.id;
-    }
 
     const res = await fetch(queryKey.join("/") as string, {
       credentials: "include",

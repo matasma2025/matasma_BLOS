@@ -356,7 +356,7 @@ export default function AdminEnterprise() {
       if (!currentUser) throw new Error("Not authenticated");
       const res = await fetch(`/api/domain-admin/enterprise-documents/${documentId}/process`, {
         method: "POST",
-        headers: { "x-user-id": currentUser.id, ...getCsrfHeaders() },
+        headers: { ...getCsrfHeaders() },
         credentials: "include",
       });
       if (!res.ok) throw new Error(res.statusText);
@@ -379,7 +379,7 @@ export default function AdminEnterprise() {
       if (!currentUser) throw new Error("Not authenticated");
       return fetch(`/api/domain-admin/enterprise-documents/${documentId}`, {
         method: "DELETE",
-        headers: { "x-user-id": currentUser.id, ...getCsrfHeaders() },
+        headers: { ...getCsrfHeaders() },
         credentials: "include",
       }).then(res => res.ok ? res.json() : Promise.reject(res.statusText));
     },
