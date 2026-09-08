@@ -7,6 +7,7 @@ const OTP_LENGTH = 6;
 const OTP_EXPIRY_MINUTES = 5;
 const MAX_OTP_ATTEMPTS = 5;
 const DEVICE_TRUST_DAYS = 10;
+export type OtpContext = 'login' | 'password_reset' | `admin_step_up:${string}`;
 
 export class OtpService {
   generateOtpCode(): string {
@@ -34,7 +35,7 @@ export class OtpService {
     );
   }
 
-  async createAndSendOtp(userId: string, email: string, userName: string, context: 'login' | 'password_reset', domainConfig?: DomainEmailConfig | null): Promise<void> {
+  async createAndSendOtp(userId: string, email: string, userName: string, context: OtpContext, domainConfig?: DomainEmailConfig | null): Promise<void> {
     const otpCode = this.generateOtpCode();
     const codeHash = await bcrypt.hash(otpCode, 10);
     
@@ -57,7 +58,7 @@ export class OtpService {
     await emailService.sendOtpCode(email, otpCode, userName, domainConfig);
   }
 
-  async verifyOtp(userId: string, otpCode: string, context: 'login' | 'password_reset'): Promise<{
+  async verifyOtp(userId: string, otpCode: string, context: OtpContext): Promise<{
     success: boolean;
     error?: string;
   }> {
@@ -88,7 +89,10 @@ export class OtpService {
       };
     }
 
-    await storage.consumeOtpCode(activeOtp.id);
+    const consumed = await storage.consumeOtpCodeIfUnused(activeOtp.id);
+    if (!consumed) {
+      return { success: false, error: 'Verification code has already been used.' };
+    }
     return { success: true };
   }
 

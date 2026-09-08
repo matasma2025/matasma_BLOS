@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { apiRequest, queryClient } from '@/lib/queryClient';
+import { apiRequest, apiRequestWithAdminStepUp, queryClient } from '@/lib/queryClient';
 import { getAuthUser } from '@/lib/auth';
 import { Trash2, Plus, Users, Globe, Key, Edit, Shield, Lock, Cpu, ClipboardList, HardDrive, Timer, MoreHorizontal, AlertTriangle, CheckCircle2, Mail, Bot } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
@@ -164,7 +164,7 @@ export default function SuperAdmin() {
 
   const createDomainMutation = useMutation({
     mutationFn: async (data: typeof newDomain) => {
-      return apiRequest('POST', '/api/super-admin/domains', {
+      return apiRequestWithAdminStepUp(() => apiRequest('POST', '/api/super-admin/domains', {
         name: data.name,
         adminEmail: data.adminEmail,
         defaultOtp: data.defaultOtp || null,
@@ -196,7 +196,7 @@ export default function SuperAdmin() {
           aiEmbeddingApiVersion: data.aiEmbeddingApiVersion || null,
           aiSystemPrompt: data.aiSystemPrompt || null,
         } : {}),
-      });
+      }));
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/super-admin/domains'] });
@@ -215,7 +215,7 @@ export default function SuperAdmin() {
 
   const updateDomainMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: typeof editDomain }) => {
-      return apiRequest('PUT', `/api/super-admin/domains/${id}`, {
+      return apiRequestWithAdminStepUp(() => apiRequest('PUT', `/api/super-admin/domains/${id}`, {
         adminEmail: data.adminEmail,
         defaultOtp: data.defaultOtp || null,
         authMethod: data.authMethod,
@@ -245,7 +245,7 @@ export default function SuperAdmin() {
           aiEmbeddingApiVersion: data.aiEmbeddingApiVersion || null,
           aiSystemPrompt: data.aiSystemPrompt || null,
         } : { aiProvider: 'ollama' }),
-      });
+      }));
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/super-admin/domains'] });
@@ -264,7 +264,7 @@ export default function SuperAdmin() {
 
   const deleteDomainMutation = useMutation({
     mutationFn: async (id: string) => {
-      return apiRequest('DELETE', `/api/super-admin/domains/${id}`);
+      return apiRequestWithAdminStepUp(() => apiRequest('DELETE', `/api/super-admin/domains/${id}`));
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/super-admin/domains'] });

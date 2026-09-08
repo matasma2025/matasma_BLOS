@@ -1,6 +1,6 @@
 import { type User, type InsertUser, type Chat, type InsertChat, type Message, type InsertMessage, type Document, type InsertDocument, type Board, type InsertBoard, type BoardTemplate, type InsertBoardTemplate, type BoardThread, type InsertBoardThread, type BoardDocument, type InsertBoardDocument, type BoardDataSource, type InsertBoardDataSource, type InsertQueryAudit, type QueryAudit, type Company, type InsertCompany, type CompanyMembership, type InsertCompanyMembership, type UserSettings, type InsertUserSettings, type TermsAcceptance, type InsertTermsAcceptance, type EnterpriseDocument, type InsertEnterpriseDocument, type OtpCode, type InsertOtpCode, type DeviceTrust, type InsertDeviceTrust, type SchedulerConfig, type InsertSchedulerConfig, type Domain, type InsertDomain, type DomainUser, type InsertDomainUser, type DomainSchedulerConfig, type InsertDomainSchedulerConfig, type KioskFaqDocument, type InsertKioskFaqDocument, type KioskChat, type InsertKioskChat, type KioskMessage, type InsertKioskMessage, type KioskFaqEntry, type InsertKioskFaqEntry, type DomainApiConnector, type InsertDomainApiConnector, type Cube, type InsertCube, type CubeUserAccess, type InsertCubeUserAccess, type CubeMetadata, type InsertCubeMetadata, type AzureBlobFileRegistry, users, chats, messages, documents, boards, boardTemplates, boardThreads, boardDocuments, boardDataSources, chatDocuments, queryAudit, companies, companyMemberships, userSettings, termsAcceptances, enterpriseDocuments, enterpriseDocumentProcessing, otpCodes, deviceTrust, schedulerConfig, domains, domainUsers, domainSchedulerConfig, kioskFaqDocuments, kioskChats, kioskMessages, kioskFaqEntries, domainApiConnectors, cubes, cubeUserAccess, cubeMetadata, azureBlobFileRegistry } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, asc, count, and, sql as sqlOp, inArray } from "drizzle-orm";
+import { eq, desc, asc, count, and, isNull, sql as sqlOp, inArray } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 
 export interface EnterpriseDocumentListItem {
@@ -28,6 +28,7 @@ export interface IStorage {
   verifyPassword(username: string, password: string): Promise<User | null>;
   getAllUsers(): Promise<User[]>;
   deleteUser(id: string): Promise<void>;
+  consumeOtpCodeIfUnused(id: string): Promise<boolean>;
   
   getChats(userId: string): Promise<Chat[]>;
   getChat(id: string): Promise<Chat | undefined>;
@@ -806,6 +807,14 @@ export class DbStorage implements IStorage {
     await db.update(otpCodes)
       .set({ consumedAt: new Date() })
       .where(eq(otpCodes.id, id));
+  }
+
+  async consumeOtpCodeIfUnused(id: string): Promise<boolean> {
+    const result = await db.update(otpCodes)
+      .set({ consumedAt: new Date() })
+      .where(and(eq(otpCodes.id, id), isNull(otpCodes.consumedAt)))
+      .returning();
+    return result.length === 1;
   }
 
   async incrementOtpAttempts(id: string): Promise<void> {

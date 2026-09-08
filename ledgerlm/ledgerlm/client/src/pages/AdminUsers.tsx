@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { apiRequest, queryClient } from '@/lib/queryClient';
+import { apiRequest, apiRequestWithAdminStepUp, queryClient } from '@/lib/queryClient';
 import { useAuthUser } from '@/lib/auth';
 import { Trash2, UserPlus, Key, Edit, Globe, Shield, CheckCircle, Users, ShieldCheck } from 'lucide-react';
 import SsoAuditDomainAdmin from '@/components/admin/SsoAuditDomainAdmin';
@@ -81,12 +81,12 @@ export default function AdminUsers() {
 
   const addUserMutation = useMutation({
     mutationFn: async (data: typeof newUser) => {
-      return apiRequest('POST', '/api/domain-admin/users', {
+      return apiRequestWithAdminStepUp(() => apiRequest('POST', '/api/domain-admin/users', {
         email: data.email,
         role: data.role,
         hardcodedOtp: data.hardcodedOtp || null,
         domainId: isSuperAdmin ? selectedDomainId : undefined,
-      });
+      }));
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/domain-admin/users'] });
@@ -106,10 +106,10 @@ export default function AdminUsers() {
 
   const updateUserMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: typeof editUser }) => {
-      return apiRequest('PUT', `/api/domain-admin/users/${id}`, {
+      return apiRequestWithAdminStepUp(() => apiRequest('PUT', `/api/domain-admin/users/${id}`, {
         role: data.role,
         hardcodedOtp: data.hardcodedOtp || null,
-      });
+      }));
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/domain-admin/users'] });
@@ -128,7 +128,7 @@ export default function AdminUsers() {
 
   const deleteUserMutation = useMutation({
     mutationFn: async (id: string) => {
-      return apiRequest('DELETE', `/api/domain-admin/users/${id}`);
+      return apiRequestWithAdminStepUp(() => apiRequest('DELETE', `/api/domain-admin/users/${id}`));
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/domain-admin/users'] });

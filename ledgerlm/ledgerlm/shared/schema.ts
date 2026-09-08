@@ -24,6 +24,7 @@ export const users = pgTable("users", {
   displayName: text("display_name").notNull(),
   role: varchar("role", { length: 20 }).notNull().default('standard'), // 'admin' or 'standard'
   lastLoginAt: timestamp("last_login_at"),
+  sessionsRevokedAt: timestamp("sessions_revoked_at"),
 });
 
 export const invitations = pgTable("invitations", {

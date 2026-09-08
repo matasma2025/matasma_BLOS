@@ -45,12 +45,14 @@ import { runInvestmentTablesMigration } from "./migrations/create-investment-tab
 import { addSsoGroupMappings } from "./migrations/add-sso-group-mappings";
 import { createBoardReportsTable } from "./migrations/create-board-reports";
 import { addVarianceDataColumn } from "./migrations/add-variance-data-column";
+import { addSessionRevocationTimestamp } from "./migrations/add-session-revocation";
 import { runRetentionEngine } from "./services/retentionEngine";
 import { runBackup } from "./services/backupService";
 import { startSsoSyncJob } from "./services/ssoSyncJob";
 import rateLimit from "express-rate-limit";
 import { enforceSessionBinding } from "./middleware/sessionBinding";
 import { discardClientIdentityHeaders } from "./middleware/clientIdentity";
+import { enforceSessionRevocation } from "./middleware/auth";
 
 const app = express();
 
@@ -221,6 +223,8 @@ app.use(session({
     maxAge: 15 * 60 * 1000,  // 15 minutes — Bosch SG-39 / SG-84 requirement
   },
 }));
+
+app.use(enforceSessionRevocation);
 
 // Private application data must never be restored from a shared HTTP cache
 // after logout. Versioned static assets are served separately and remain
@@ -428,6 +432,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   await createBoardReportsTable();
   // Add varianceData + comparisonPeriodLabel columns (Phase 2)
   await addVarianceDataColumn();
+  await addSessionRevocationTimestamp();
 
   await seedDatabase();
   await fixAzureBlobConnectorSchedules();

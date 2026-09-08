@@ -19,6 +19,41 @@ declare module 'express-session' {
     browserBinding?: string;
     clientBindingVersion?: number;
     authenticatedAt?: number;
+    adminStepUp?: {
+      userId: string;
+      verifiedAt: number;
+      method: 'otp' | 'sso';
+    };
+    pendingAdminStepUp?: {
+      challengeId: string;
+      userId: string;
+      createdAt: number;
+    };
+  }
+}
+
+export async function enforceSessionRevocation(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  const userId = req.session?.userId;
+  if (!userId) return next();
+  try {
+    const user = await storage.getUser(userId);
+    const revoked =
+      !user ||
+      (user.sessionsRevokedAt &&
+        (!req.session.authenticatedAt ||
+          req.session.authenticatedAt <= new Date(user.sessionsRevokedAt).getTime()));
+    if (!revoked) return next();
+    req.session.destroy(() => {});
+    res.clearCookie("connect.sid");
+    res.clearCookie("ledgerlm.binding");
+    return res.status(401).json({ error: "Session revoked" });
+  } catch (error) {
+    console.error("Session revocation check error:", error);
+    return res.status(500).json({ error: "Authentication error" });
   }
 }
 
@@ -33,6 +68,13 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     const user = await storage.getUser(userId);
     if (!user) {
       return res.status(401).json({ error: 'Invalid session' });
+    }
+    if (
+      user.sessionsRevokedAt &&
+      (!req.session.authenticatedAt ||
+        req.session.authenticatedAt <= new Date(user.sessionsRevokedAt).getTime())
+    ) {
+      return res.status(401).json({ error: 'Session revoked' });
     }
 
     req.user = user;
@@ -54,6 +96,13 @@ export async function requireAdmin(req: Request, res: Response, next: NextFuncti
     const user = await storage.getUser(userId);
     if (!user) {
       return res.status(401).json({ error: 'Invalid session' });
+    }
+    if (
+      user.sessionsRevokedAt &&
+      (!req.session.authenticatedAt ||
+        req.session.authenticatedAt <= new Date(user.sessionsRevokedAt).getTime())
+    ) {
+      return res.status(401).json({ error: 'Session revoked' });
     }
 
     if (user.role !== 'admin') {

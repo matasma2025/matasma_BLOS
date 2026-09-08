@@ -68,6 +68,8 @@ import {
   establishAuthenticatedSession,
 } from "./middleware/sessionBinding";
 import { areAllOwnedBy, isOwnedBy } from "./security/ownership";
+import { requireRecentAdminStepUp } from "./middleware/adminStepUp";
+import { revokeUserSessions } from "./security/sessionRevocation";
 import { runBackup, listBackups } from "./services/backupService";
 import { listRetentionPolicies, updateRetentionPolicy, runRetentionEngine } from "./services/retentionEngine";
 import { CURRENT_TERMS_EFFECTIVE_DATE, CURRENT_TERMS_VERSION } from "@shared/terms";
@@ -86,6 +88,55 @@ import {
   toPublicDocumentVersion,
   toPublicEnterpriseDocument,
 } from "./publicDtos";
+
+const SUPER_ADMIN_EMAIL = "customer@ledgerlm.ai";
+
+async function resolveActiveAdmin(userId: string, authenticatedAt?: number) {
+  const user = await storage.getUser(userId);
+  if (!user) return null;
+  if (
+    user.sessionsRevokedAt &&
+    (!authenticatedAt ||
+      authenticatedAt <= new Date(user.sessionsRevokedAt).getTime())
+  ) {
+    return null;
+  }
+
+  if (user.username.toLowerCase() === SUPER_ADMIN_EMAIL) {
+    return { user, domain: null, isSuperAdmin: true };
+  }
+
+  const membership = await storage.getDomainUserByEmail(user.username.toLowerCase());
+  if (
+    !membership ||
+    membership.role !== "admin" ||
+    membership.status !== "active"
+  ) {
+    return null;
+  }
+
+  const domain = await storage.getDomain(membership.domainId);
+  if (!domain) return null;
+  return { user, domain, isSuperAdmin: false };
+}
+
+const requireActiveAdmin: RequestHandler = async (req: any, res, next) => {
+  try {
+    const userId = req.session?.userId;
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+    const context = await resolveActiveAdmin(userId, req.session.authenticatedAt);
+    if (!context) {
+      return res.status(403).json({ error: "Admin access required" });
+    }
+    req.user = context.user;
+    req.domain = context.domain;
+    req.isSuperAdmin = context.isSuperAdmin;
+    next();
+  } catch (error) {
+    console.error("Active admin authorization error:", error);
+    res.status(500).json({ error: "Authorization error" });
+  }
+};
 
 async function serializeAutomationLogs(logs: any[]) {
   const userIds = [...new Set(logs.map((log) => log.triggeredBy).filter(Boolean))];
@@ -121,6 +172,11 @@ const verifyOtpSchema = z.object({
 
 const resendOtpSchema = z.object({
   email: z.string().email("Invalid email address"),
+});
+
+const adminStepUpVerifySchema = z.object({
+  challengeId: z.string().regex(/^[a-f0-9]{32}$/),
+  otpCode: z.string().regex(/^\d{6}$/),
 });
 
 const createDomainSchema = z.object({
@@ -701,6 +757,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Ensure user account exists in main users table
       const userId = await ensureUserAccountForDomainUser(email, displayName);
+      await storage.updateUserRole(userId, domainUser.role === "admin" ? "admin" : "user");
+      await revokeUserSessions(userId);
 
       // Rotate the session ID and bind the authenticated session to this browser.
       await establishAuthenticatedSession(req, res, userId);
@@ -994,6 +1052,111 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(400).json({ error: "Verification failed" });
     }
   });
+
+  const adminStepUpRequestLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 2,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: "Too many verification requests. Please wait and try again." },
+  });
+
+  app.post(
+    "/api/auth/admin-step-up/request",
+    adminStepUpRequestLimiter,
+    requireActiveAdmin,
+    async (req, res) => {
+      try {
+        const user = req.user!;
+        const adminDomain = (req as any).domain;
+        const challengeId = randomBytes(16).toString("hex");
+        req.session.pendingAdminStepUp = {
+          challengeId,
+          userId: user.id,
+          createdAt: Date.now(),
+        };
+        await new Promise<void>((resolve, reject) =>
+          req.session.save((error) => error ? reject(error) : resolve()),
+        );
+        await otpService.createAndSendOtp(
+          user.id,
+          user.username,
+          user.displayName,
+          `admin_step_up:${challengeId}`,
+          adminDomain?.emailProvider && adminDomain.emailProvider !== "default"
+            ? {
+                emailProvider: adminDomain.emailProvider,
+                emailSmtpUser: adminDomain.emailSmtpUser,
+                emailSmtpPass: adminDomain.emailSmtpPass
+                  ? decryptValue(adminDomain.emailSmtpPass)
+                  : null,
+                emailFromAddress: adminDomain.emailFromAddress,
+                emailFromName: adminDomain.emailFromName,
+              }
+            : null,
+        );
+        res.json({ success: true, challengeId, expiresInSeconds: 300 });
+      } catch (error) {
+        console.error("Admin step-up request error:", error);
+        res.status(500).json({ error: "Unable to request administrator verification" });
+      }
+    },
+  );
+
+  const adminStepUpVerifyLimiter = rateLimit({
+    windowMs: 5 * 60 * 1000,
+    max: 5,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: "Too many verification attempts. Request a new code." },
+  });
+
+  app.post(
+    "/api/auth/admin-step-up/verify",
+    adminStepUpVerifyLimiter,
+    requireActiveAdmin,
+    async (req, res) => {
+      try {
+        const { challengeId, otpCode } = adminStepUpVerifySchema.parse(req.body);
+        const user = req.user!;
+        const pending = req.session.pendingAdminStepUp;
+        if (
+          !pending ||
+          pending.userId !== user.id ||
+          pending.challengeId !== challengeId ||
+          Date.now() - pending.createdAt > 5 * 60 * 1000
+        ) {
+          return res.status(401).json({ error: "Verification challenge is invalid or expired" });
+        }
+
+        const verification = await otpService.verifyOtp(
+          user.id,
+          otpCode,
+          `admin_step_up:${challengeId}`,
+        );
+        if (!verification.success) {
+          return res.status(401).json({ error: verification.error });
+        }
+
+        req.session.pendingAdminStepUp = undefined;
+        req.session.adminStepUp = {
+          userId: user.id,
+          verifiedAt: Date.now(),
+          method: "otp",
+        };
+        await new Promise<void>((resolve, reject) =>
+          req.session.save((error) => error ? reject(error) : resolve()),
+        );
+        res.json({
+          success: true,
+          assurance: { level: "recent_otp", validForSeconds: 300 },
+        });
+      } catch (error) {
+        console.error("Admin step-up verification error:", error);
+        res.status(400).json({ error: "Administrator verification failed" });
+      }
+    },
+  );
 
   const resendOtpLimiter = rateLimit({
     windowMs: 1 * 60 * 1000, // 1 minute
@@ -4186,21 +4349,18 @@ ${intentDef.question}`;
   // SUPER ADMIN ROUTES - Only accessible by customer@ledgerlm.ai
   // ============================================================================
 
-  const SUPER_ADMIN_EMAIL = "customer@ledgerlm.ai";
-
   // Middleware to check if user is super admin
   const requireSuperAdmin = async (req: any, res: any, next: any) => {
     const userId = req.session?.userId;
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
-
-    const user = await storage.getUser(userId);
-    if (!user || user.username.toLowerCase() !== SUPER_ADMIN_EMAIL) {
+    const context = await resolveActiveAdmin(userId, req.session.authenticatedAt);
+    if (!context?.isSuperAdmin) {
       return res
         .status(403)
         .json({ error: "Forbidden: Super Admin access required" });
     }
 
-    req.user = user;
+    req.user = context.user;
     next();
   };
 
@@ -4228,7 +4388,7 @@ ${intentDef.question}`;
   });
 
   // Create a new domain (Super Admin only)
-  app.post("/api/super-admin/domains", requireSuperAdmin, async (req, res) => {
+  app.post("/api/super-admin/domains", requireSuperAdmin, requireRecentAdminStepUp, async (req, res) => {
     try {
       const parsed = createDomainSchema.safeParse(req.body);
       if (!parsed.success) {
@@ -4353,6 +4513,7 @@ ${intentDef.question}`;
   app.put(
     "/api/super-admin/domains/:id",
     requireSuperAdmin,
+    requireRecentAdminStepUp,
     async (req, res) => {
       try {
         const { id } = req.params;
@@ -4449,7 +4610,44 @@ ${intentDef.question}`;
           updatePayload.aiSystemPrompt = null;
         }
 
+        const normalizedAdminEmail = adminEmail?.toLowerCase();
+        const prospectiveMembership = normalizedAdminEmail
+          ? await storage.getDomainUserByEmail(normalizedAdminEmail)
+          : undefined;
+        if (
+          normalizedAdminEmail &&
+          normalizedAdminEmail !== domain.adminEmail.toLowerCase() &&
+          prospectiveMembership &&
+          prospectiveMembership.domainId !== id
+        ) {
+          return res.status(409).json({
+            error: "The selected administrator already belongs to another domain",
+          });
+        }
+
         const updatedDomain = await storage.updateDomain(id, updatePayload);
+
+        if (normalizedAdminEmail && normalizedAdminEmail !== domain.adminEmail.toLowerCase()) {
+          const adminUserId = await ensureUserAccountForDomainUser(normalizedAdminEmail);
+          const existingMembership = prospectiveMembership;
+          if (existingMembership?.domainId === id) {
+            await storage.updateDomainUser(existingMembership.id, {
+              role: "admin",
+              status: "active",
+            });
+          } else {
+            await storage.createDomainUser({
+              domainId: id,
+              email: normalizedAdminEmail,
+              role: "admin",
+              status: "active",
+              hardcodedOtp: null,
+              invitedBy: (req as any).user.id,
+            });
+          }
+          await storage.updateUserRole(adminUserId, "admin");
+          await revokeUserSessions(adminUserId);
+        }
 
         // Never expose encrypted secrets in the response
         const safeResponse = {
@@ -4470,6 +4668,7 @@ ${intentDef.question}`;
   app.delete(
     "/api/super-admin/domains/:id",
     requireSuperAdmin,
+    requireRecentAdminStepUp,
     async (req, res) => {
       try {
         const { id } = req.params;
@@ -4479,6 +4678,11 @@ ${intentDef.question}`;
           return res.status(404).json({ error: "Domain not found" });
         }
 
+        const domainUsers = await storage.getDomainUsers(id);
+        for (const domainUser of domainUsers) {
+          const mainUser = await storage.getUserByUsername(domainUser.email);
+          if (mainUser) await revokeUserSessions(mainUser.id);
+        }
         await storage.deleteDomain(id);
         res.json({ success: true });
       } catch (error: any) {
@@ -4515,41 +4719,7 @@ ${intentDef.question}`;
   // ============================================================================
 
   // Middleware to check if user is domain admin
-  const requireDomainAdmin = async (req: any, res: any, next: any) => {
-    const userId = req.session?.userId;
-    if (!userId) return res.status(401).json({ error: "Unauthorized" });
-
-    const user = await storage.getUser(userId);
-    if (!user) return res.status(401).json({ error: "Unauthorized" });
-
-    // Super admin can access everything
-    if (user.username.toLowerCase() === SUPER_ADMIN_EMAIL) {
-      req.user = user;
-      req.isSuperAdmin = true;
-      return next();
-    }
-
-    // Check if user is a domain admin — first check the primary adminEmail on the domain,
-    // then fall back to the domain_users table (covers additional admins added later)
-    let domain = await storage.getDomainByAdminEmail(user.username.toLowerCase());
-
-    if (!domain) {
-      const domainUser = await storage.getDomainUserByEmail(user.username.toLowerCase());
-      if (domainUser && domainUser.role === 'admin') {
-        domain = await storage.getDomain(domainUser.domainId);
-      }
-    }
-
-    if (!domain) {
-      return res
-        .status(403)
-        .json({ error: "Forbidden: Domain Admin access required" });
-    }
-
-    req.user = user;
-    req.domain = domain;
-    next();
-  };
+  const requireDomainAdmin = requireActiveAdmin;
 
   // Get current user's domain (for domain admins)
   app.get(
@@ -4615,7 +4785,7 @@ ${intentDef.question}`;
   });
 
   // Add user to domain (Domain Admin only)
-  app.post("/api/domain-admin/users", requireDomainAdmin, async (req, res) => {
+  app.post("/api/domain-admin/users", requireDomainAdmin, requireRecentAdminStepUp, async (req, res) => {
     try {
       const { email, role, hardcodedOtp, domainId: requestDomainId } = req.body;
       const user = (req as any).user;
@@ -4716,6 +4886,7 @@ ${intentDef.question}`;
   app.put(
     "/api/domain-admin/users/:id",
     requireDomainAdmin,
+    requireRecentAdminStepUp,
     async (req, res) => {
       try {
         const { id } = req.params;
@@ -4749,6 +4920,7 @@ ${intentDef.question}`;
             // Map domain role to user role: 'admin' -> 'admin', 'standard' -> 'user'
             const userRole = role === "admin" ? "admin" : "user";
             await storage.updateUserRole(mainUser.id, userRole);
+            await revokeUserSessions(mainUser.id);
             console.log(
               `✅ Synced role for ${domainUser.email}: domain=${role}, user=${userRole}`,
             );
@@ -4767,6 +4939,7 @@ ${intentDef.question}`;
   app.delete(
     "/api/domain-admin/users/:id",
     requireDomainAdmin,
+    requireRecentAdminStepUp,
     async (req, res) => {
       try {
         const { id } = req.params;
@@ -4787,7 +4960,11 @@ ${intentDef.question}`;
           }
         }
 
+        const mainUser = await storage.getUserByUsername(domainUser.email);
         await storage.deleteDomainUser(id);
+        if (mainUser) {
+          await revokeUserSessions(mainUser.id);
+        }
         res.json({ success: true });
       } catch (error: any) {
         console.error("Error deleting domain user:", error);

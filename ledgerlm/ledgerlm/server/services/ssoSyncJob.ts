@@ -14,9 +14,9 @@ import cron from 'node-cron';
 import { db } from '../db';
 import { eq, and } from 'drizzle-orm';
 import { domains, domainUsers, users } from '@shared/schema';
-import { sql } from 'drizzle-orm';
 import { resolveGroupRole, hasSsoGroupMappings } from './ssoService';
 import { writeAuditLog } from './auditLogger';
+import { revokeUserSessions } from '../security/sessionRevocation';
 
 let isRunning = false;
 
@@ -25,17 +25,6 @@ let isRunning = false;
  * Sessions are stored in the "session" table by connect-pg-simple.
  * The sess JSONB column contains { userId: "..." }.
  */
-async function invalidateUserSessions(userId: string): Promise<void> {
-  try {
-    await db.execute(
-      sql`DELETE FROM "session" WHERE (sess::jsonb)->>'userId' = ${userId}`
-    );
-    console.log(`[SSO Sync] Invalidated sessions for userId=${userId}`);
-  } catch (err: any) {
-    console.error(`[SSO Sync] Failed to invalidate sessions for userId=${userId}:`, err.message);
-  }
-}
-
 /**
  * Looks up the main users.id for a domain user email (username = email for SSO users).
  */
@@ -117,7 +106,7 @@ async function runSsoSync(): Promise<void> {
               // Invalidate their active session
               const userId = await getUserIdByEmail(du.email);
               if (userId) {
-                await invalidateUserSessions(userId);
+                await revokeUserSessions(userId);
               }
 
               // Audit: user deactivated by sync job
@@ -136,6 +125,15 @@ async function runSsoSync(): Promise<void> {
                 .update(domainUsers)
                 .set({ role: resolvedRole })
                 .where(eq(domainUsers.id, du.id));
+
+              const userId = await getUserIdByEmail(du.email);
+              if (userId) {
+                await db
+                  .update(users)
+                  .set({ role: resolvedRole === 'admin' ? 'admin' : 'user' })
+                  .where(eq(users.id, userId));
+                await revokeUserSessions(userId);
+              }
 
               // Audit: role updated by sync job
               writeAuditLog({

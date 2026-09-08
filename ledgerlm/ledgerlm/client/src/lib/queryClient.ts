@@ -44,7 +44,50 @@ async function throwIfResNotOk(res: Response) {
       handleSessionExpiry();
     }
     const text = (await res.text()) || res.statusText;
-    throw new Error(`${res.status}: ${text}`);
+    const error = new Error(`${res.status}: ${text}`) as Error & {
+      status?: number;
+      code?: string;
+    };
+    error.status = res.status;
+    try {
+      error.code = JSON.parse(text)?.code;
+    } catch {
+      // Preserve the response text for non-JSON errors.
+    }
+    throw error;
+  }
+}
+
+export async function apiRequestWithAdminStepUp<T = unknown>(
+  operation: () => Promise<T>,
+): Promise<T> {
+  try {
+    return await operation();
+  } catch (error) {
+    const apiError = error as Error & { status?: number; code?: string };
+    if (apiError.status !== 403 || apiError.code !== "STEP_UP_REQUIRED") {
+      throw error;
+    }
+
+    const challenge = await apiRequest<{ challengeId: string }>(
+      "POST",
+      "/api/auth/admin-step-up/request",
+    );
+    const otpCode = window.prompt(
+      "Administrator verification required. Enter the 6-digit code sent to your email.",
+    );
+    if (!otpCode) {
+      throw new Error("Administrator verification was cancelled");
+    }
+    if (!/^\d{6}$/.test(otpCode.trim())) {
+      throw new Error("Enter a valid 6-digit verification code");
+    }
+
+    await apiRequest("POST", "/api/auth/admin-step-up/verify", {
+      challengeId: challenge.challengeId,
+      otpCode: otpCode.trim(),
+    });
+    return await operation();
   }
 }
 
