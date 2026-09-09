@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Switch, Route } from "wouter";
+import { Switch, Route, useLocation } from "wouter";
 import { queryClient, fetchCsrfToken, clearCsrfToken } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -12,6 +12,7 @@ import {
   clearAuthUser,
   subscribeToLogout,
 } from "@/lib/auth";
+import { clearDeviceSessionMetadata, deviceReady } from "@/lib/deviceProof";
 import { TermsAndConditionsModal } from "@/components/TermsAndConditionsModal";
 import Welcome from "@/pages/Welcome";
 import VerifyOTP from "@/pages/VerifyOTP";
@@ -38,7 +39,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     // Always validate against the server — in-memory user may be stale if session expired.
-    fetch('/api/auth/me', { credentials: 'include', cache: 'no-store' })
+    deviceReady.then(() => fetch('/api/auth/me', { credentials: 'include', cache: 'no-store' }))
       .then(r => r.ok ? r.json() : Promise.reject(r))
       .then(async (user) => {
         setAuthUser(user);
@@ -59,12 +60,50 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function AdminRoute({
+  children,
+  superAdmin = false,
+}: {
+  children: React.ReactNode;
+  superAdmin?: boolean;
+}) {
+  const [, setLocation] = useLocation();
+  const [allowed, setAllowed] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    fetch("/api/auth/capabilities", {
+      credentials: "include",
+      cache: "no-store",
+    })
+      .then((response) => response.ok ? response.json() : Promise.reject(response))
+      .then((capabilities) => {
+        const authorized = superAdmin
+          ? capabilities.isSuperAdmin === true
+          : capabilities.isSuperAdmin === true || capabilities.isDomainAdmin === true;
+        if (!authorized) {
+          queryClient.clear();
+          setLocation("/dashboard");
+          return;
+        }
+        setAllowed(true);
+      })
+      .catch(() => {
+        queryClient.clear();
+        setLocation("/dashboard");
+      });
+  }, [setLocation, superAdmin]);
+
+  if (allowed !== true) return null;
+  return <>{children}</>;
+}
+
 function AuthLifecycle() {
   useEffect(() => {
     const forceLoggedOut = () => {
       clearAuthUser();
       clearCsrfToken();
       queryClient.clear();
+      void clearDeviceSessionMetadata();
       if (window.location.pathname !== "/") {
         window.location.replace("/");
       }
@@ -92,10 +131,13 @@ function AuthLifecycle() {
     };
 
     window.addEventListener("pageshow", revalidateRestoredPage);
+    const onDeviceFailure = () => forceLoggedOut();
+    window.addEventListener("ledgerlm:device-proof-failure", onDeviceFailure);
     const unsubscribe = subscribeToLogout(forceLoggedOut);
 
     return () => {
       window.removeEventListener("pageshow", revalidateRestoredPage);
+      window.removeEventListener("ledgerlm:device-proof-failure", onDeviceFailure);
       unsubscribe();
     };
   }, []);
@@ -162,22 +204,22 @@ function Router() {
       </Route>
       <Route path="/admin/enterprise">
         <DashboardLayout>
-          <AdminEnterprise />
+          <AdminRoute><AdminEnterprise /></AdminRoute>
         </DashboardLayout>
       </Route>
       <Route path="/admin/users">
         <DashboardLayout>
-          <AdminUsers />
+          <AdminRoute><AdminUsers /></AdminRoute>
         </DashboardLayout>
       </Route>
       <Route path="/admin/agentic-workflow">
         <DashboardLayout>
-          <AdminAgenticWorkflow />
+          <AdminRoute><AdminAgenticWorkflow /></AdminRoute>
         </DashboardLayout>
       </Route>
       <Route path="/super-admin">
         <DashboardLayout>
-          <SuperAdmin />
+          <AdminRoute superAdmin><SuperAdmin /></AdminRoute>
         </DashboardLayout>
       </Route>
       <Route path="/agentic-workflow">
@@ -187,7 +229,7 @@ function Router() {
       </Route>
       <Route path="/semantic-sql-test">
         <DashboardLayout>
-          <SemanticSqlTest />
+          <AdminRoute><SemanticSqlTest /></AdminRoute>
         </DashboardLayout>
       </Route>
       <Route path="/downloads" component={Downloads} />

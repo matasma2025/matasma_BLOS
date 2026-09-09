@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Download, RefreshCw, LogIn, UserPlus, UserX, ShieldCheck, ShieldAlert, ArrowRightLeft } from 'lucide-react';
 import { apiRequest } from '@/lib/queryClient';
+import { fetchApiFile } from '@/lib/apiFiles';
 
 interface SsoAuditLog {
   id: string;
@@ -143,14 +144,17 @@ export default function SsoAuditTab() {
     refetchInterval: 60_000,
   });
 
-  const handleExport = () => {
+  const handleExport = async () => {
     const exportParams = new URLSearchParams();
     if (filterAction) exportParams.set('action', filterAction);
     if (filterEmail)  exportParams.set('email', filterEmail);
     if (filterDomain) exportParams.set('domain', filterDomain);
     if (filterFrom)   exportParams.set('from', filterFrom);
     if (filterTo)     exportParams.set('to', filterTo);
-    window.open(`/api/super-admin/sso-audit-logs/export?${exportParams}`, '_blank');
+    await fetchApiFile(
+      `/api/super-admin/sso-audit-logs/export?${exportParams}`,
+      { filename: 'sso-audit-logs.csv' },
+    );
   };
 
   const totalPages = Math.ceil((data?.total ?? 0) / LIMIT);

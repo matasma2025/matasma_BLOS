@@ -72,11 +72,13 @@ test("authentication rotates, binds, timestamps, and saves the session", async (
     callback();
   };
 
-  await establishAuthenticatedSession(req, res, "user-a");
+  await establishAuthenticatedSession(req, res, "user-a", "credential-a");
 
   assert.equal(regenerateCount, 1);
   assert.equal(saveCount, 1);
   assert.equal(req.session.userId, "user-a");
+  assert.equal(req.session.deviceCredentialId, "credential-a");
+  assert.equal(req.session.deviceProofVersion, 1);
   assert.equal(typeof req.session.clientBinding, "string");
   assert.equal(typeof req.session.clientNetworkBinding, "string");
   assert.equal(typeof req.session.browserBinding, "string");
@@ -87,7 +89,7 @@ test("authentication rotates, binds, timestamps, and saves the session", async (
 test("keeps a valid bound session active when only the network changes", async () => {
   const req = createRequest();
   const res = createResponse();
-  await establishAuthenticatedSession(req, res, "user-a");
+  await establishAuthenticatedSession(req, res, "user-a", "credential-a");
   req.headers.cookie = `${SESSION_BINDING_COOKIE}=${encodeURIComponent(res.cookies[SESSION_BINDING_COOKIE])}`;
   req.ip = "172.16.8.22";
   req.socket.remoteAddress = req.ip;
@@ -105,7 +107,7 @@ test("keeps a valid bound session active when only the network changes", async (
 test("invalidates a session when the browser binding changes", async () => {
   const req = createRequest();
   const res = createResponse();
-  await establishAuthenticatedSession(req, res, "user-a");
+  await establishAuthenticatedSession(req, res, "user-a", "credential-a");
   req.headers.cookie = `${SESSION_BINDING_COOKIE}=${encodeURIComponent(res.cookies[SESSION_BINDING_COOKIE])}`;
   req.get = () => "Different Browser/9.0";
 
@@ -121,7 +123,7 @@ test("invalidates a session when the browser binding changes", async () => {
 test("invalidates a session after the absolute lifetime", async () => {
   const req = createRequest();
   const res = createResponse();
-  await establishAuthenticatedSession(req, res, "user-a");
+  await establishAuthenticatedSession(req, res, "user-a", "credential-a");
   req.headers.cookie = `${SESSION_BINDING_COOKIE}=${encodeURIComponent(res.cookies[SESSION_BINDING_COOKIE])}`;
   req.session.authenticatedAt = Date.now() - 9 * 60 * 60 * 1000;
 
@@ -136,7 +138,7 @@ test("invalidates a session after the absolute lifetime", async () => {
 test("invalidates a session when the browser binding cookie is missing", async () => {
   const req = createRequest();
   const res = createResponse();
-  await establishAuthenticatedSession(req, res, "user-a");
+  await establishAuthenticatedSession(req, res, "user-a", "credential-a");
 
   enforceSessionBinding(req, res, () => {
     assert.fail("missing browser binding must not reach the protected route");
@@ -149,7 +151,7 @@ test("invalidates a session when the browser binding cookie is missing", async (
 test("invalidates a session when the browser binding cookie is incorrect", async () => {
   const req = createRequest();
   const res = createResponse();
-  await establishAuthenticatedSession(req, res, "user-a");
+  await establishAuthenticatedSession(req, res, "user-a", "credential-a");
   req.headers.cookie = `${SESSION_BINDING_COOKIE}=copied-session-wrong-browser`;
 
   enforceSessionBinding(req, res, () => {

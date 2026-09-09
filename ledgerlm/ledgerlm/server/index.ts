@@ -53,8 +53,11 @@ import rateLimit from "express-rate-limit";
 import { enforceSessionBinding } from "./middleware/sessionBinding";
 import { discardClientIdentityHeaders } from "./middleware/clientIdentity";
 import { enforceSessionRevocation } from "./middleware/auth";
+import { createDeviceProofTables } from "./migrations/create-device-proof-tables";
+import { enforceDeviceProof } from "./security/deviceProof";
 
 const app = express();
+app.set("case sensitive routing", true);
 
 // Trust Replit's reverse proxy so express-rate-limit reads X-Forwarded-For correctly
 app.set('trust proxy', 1);
@@ -219,7 +222,10 @@ app.use(session({
   cookie: {
     secure: process.env.NODE_ENV === 'production',
     httpOnly: true,
-    sameSite: 'strict',
+    // OAuth/SSO returns by top-level cross-site GET, which requires Lax.
+    // State validation, device proof, and synchronizer-token CSRF protection
+    // continue to protect authenticated API operations.
+    sameSite: 'lax',
     maxAge: 15 * 60 * 1000,  // 15 minutes — Bosch SG-39 / SG-84 requirement
   },
 }));
@@ -238,6 +244,7 @@ app.use("/api", (_req, res, next) => {
 });
 
 app.use(enforceSessionBinding);
+app.use(enforceDeviceProof);
 
 // ── Rate limiting ─────────────────────────────────────────────────────────────
 const globalApiLimiter = rateLimit({
@@ -308,6 +315,7 @@ const CSRF_EXEMPT_PATHS = new Set([
   '/api/auth/resend-otp',
   '/api/auth/register',
   '/api/auth/csrf-token',       // the token-vending endpoint itself
+  '/api/auth/device/nonces',
   '/api/invitations/validate',
   '/api/invitations/accept',
 ]);
@@ -433,6 +441,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   // Add varianceData + comparisonPeriodLabel columns (Phase 2)
   await addVarianceDataColumn();
   await addSessionRevocationTimestamp();
+  await createDeviceProofTables();
 
   await seedDatabase();
   await fixAzureBlobConnectorSchedules();

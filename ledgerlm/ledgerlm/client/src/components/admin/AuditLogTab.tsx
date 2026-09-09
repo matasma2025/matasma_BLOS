@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Download, RefreshCw, ShieldCheck, LogIn, Trash2, Upload, Database, Users } from 'lucide-react';
 import { apiRequest } from '@/lib/queryClient';
+import { fetchApiFile } from '@/lib/apiFiles';
 
 interface AuditLog {
   id: string;
@@ -130,12 +131,15 @@ export default function AuditLogTab() {
     refetchInterval: 60_000,
   });
 
-  const handleExport = () => {
+  const handleExport = async () => {
     const exportParams = new URLSearchParams();
     if (filterAction) exportParams.set('action', filterAction);
     if (filterFrom)   exportParams.set('from', filterFrom);
     if (filterTo)     exportParams.set('to', filterTo);
-    window.open(`/api/super-admin/audit-logs/export?${exportParams}`, '_blank');
+    await fetchApiFile(
+      `/api/super-admin/audit-logs/export?${exportParams}`,
+      { filename: 'audit-logs.csv' },
+    );
   };
 
   const totalPages = Math.ceil((data?.total ?? 0) / LIMIT);

@@ -108,6 +108,7 @@ export async function establishAuthenticatedSession(
   req: Request,
   res: Response,
   userId: string,
+  deviceCredentialId: string,
 ): Promise<void> {
   await new Promise<void>((resolve, reject) => {
     req.session.regenerate((error) => (error ? reject(error) : resolve()));
@@ -115,6 +116,8 @@ export async function establishAuthenticatedSession(
 
   const browserBindingToken = randomBytes(32).toString("base64url");
   req.session.userId = userId;
+  req.session.deviceCredentialId = deviceCredentialId;
+  req.session.deviceProofVersion = 1;
   req.session.clientBinding = getUserAgentBinding(req);
   req.session.clientNetworkBinding = getNetworkBinding(req);
   req.session.browserBinding = hashClientSignal(

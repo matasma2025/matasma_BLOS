@@ -19,6 +19,10 @@ declare module 'express-session' {
     browserBinding?: string;
     clientBindingVersion?: number;
     authenticatedAt?: number;
+    deviceCredentialId?: string;
+    deviceProofVersion?: number;
+    pendingDeviceRegistration?: { publicKeyJwk: JsonWebKey; registrationId: string; signature: string };
+    deviceRegistrationChallenge?: { value: string; expiresAt: number };
     adminStepUp?: {
       userId: string;
       verifiedAt: number;

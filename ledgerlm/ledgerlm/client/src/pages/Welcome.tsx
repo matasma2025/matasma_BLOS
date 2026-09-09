@@ -8,6 +8,11 @@ import { ArrowRight, ShieldCheck, Lock, Globe } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { setAuthUser } from '@/lib/auth';
+import {
+  activatePendingDeviceCredential,
+  prepareDeviceRegistration,
+  setDeviceCredentialId,
+} from '@/lib/deviceProof';
 
 interface AuthResponse {
   success: boolean;
@@ -18,6 +23,7 @@ interface AuthResponse {
     displayName: string;
     role: string;
   };
+  deviceCredentialId?: string;
 }
 
 interface SsoConfigResponse {
@@ -102,14 +108,17 @@ export default function Welcome() {
   const isResolvingAuthMethod = hasDomain && ssoConfigLoading;
 
   const signInMutation = useMutation({
-    mutationFn: async (data: { email: string; deviceToken?: string }) =>
+    mutationFn: async (data: { email: string; deviceRegistration: Awaited<ReturnType<typeof prepareDeviceRegistration>> }) =>
       apiRequest<AuthResponse>('POST', '/api/auth/signin', data),
-    onSuccess: (data, variables) => {
+    onSuccess: async (data, variables) => {
       if (data.requiresOtp) {
         sessionStorage.setItem('otp_email', variables.email);
         toast({ title: 'Verification required', description: "We've sent a verification code to your email." });
         setLocation('/verify-otp');
       } else if (data.user) {
+        if (data.deviceCredentialId) {
+          await setDeviceCredentialId(data.deviceCredentialId);
+        }
         setAuthUser(data.user);
         queryClient.clear();
         setLocation('/dashboard');
@@ -120,17 +129,33 @@ export default function Welcome() {
     },
   });
 
-  const handleContinue = (e: React.FormEvent) => {
+  const handleContinue = async (e: React.FormEvent) => {
     e.preventDefault();
     if (email) {
-      const deviceToken = localStorage.getItem('device_token');
-      signInMutation.mutate({ email, deviceToken: deviceToken || undefined });
+      try {
+        localStorage.removeItem('device_token');
+        signInMutation.mutate({
+          email,
+          deviceRegistration: await prepareDeviceRegistration({ rotate: true }),
+        });
+      } catch {
+        toast({ title: 'Secure sign in unavailable', description: 'This browser cannot create a device key.', variant: 'destructive' });
+      }
     }
   };
 
-  const handleMicrosoftSignIn = () => {
+  const handleMicrosoftSignIn = async () => {
     if (!detectedDomain) return;
-    window.location.href = `/api/auth/sso/microsoft/initiate?domain=${encodeURIComponent(detectedDomain)}`;
+    try {
+      const deviceRegistration = await prepareDeviceRegistration({ rotate: true });
+      const result = await apiRequest<{ initiateUrl: string }>('POST', '/api/auth/sso/microsoft/prepare', {
+        domain: detectedDomain, deviceRegistration,
+      });
+      await activatePendingDeviceCredential();
+      window.location.href = result.initiateUrl;
+    } catch {
+      toast({ title: 'Sign in failed', description: 'Unable to start Microsoft sign in.', variant: 'destructive' });
+    }
   };
 
   return (

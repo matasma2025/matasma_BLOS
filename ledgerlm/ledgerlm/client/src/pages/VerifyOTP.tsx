@@ -4,17 +4,16 @@ import { useMutation } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
 import { AuthLayout } from '@/components/AuthLayout';
 import { Shield, Loader2, ArrowLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { setAuthUser } from '@/lib/auth';
+import { activatePendingDeviceCredential, setDeviceCredentialId } from '@/lib/deviceProof';
 
 export default function VerifyOTP() {
   const [, setLocation] = useLocation();
   const [code, setCode] = useState('');
-  const [rememberDevice, setRememberDevice] = useState(true);
   const [email, setEmail] = useState('');
   const [canResend, setCanResend] = useState(false);
   const [resendCountdown, setResendCountdown] = useState(60);
@@ -42,21 +41,24 @@ export default function VerifyOTP() {
   }, [setLocation]);
 
   const verifyMutation = useMutation({
-    mutationFn: async (data: { email: string; otpCode: string; rememberDevice: boolean; deviceFingerprint?: string }) => {
+    mutationFn: async (data: { email: string; otpCode: string }) => {
       return await apiRequest<{
         success: boolean;
         user: any;
-        deviceToken?: string;
+        deviceCredentialId?: string;
       }>('POST', '/api/auth/verify-otp', data);
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       if (data.user) {
         setAuthUser(data.user);
         queryClient.clear();
+        if (data.deviceCredentialId) {
+          await setDeviceCredentialId(data.deviceCredentialId);
+        } else {
+          await activatePendingDeviceCredential();
+        }
       }
-      if (data.deviceToken && rememberDevice) {
-        localStorage.setItem('device_token', data.deviceToken);
-      }
+      localStorage.removeItem('device_token');
       sessionStorage.removeItem('otp_email');
       toast({
         title: 'Verification successful',
@@ -98,8 +100,7 @@ export default function VerifyOTP() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (code.length === 6) {
-      const deviceFingerprint = navigator.userAgent + navigator.language;
-      verifyMutation.mutate({ email, otpCode: code, rememberDevice, deviceFingerprint });
+      verifyMutation.mutate({ email, otpCode: code });
     }
   };
 
@@ -150,26 +151,6 @@ export default function VerifyOTP() {
             <p className="text-xs text-muted-foreground">
               Enter the 6-digit code from your email
             </p>
-          </div>
-
-          <div className="flex items-start gap-3 p-3 rounded-md bg-muted/30">
-            <Checkbox
-              id="rememberDevice"
-              checked={rememberDevice}
-              onCheckedChange={(checked) => setRememberDevice(checked === true)}
-              data-testid="checkbox-remember-device"
-            />
-            <div className="space-y-1">
-              <Label
-                htmlFor="rememberDevice"
-                className="text-sm font-medium cursor-pointer"
-              >
-                Remember this device for 10 days
-              </Label>
-              <p className="text-xs text-muted-foreground">
-                You won't need to verify again on this device for 10 days
-              </p>
-            </div>
           </div>
 
           <Button

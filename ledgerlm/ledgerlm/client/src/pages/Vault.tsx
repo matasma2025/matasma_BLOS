@@ -42,6 +42,7 @@ import {
   FolderOpen,
 } from "lucide-react";
 import { queryClient, getCsrfHeaders } from "@/lib/queryClient";
+import { fetchApiFile } from "@/lib/apiFiles";
 import { useToast } from "@/hooks/use-toast";
 import { getAuthUser } from "@/lib/auth";
 import type { Document } from "@shared/schema";
@@ -332,9 +333,18 @@ export default function Vault() {
     }
   };
 
-  const handleView = (doc: Document) => {
-    // Open the file in a new browser tab — PDFs render inline, others prompt download
-    window.open(`/api/documents/${doc.id}/download`, "_blank", "noopener,noreferrer");
+  const handleView = async (doc: Document) => {
+    try {
+      await fetchApiFile(`/api/documents/${doc.id}/download`, {
+        openInNewTab: true,
+      });
+    } catch {
+      toast({
+        title: "Error",
+        description: "Failed to open document",
+        variant: "destructive",
+      });
+    }
   };
 
   const formatFileSize = (bytes: string) => {

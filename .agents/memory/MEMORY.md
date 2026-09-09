@@ -2,3 +2,4 @@
 - [Terms acceptance versioning](terms-acceptance-versioning.md) — material legal-text changes must bump the terms version so every user explicitly accepts the new revision
 - [Bosch production schema safety](bosch-production-schema-safety.md) — use guarded additive db:push reconciliation; preserve undeclared objects and block destructive or ambiguous changes
 - [Privileged step-up assurance](privileged-step-up-assurance.md) — keep login and admin-action OTP separate; sensitive mutations require recent session-bound proof and active membership
+- [Neon migration statements](neon-migration-statements.md) — execute each DDL/DML command separately; Neon prepared statements reject multi-command SQL

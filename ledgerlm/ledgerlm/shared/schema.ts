@@ -88,6 +88,37 @@ export const deviceTrust = pgTable("device_trust", {
   expiresAtIdx: index("device_trust_expires_at_idx").on(table.expiresAt),
 }));
 
+// A device credential is the public half of the browser's non-exportable key.
+// Private keys are never sent to, or stored by, the server.
+export const userDeviceCredentials = pgTable("user_device_credentials", {
+  id: varchar("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  publicKeyJwk: jsonb("public_key_jwk").notNull(),
+  fingerprint: varchar("fingerprint", { length: 64 }).notNull().unique(),
+  status: varchar("status", { length: 20 }).notNull().default("active"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  lastUsedAt: timestamp("last_used_at"),
+  revokedAt: timestamp("revoked_at"),
+}, (table) => ({
+  userIdx: index("user_device_credentials_user_idx").on(table.userId),
+  statusIdx: index("user_device_credentials_status_idx").on(table.status),
+}));
+
+export const deviceProofNonces = pgTable("device_proof_nonces", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  nonceHash: varchar("nonce_hash", { length: 64 }).notNull().unique(),
+  sessionId: text("session_id").notNull(),
+  credentialId: varchar("credential_id").notNull().references(() => userDeviceCredentials.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  expiresAt: timestamp("expires_at").notNull(),
+  consumedAt: timestamp("consumed_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => ({
+  sessionIdx: index("device_proof_nonces_session_idx").on(table.sessionId),
+  expiryIdx: index("device_proof_nonces_expiry_idx").on(table.expiresAt),
+  credentialIdx: index("device_proof_nonces_credential_idx").on(table.credentialId),
+}));
+
 export const chats = pgTable("chats", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
@@ -1602,6 +1633,12 @@ export const insertDeviceTrustSchema = createInsertSchema(deviceTrust).omit({
 
 export type InsertDeviceTrust = z.infer<typeof insertDeviceTrustSchema>;
 export type DeviceTrust = typeof deviceTrust.$inferSelect;
+export const insertUserDeviceCredentialSchema = createInsertSchema(userDeviceCredentials).omit({ createdAt: true });
+export type InsertUserDeviceCredential = z.infer<typeof insertUserDeviceCredentialSchema>;
+export type UserDeviceCredential = typeof userDeviceCredentials.$inferSelect;
+export const insertDeviceProofNonceSchema = createInsertSchema(deviceProofNonces).omit({ id: true, createdAt: true });
+export type InsertDeviceProofNonce = z.infer<typeof insertDeviceProofNonceSchema>;
+export type DeviceProofNonce = typeof deviceProofNonces.$inferSelect;
 
 // Password validation helpers
 export const PASSWORD_REQUIREMENTS = {

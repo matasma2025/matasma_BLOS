@@ -1,4 +1,5 @@
 import { Download, FileText, BookOpen } from "lucide-react";
+import { fetchApiFile } from "@/lib/apiFiles";
 
 const files = [
   {
@@ -72,9 +73,12 @@ export default function Downloads() {
               </div>
             </div>
 
-            <a
-              href={`/api/download/ppt/${f.filename}`}
-              download={f.filename}
+            <button
+              type="button"
+              onClick={() => void fetchApiFile(
+                `/api/download/ppt/${f.filename}`,
+                { filename: f.filename },
+              )}
               style={{
                 display: "inline-flex",
                 alignItems: "center",
@@ -94,7 +98,7 @@ export default function Downloads() {
             >
               <Download size={16} />
               Download
-            </a>
+            </button>
           </div>
         ))}
 

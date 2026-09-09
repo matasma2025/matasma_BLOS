@@ -15,7 +15,7 @@ import {
   enterpriseDocuments,
 } from "@shared/schema";
 import { eq, desc, sql as sqlTag, sql } from "drizzle-orm";
-import { randomBytes } from "crypto";
+import { randomBytes, createHash } from "crypto";
 import { z } from "zod";
 import multer from "multer";
 import path from "path";
@@ -71,6 +71,7 @@ import { areAllOwnedBy, isOwnedBy } from "./security/ownership";
 import { requireRecentAdminStepUp } from "./middleware/adminStepUp";
 import { revokeUserSessions } from "./security/sessionRevocation";
 import { runBackup, listBackups } from "./services/backupService";
+import { parseRegistration, fingerprintJwk } from "./security/deviceProof";
 import { listRetentionPolicies, updateRetentionPolicy, runRetentionEngine } from "./services/retentionEngine";
 import { CURRENT_TERMS_EFFECTIVE_DATE, CURRENT_TERMS_VERSION } from "@shared/terms";
 import {
@@ -138,6 +139,23 @@ const requireActiveAdmin: RequestHandler = async (req: any, res, next) => {
   }
 };
 
+const requireCompanyAdmin: RequestHandler = (req: any, res, next) => {
+  requireActiveAdmin(req, res, () => {
+    const requestedCompanyId = req.params.companyId;
+    if (
+      !req.isSuperAdmin &&
+      (!req.domain?.companyId || req.domain.companyId !== requestedCompanyId)
+    ) {
+      return res.status(403).json({
+        error: "Forbidden",
+        message: "You can only access your own company's resources",
+      });
+    }
+    req.adminCompanyId = requestedCompanyId;
+    next();
+  });
+};
+
 async function serializeAutomationLogs(logs: any[]) {
   const userIds = [...new Set(logs.map((log) => log.triggeredBy).filter(Boolean))];
   const usersById = new Map(
@@ -159,16 +177,34 @@ async function serializeAutomationLogs(logs: any[]) {
 
 const signinSchema = z.object({
   email: z.string().email("Invalid email address"),
-  password: z.string().min(1, "Password is required"),
-  deviceToken: z.string().optional(),
+  deviceRegistration: z.any(),
 });
 
 const verifyOtpSchema = z.object({
   email: z.string().email("Invalid email address"),
   otpCode: z.string().length(6, "OTP code must be 6 digits"),
-  rememberDevice: z.boolean().optional(),
-  deviceFingerprint: z.string().optional(),
 });
+
+async function credentialFor(userId: string, parsed: ReturnType<typeof parseRegistration>) {
+  return storage.createDeviceCredential({
+    id: parsed.registrationId,
+    userId,
+    publicKeyJwk: parsed.publicKeyJwk,
+    fingerprint: fingerprintJwk(parsed.publicKeyJwk),
+    status: "active",
+    lastUsedAt: new Date(),
+    revokedAt: null,
+  });
+}
+
+function consumeDeviceRegistration(req: Request, input: unknown) {
+  const challenge = req.session.deviceRegistrationChallenge;
+  delete req.session.deviceRegistrationChallenge;
+  if (!challenge || challenge.expiresAt < Date.now()) {
+    throw new Error("device registration challenge expired");
+  }
+  return parseRegistration(input, challenge.value);
+}
 
 const resendOtpSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -607,6 +643,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ csrfToken: (req.session as any).csrfToken });
   });
 
+  app.post("/api/auth/device/nonces", async (req, res) => {
+    const userId = req.session?.userId;
+    const credentialId = req.session?.deviceCredentialId;
+    if (!userId || !credentialId) return res.status(401).json({ error: "DEVICE_PROOF_REQUIRED" });
+    const credential = await storage.getActiveDeviceCredentialForUser(credentialId, userId);
+    if (!credential) return res.status(401).json({ error: "DEVICE_PROOF_INVALID" });
+    await storage.cleanupExpiredDeviceProofNonces();
+    const nonces: string[] = [];
+    for (let i = 0; i < 10; i++) {
+      const nonce = randomBytes(32).toString("base64url");
+      nonces.push(nonce);
+      await storage.createDeviceProofNonce({
+        nonceHash: createHash("sha256").update(nonce).digest("hex"),
+        sessionId: req.sessionID, credentialId, userId,
+        expiresAt: new Date(Date.now() + 2 * 60 * 1000), consumedAt: null,
+      });
+    }
+    return res.json({ nonces, expiresIn: 120, credentialId });
+  });
+
+  app.get("/api/auth/device/registration-challenge", (req, res) => {
+    const value = randomBytes(32).toString("base64url");
+    req.session.deviceRegistrationChallenge = {
+      value,
+      expiresAt: Date.now() + 2 * 60 * 1000,
+    };
+    return res.json({ challenge: value, expiresIn: 120 });
+  });
+
   // ── Microsoft SSO routes ─────────────────────────────────────────────────
 
   // Returns the auth method configured for a given domain (public)
@@ -623,10 +688,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Initiates Microsoft SSO login — redirects user to Microsoft login page
+  app.post("/api/auth/sso/microsoft/prepare", async (req, res) => {
+    try {
+      const domain = String(req.body?.domain || "").toLowerCase().trim();
+      const registration = consumeDeviceRegistration(req, req.body?.deviceRegistration);
+      const configured = await storage.getDomainByName(domain);
+      if (!configured || configured.authMethod !== "microsoft_sso") return res.status(400).json({ error: "SSO not configured for this domain" });
+      (req.session as any).pendingDeviceRegistration = {
+        ...registration,
+        intendedDomain: domain,
+      };
+      return res.json({ initiateUrl: `/api/auth/sso/microsoft/initiate?domain=${encodeURIComponent(domain)}` });
+    } catch { return res.status(400).json({ error: "Invalid device registration" }); }
+  });
+
   app.get("/api/auth/sso/microsoft/initiate", async (req, res) => {
     try {
+      const pendingRegistration = (req.session as any).pendingDeviceRegistration;
+      if (!pendingRegistration) {
+        return res.redirect(`/?sso_error=device_registration_required`);
+      }
       const domainName = (req.query.domain as string || '').toLowerCase().trim();
       if (!domainName) return res.status(400).json({ error: "Domain required" });
+      if (pendingRegistration.intendedDomain !== domainName) {
+        delete (req.session as any).pendingDeviceRegistration;
+        return res.redirect(`/?sso_error=invalid_state`);
+      }
 
       const domain = await storage.getDomainByName(domainName);
       if (!domain || domain.authMethod !== 'microsoft_sso') {
@@ -760,8 +847,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.updateUserRole(userId, domainUser.role === "admin" ? "admin" : "user");
       await revokeUserSessions(userId);
 
-      // Rotate the session ID and bind the authenticated session to this browser.
-      await establishAuthenticatedSession(req, res, userId);
+      const pending = (req.session as any).pendingDeviceRegistration;
+      if (!pending || pending.intendedDomain !== domainName) {
+        return res.redirect(`/?sso_error=device_registration_required`);
+      }
+      const credential = await credentialFor(userId, pending);
+      delete (req.session as any).pendingDeviceRegistration;
+      await establishAuthenticatedSession(req, res, userId, credential.id);
 
       // Audit: successful SSO login
       writeAuditLog({ userId, action: 'SSO_LOGIN', resource: domainName, ipAddress: extractIp(req as any), status: 'success', details: { email, domain: domainName, role: domainUser.role, triggeredBy: 'login' } });
@@ -818,6 +910,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch {
       return res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.get("/api/auth/capabilities", async (req, res) => {
+    const userId = req.session?.userId;
+    if (!userId) return res.status(401).json({ error: "Not authenticated" });
+    try {
+      const context = await resolveActiveAdmin(
+        userId,
+        req.session.authenticatedAt,
+      );
+      return res.json({
+        authenticated: true,
+        isDomainAdmin: Boolean(context && !context.isSuperAdmin),
+        isSuperAdmin: Boolean(context?.isSuperAdmin),
+        domainId: context?.domain?.id ?? null,
+      });
+    } catch {
+      return res.status(500).json({ error: "Unable to resolve capabilities" });
     }
   });
 
@@ -884,7 +995,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/auth/signin", async (req, res) => {
     try {
-      const { email, deviceToken } = req.body;
+      const { email, deviceRegistration } = signinSchema.parse(req.body);
+      const registration = consumeDeviceRegistration(req, deviceRegistration);
 
       if (!email) {
         return res.status(400).json({ error: "Email required" });
@@ -943,28 +1055,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const requiresOtp = await otpService.shouldRequireOtp(
-        user.id,
-        deviceToken,
-      );
-
-      if (!requiresOtp) {
-        await establishAuthenticatedSession(req, res, user.id);
-        await storage.updateUserLastLogin(user.id);
-
-        await ensureCompanyMembershipForUser(user.id, user.username);
-
-        return res.json({
-          success: true,
-          requiresOtp: false,
-          user: {
-            id: user.id,
-            username: user.username,
-            displayName: user.displayName,
-            role: user.role,
-          },
-        });
-      }
+      // Possession is checked before an OTP is sent. Bearer device tokens are
+      // intentionally no longer accepted as an OTP bypass.
+      (req.session as any).pendingDeviceRegistration = {
+        ...registration,
+        intendedEmail: emailLower,
+      };
 
       await otpService.createAndSendOtp(
         user.id,
@@ -995,7 +1091,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/auth/verify-otp", async (req, res) => {
     try {
-      const { email, otpCode, rememberDevice, deviceFingerprint } =
+      const { email, otpCode } =
         verifyOtpSchema.parse(req.body);
 
       const user = await storage.getUserByUsername(email.toLowerCase());
@@ -1010,7 +1106,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: verification.error });
       }
 
-      await establishAuthenticatedSession(req, res, user.id);
+      const pending = (req.session as any).pendingDeviceRegistration;
+      if (!pending || pending.intendedEmail !== email.toLowerCase()) {
+        delete (req.session as any).pendingDeviceRegistration;
+        return res.status(401).json({ error: "Device registration required" });
+      }
+      const credential = await credentialFor(user.id, pending);
+      delete (req.session as any).pendingDeviceRegistration;
+      await establishAuthenticatedSession(req, res, user.id, credential.id);
       await storage.updateUserLastLogin(user.id);
 
       await ensureCompanyMembershipForUser(user.id, user.username);
@@ -1024,22 +1127,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         details:   { email: user.username, method: "otp" },
       }).catch(() => {});
 
-      let deviceToken: string | undefined;
-      if (rememberDevice) {
-        const userAgent = req.headers["user-agent"];
-        const ipAddress = req.ip || req.connection.remoteAddress;
-
-        deviceToken = await otpService.createTrustedDevice(
-          user.id,
-          userAgent,
-          ipAddress,
-          deviceFingerprint,
-        );
-      }
-
       res.json({
         success: true,
-        deviceToken,
+        deviceCredentialId: credential.id,
         user: {
           id: user.id,
           username: user.username,
@@ -3436,7 +3526,7 @@ ${intentDef.question}`;
 
   app.get(
     "/api/admin/companies/:companyId/documents",
-    requireAdmin,
+    requireCompanyAdmin,
     async (req, res) => {
       try {
         const adminCompanyId = (req as any).adminCompanyId;
@@ -3460,7 +3550,7 @@ ${intentDef.question}`;
 
   app.post(
     "/api/admin/companies/:companyId/documents",
-    requireAdmin,
+    requireCompanyAdmin,
     enterpriseDocumentUpload,
     async (req, res) => {
       const files = req.files as Express.Multer.File[] | undefined;
@@ -3534,7 +3624,7 @@ ${intentDef.question}`;
 
   app.post(
     "/api/admin/companies/:companyId/documents/:id/process",
-    requireAdmin,
+    requireCompanyAdmin,
     async (req, res) => {
       try {
         const adminCompanyId = (req as any).adminCompanyId;
@@ -3581,7 +3671,7 @@ ${intentDef.question}`;
 
   app.get(
     "/api/admin/companies/:companyId/documents/:id/status",
-    requireAdmin,
+    requireCompanyAdmin,
     async (req, res) => {
       try {
         const adminCompanyId = (req as any).adminCompanyId;
@@ -3617,7 +3707,7 @@ ${intentDef.question}`;
 
   app.delete(
     "/api/admin/companies/:companyId/documents/:id",
-    requireAdmin,
+    requireCompanyAdmin,
     async (req, res) => {
       try {
         const adminCompanyId = (req as any).adminCompanyId;
