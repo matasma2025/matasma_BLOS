@@ -9,6 +9,7 @@ const RECORD = "device";
 const nativeFetch = window.fetch.bind(window);
 const EXEMPT = [
   "/api/auth/signin", "/api/auth/verify-otp", "/api/auth/resend-otp",
+  "/api/auth/logout",
   "/api/auth/sso/config", "/api/auth/sso/microsoft/prepare",
   "/api/auth/sso/microsoft/initiate", "/api/auth/sso/microsoft/callback",
   "/api/auth/device/nonces", "/api/auth/device/registration-challenge",
@@ -154,7 +155,7 @@ async function takeNonce(): Promise<string> {
   nonces = nonces.filter(item => item.expiresAt > Date.now());
   const nonce = nonces.shift()?.value;
   if (!nonce) throw new Error("Server returned no device proof nonce");
-  if (nonces.length < 2) void fillNonces();
+  if (nonces.length < 2) void fillNonces().catch(() => {});
   return nonce;
 }
 
