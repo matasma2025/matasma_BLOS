@@ -18,6 +18,7 @@ import {
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { fixCompanyMemberships } from "./migrations/fix-company-memberships";
+import { seedBoardTemplateCatalog } from "./services/boardTemplateCatalog";
 import {
   BOSCH_BUSINESS_TERMS,
   BOSCH_CALCULATION_RULES,
@@ -402,6 +403,7 @@ Share your financial data and I'll help prepare compelling investor materials.`,
   }
 
   console.log("✨ Board templates seeded");
+  await seedBoardTemplateCatalog();
 }
 
 // Called when seeding fresh database with known IDs

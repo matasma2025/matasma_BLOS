@@ -44,6 +44,9 @@ import { createRetentionPoliciesTable } from "./migrations/create-retention-poli
 import { runInvestmentTablesMigration } from "./migrations/create-investment-tables";
 import { addSsoGroupMappings } from "./migrations/add-sso-group-mappings";
 import { createBoardReportsTable } from "./migrations/create-board-reports";
+import { createBoardAnalysisConfigsTable } from "./migrations/create-board-analysis-configs";
+import { createBoardAnalysisRunsTable } from "./migrations/create-board-analysis-runs";
+import { createGenericBoardReportsTable } from "./migrations/create-generic-board-reports";
 import { addVarianceDataColumn } from "./migrations/add-variance-data-column";
 import { addSessionRevocationTimestamp } from "./migrations/add-session-revocation";
 import { runRetentionEngine } from "./services/retentionEngine";
@@ -438,6 +441,9 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 
   // Create cube_board_reports table for Smart Analysis Board reports
   await createBoardReportsTable();
+  await createBoardAnalysisConfigsTable();
+  await createBoardAnalysisRunsTable();
+  await createGenericBoardReportsTable();
   // Add varianceData + comparisonPeriodLabel columns (Phase 2)
   await addVarianceDataColumn();
   await addSessionRevocationTimestamp();
