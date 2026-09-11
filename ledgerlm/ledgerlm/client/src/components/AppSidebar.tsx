@@ -70,6 +70,7 @@ import {
   apiRequest,
   clearCsrfToken,
 } from "@/lib/queryClient";
+import { clearDeviceSessionMetadata } from "@/lib/deviceProof";
 import { useToast } from "@/hooks/use-toast";
 import type { Chat } from "@shared/schema";
 
@@ -187,6 +188,7 @@ export function AppSidebar() {
     }
     clearAuthUser();
     clearCsrfToken();
+    await clearDeviceSessionMetadata();
     queryClient.clear();
     broadcastLogout();
     window.location.replace("/");
