@@ -78,6 +78,9 @@ import {
   createBoardDtoSchema,
   createCubeDtoSchema,
   updateBoardDtoSchema,
+  boardSourceSelectionSchema,
+  boardAnalysisRequestSchema,
+  boardAnalysisConfigSchema,
   updateCubeDtoSchema,
   validateEnterpriseDisplayName,
 } from "@shared/inputValidators";
@@ -89,6 +92,24 @@ import {
   toPublicDocumentVersion,
   toPublicEnterpriseDocument,
 } from "./publicDtos";
+import {
+  assertBoardSourceAccess,
+  getAuthorizedBoardSource,
+  listAuthorizedBoardSources,
+} from "./services/boardSourceService";
+import {
+  cancelBoardAnalysis,
+  createBoardAnalysisRun,
+  executeBoardAnalysis,
+  getBoardAnalysisConfig,
+  getBoardRun,
+  getOrCreateBoardAnalysisConfig,
+  listBoardReports,
+  saveBoardAnalysisConfig,
+} from "./services/boards/boardRunService";
+import { requireOwnedBoard } from "./security/boardAccess";
+import { getBoardTemplateDefinition } from "./services/boardTemplateCatalog";
+import { resolveDomainAiConfigForUser } from "./services/domainAiConfigService";
 
 const SUPER_ADMIN_EMAIL = "customer@ledgerlm.ai";
 

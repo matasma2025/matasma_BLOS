@@ -4,7 +4,6 @@ import {
   boardAnalysisConfigs,
   boardAnalysisRuns,
   boardReports,
-  type BoardAnalysisRequest as _Unused,
 } from "@shared/schema";
 import { and, desc, eq } from "drizzle-orm";
 import { runBoardAnalysis, type AnalysisRequest } from "../boardAnalysisService";
