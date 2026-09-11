@@ -47,6 +47,7 @@ import { createBoardReportsTable } from "./migrations/create-board-reports";
 import { createBoardAnalysisConfigsTable } from "./migrations/create-board-analysis-configs";
 import { createBoardAnalysisRunsTable } from "./migrations/create-board-analysis-runs";
 import { createGenericBoardReportsTable } from "./migrations/create-generic-board-reports";
+import { backfillBoardAnalysisConfigs } from "./migrations/backfill-board-analysis-configs";
 import { addVarianceDataColumn } from "./migrations/add-variance-data-column";
 import { addSessionRevocationTimestamp } from "./migrations/add-session-revocation";
 import { runRetentionEngine } from "./services/retentionEngine";
@@ -444,6 +445,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   await createBoardAnalysisConfigsTable();
   await createBoardAnalysisRunsTable();
   await createGenericBoardReportsTable();
+  await backfillBoardAnalysisConfigs();
   // Add varianceData + comparisonPeriodLabel columns (Phase 2)
   await addVarianceDataColumn();
   await addSessionRevocationTimestamp();

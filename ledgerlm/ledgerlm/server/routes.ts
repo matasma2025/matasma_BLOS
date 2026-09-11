@@ -3098,15 +3098,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/boards/:id/reports/:reportId", async (req, res) => {
+    try {
+      const { userId } = await requireOwnedBoard(req, req.params.id);
+      const reports = await listBoardReports(req.params.id, userId);
+      const report = reports.find((candidate) => candidate.id === req.params.reportId);
+      if (!report) return res.status(404).json({ error: "Report not found" });
+      res.json(report);
+    } catch (error: any) {
+      res.status(error?.status || 500).json({ error: error?.message || "Failed to fetch Board report" });
+    }
+  });
+
   // ── GET /api/cubes/:cubeId/versions — available version values in a cube ──
   app.get("/api/cubes/:cubeId/versions", async (req, res) => {
     try {
       const userId = (req.session?.userId ?? "");
       if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      await assertBoardSourceAccess(userId, { sourceType: "enterprise", cubeId: req.params.cubeId });
       const versions = await getCubeVersions(req.params.cubeId);
       res.json(versions);
     } catch (error) {
-      res.status(500).json({ error: "Failed to fetch cube versions" });
+      res.status(403).json({ error: "You do not have access to this Enterprise Data cube" });
     }
   });
 
@@ -3122,6 +3135,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const settings = (board.settings as any) ?? {};
       const cubeId: string = settings.cubeId;
       if (!cubeId) return res.status(400).json({ error: "No cube configured on this board" });
+      await assertBoardSourceAccess(userId, { sourceType: "enterprise", cubeId });
 
       const columnMapping = settings.columnMapping;
       if (!columnMapping?.actuals || !columnMapping?.budget) {
@@ -3231,6 +3245,7 @@ ${intentDef.question}`;
       const settings = (board.settings as any) ?? {};
       const cubeId: string = settings.cubeId;
       if (!cubeId) return res.status(400).json({ error: "No data cube configured on this board. Edit the board and select a cube first." });
+      await assertBoardSourceAccess(userId, { sourceType: "enterprise", cubeId });
 
       const columnMapping = settings.columnMapping;
       if (!columnMapping?.actuals || !columnMapping?.budget) {
@@ -3240,33 +3255,7 @@ ${intentDef.question}`;
       const { year, months, userPromptTemplate, extraContext } = req.body;
       if (!year || !months?.length) return res.status(400).json({ error: "year and months are required" });
 
-      // Look up domain AI config for the requesting user
-      let domainAiConfig: DomainAiConfig | undefined;
-      try {
-        const domainUser = await db.execute(
-          sql`SELECT du.domain_id FROM domain_users du WHERE du.user_id = ${userId} LIMIT 1`
-        );
-        const domainId = (domainUser.rows?.[0] as any)?.domain_id;
-        if (domainId) {
-          const domainRow = await db.execute(
-            sql`SELECT ai_provider, ai_auth_method, ai_endpoint, ai_api_key, ai_chat_model, ai_chat_api_version, ai_system_prompt
-                FROM domains WHERE id = ${domainId} LIMIT 1`
-          );
-          const d = domainRow.rows?.[0] as any;
-          const isKeyless2 = d?.ai_auth_method === 'entra_id' || d?.ai_auth_method === 'private_endpoint';
-          if (d?.ai_provider === 'azure_openai' && d?.ai_endpoint && (isKeyless2 || d?.ai_api_key)) {
-            domainAiConfig = {
-              provider: 'azure_openai',
-              authMethod: (d.ai_auth_method as DomainAiConfig['authMethod']) || 'api_key',
-              endpoint: d.ai_endpoint,
-              apiKey: d.ai_api_key ? decryptValue(d.ai_api_key) : undefined,
-              chatModel: d.ai_chat_model,
-              chatApiVersion: d.ai_chat_api_version,
-              systemPrompt: d.ai_system_prompt,
-            };
-          }
-        }
-      } catch { /* fall back to default AI */ }
+      const domainAiConfig = await resolveDomainAiConfigForUser(userId);
 
       const dimensions: string[] = req.body.dimensions ?? ['Entity', 'Sector', 'Cost Category'];
 

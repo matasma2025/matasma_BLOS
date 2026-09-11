@@ -132,6 +132,14 @@ export async function executeBoardAnalysis(runId: string) {
       domainAiConfig: await resolveDomainAiConfigForUser(run.requestedBy),
     };
     const legacyReport = await runBoardAnalysis(legacyRequest);
+    const currentRun = await db.select({ cancelRequested: boardAnalysisRuns.cancelRequested })
+      .from(boardAnalysisRuns).where(eq(boardAnalysisRuns.id, runId)).limit(1);
+    if (currentRun[0]?.cancelRequested === 1) {
+      await db.update(boardAnalysisRuns).set({
+        status: "cancelled", progressStage: "Cancelled", completedAt: new Date(), durationMs: Date.now() - started,
+      }).where(eq(boardAnalysisRuns.id, runId));
+      return { run: { ...run, status: "cancelled" }, report: undefined, legacyReport: undefined };
+    }
     await db.update(boardAnalysisRuns).set({ progressPercent: 85, progressStage: "Persisting report" })
       .where(eq(boardAnalysisRuns.id, runId));
     const result = markdownToBoardAnalysisResult(legacyReport.rawAnalysis ?? "", legacyReport.varianceData);
