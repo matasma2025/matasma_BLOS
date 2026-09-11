@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useLocation } from 'wouter';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { Card } from '@/components/ui/card';
@@ -14,8 +14,26 @@ import { useToast } from '@/hooks/use-toast';
 import { BoardEditorDialog } from '@/components/BoardEditorDialog';
 import { BoardAnalysisEditor } from '@/components/BoardAnalysisEditor';
 import { BoardReport } from '@/components/BoardReport';
+import { BoardSourceSelector } from '@/components/BoardSourceSelector';
 
 type TabId = 'reports' | 'threads';
+
+interface GenericRun {
+  id: string;
+  status: string;
+  progressPercent: number;
+  progressStage?: string | null;
+  errorMessage?: string | null;
+}
+
+interface GenericReport {
+  id: string;
+  title: string;
+  periodLabel?: string | null;
+  result?: { summary?: string; insights?: string[]; tables?: Array<{ title?: string; columns: string[]; rows: unknown[][] }> };
+  sourceSnapshot?: { name?: string; sourceType?: string };
+  createdAt: string | Date;
+}
 
 export default function BoardDetail() {
   const { id: boardId } = useParams<{ id: string }>();
@@ -25,6 +43,7 @@ export default function BoardDetail() {
   const [isAnalysisEditorOpen, setIsAnalysisEditorOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<TabId>('reports');
   const [openReportId, setOpenReportId] = useState<string | null>(null);
+  const [activeRunId, setActiveRunId] = useState<string | null>(null);
 
   const { data: board, isLoading: boardLoading } = useQuery<Board>({
     queryKey: ['/api/boards', boardId],
@@ -40,6 +59,42 @@ export default function BoardDetail() {
     queryKey: ['/api/boards', boardId, 'reports'],
     enabled: !!boardId,
     queryFn: () => apiRequest('GET', `/api/boards/${boardId}/reports`) as Promise<CubeBoardReport[]>,
+  });
+
+  const { data: genericReports = [], isLoading: genericReportsLoading } = useQuery<GenericReport[]>({
+    queryKey: ['/api/boards', boardId, 'reports', 'search'],
+    queryFn: () => apiRequest('GET', `/api/boards/${boardId}/reports/search`) as Promise<GenericReport[]>,
+    enabled: !!boardId,
+  });
+
+  const { data: activeRun } = useQuery<GenericRun>({
+    queryKey: ['/api/boards', boardId, 'analysis-runs', activeRunId],
+    queryFn: () => apiRequest('GET', `/api/boards/${boardId}/analysis-runs/${activeRunId}`) as Promise<GenericRun>,
+    enabled: !!boardId && !!activeRunId,
+    refetchInterval: activeRunId ? 1500 : false,
+  });
+
+  useEffect(() => {
+    if (!activeRun) return;
+    if (['complete', 'error', 'cancelled'].includes(activeRun.status)) {
+      if (activeRun.status === 'complete') {
+        queryClient.invalidateQueries({ queryKey: ['/api/boards', boardId, 'reports', 'search'] });
+        toast({ title: 'Governed report ready', description: activeRun.progressStage || 'Analysis complete.' });
+      } else if (activeRun.status === 'error') {
+        toast({ title: 'Analysis failed', description: activeRun.errorMessage || 'The report could not be generated.', variant: 'destructive' });
+      }
+      setActiveRunId(null);
+    }
+  }, [activeRun, boardId, toast]);
+
+  const governedRunMutation = useMutation({
+    mutationFn: () => apiRequest('POST', `/api/boards/${board.id}/analysis-runs`, {
+      year: new Date().getFullYear(),
+      months: [new Date().getMonth() + 1],
+      dimensions: ['Entity', 'Sector', 'Cost Category'],
+    }) as Promise<GenericRun>,
+    onSuccess: (run) => setActiveRunId(run.id),
+    onError: (error: Error) => toast({ title: 'Could not start analysis', description: error.message, variant: 'destructive' }),
   });
 
   const createChatMutation = useMutation({
@@ -137,6 +192,18 @@ export default function BoardDetail() {
                 )}
               </Button>
             )}
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              onClick={() => governedRunMutation.mutate()}
+              disabled={governedRunMutation.isPending || !!activeRunId}
+              data-testid="button-run-governed-analysis"
+            >
+              {governedRunMutation.isPending || activeRunId
+                ? <><Loader2 className="w-4 h-4 animate-spin" />{activeRun?.progressStage || 'Running…'}</>
+                : <><ShieldCheckIcon />Governed Analysis</>}
+            </Button>
           </div>
         </div>
 
@@ -144,6 +211,18 @@ export default function BoardDetail() {
         <div className="flex-1 overflow-y-auto px-6 lg:px-8 py-6 space-y-6">
           {/* Meta section */}
           <div className="space-y-4">
+            <BoardSourceSelector boardId={board.id} />
+            {activeRun && (
+              <Card className="p-4 border-primary/30 bg-primary/5">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="font-medium">{activeRun.progressStage || 'Preparing analysis…'}</span>
+                  <span className="text-muted-foreground">{activeRun.progressPercent ?? 0}%</span>
+                </div>
+                <div className="mt-2 h-2 rounded-full bg-muted overflow-hidden">
+                  <div className="h-full bg-primary transition-all" style={{ width: `${activeRun.progressPercent ?? 0}%` }} />
+                </div>
+              </Card>
+            )}
             {board.description && (
               <div className="space-y-1">
                 <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wide" data-testid="text-description-label">Description</h2>
@@ -228,6 +307,36 @@ export default function BoardDetail() {
             {/* Reports tab */}
             {activeTab === 'reports' && (
               <div className="space-y-4">
+                {genericReports.map((report) => (
+                  <Card key={report.id} className="p-5 space-y-3 border-primary/20" data-testid={`card-governed-report-${report.id}`}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <h3 className="font-semibold">{report.title}</h3>
+                        <p className="text-xs text-muted-foreground">
+                          {report.sourceSnapshot?.sourceType === 'enterprise' ? 'Enterprise Data' : 'Vault'}
+                          {report.sourceSnapshot?.name ? ` · ${report.sourceSnapshot.name}` : ''}
+                          {report.periodLabel ? ` · ${report.periodLabel}` : ''}
+                        </p>
+                      </div>
+                      <Badge variant="secondary">Governed</Badge>
+                    </div>
+                    {report.result?.summary && <p className="text-sm whitespace-pre-wrap">{report.result.summary}</p>}
+                    {!!report.result?.insights?.length && (
+                      <ul className="list-disc pl-5 text-sm text-muted-foreground space-y-1">
+                        {report.result.insights.slice(0, 5).map((insight) => <li key={insight}>{insight}</li>)}
+                      </ul>
+                    )}
+                    {report.result?.tables?.[0] && (
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs border-collapse">
+                          <thead><tr>{report.result.tables[0].columns.map((column) => <th key={column} className="border px-2 py-1 text-left bg-muted">{column}</th>)}</tr></thead>
+                          <tbody>{report.result.tables[0].rows.slice(0, 10).map((row, index) => <tr key={index}>{row.map((value, cellIndex) => <td key={cellIndex} className="border px-2 py-1">{String(value ?? '')}</td>)}</tr>)}</tbody>
+                        </table>
+                      </div>
+                    )}
+                  </Card>
+                ))}
+                {genericReportsLoading && <div className="text-center py-4 text-muted-foreground">Loading governed reports…</div>}
                 {reportsLoading ? (
                   <div className="text-center py-10 text-muted-foreground">Loading reports…</div>
                 ) : reports.length === 0 ? (
