@@ -35,7 +35,4 @@ export async function createDeviceProofTables(): Promise<void> {
     CREATE INDEX IF NOT EXISTS device_proof_nonces_expiry_idx
     ON device_proof_nonces(expires_at)
   `);
-  await db.execute(sql`
-    DELETE FROM device_trust
-  `);
 }
