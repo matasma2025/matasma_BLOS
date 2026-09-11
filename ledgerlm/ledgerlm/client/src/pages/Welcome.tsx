@@ -53,6 +53,38 @@ const CAROUSEL_SLIDES = [
   'Enterprise-grade security with Microsoft SSO, role-based access, and full audit logging built in.',
 ];
 
+function signInErrorMessage(error: unknown): string {
+  const raw = error instanceof Error ? error.message : String(error ?? '');
+  const body = raw.replace(/^\d+:\s*/, '');
+
+  try {
+    const parsed = JSON.parse(body) as { error?: unknown; message?: unknown };
+    const serverMessage =
+      typeof parsed.error === 'string'
+        ? parsed.error
+        : typeof parsed.message === 'string'
+          ? parsed.message
+          : '';
+
+    if (/no account found/i.test(serverMessage)) {
+      return 'No LedgerLM account was found for this email. Please contact your administrator.';
+    }
+    if (/sso_required/i.test(serverMessage)) {
+      return 'This domain uses Microsoft sign-in. Please use the Microsoft sign-in option.';
+    }
+    if (/device registration challenge expired/i.test(serverMessage)) {
+      return 'The secure sign-in request expired. Please click Continue with email once.';
+    }
+    if (/invalid registration proof/i.test(serverMessage)) {
+      return 'The secure sign-in request could not be verified. Please try again once.';
+    }
+  } catch {
+    // Keep the safe generic message for non-JSON errors.
+  }
+
+  return 'Please check the email address or contact your administrator.';
+}
+
 export default function Welcome() {
   const [, setLocation] = useLocation();
   const search = useSearch();
@@ -60,6 +92,7 @@ export default function Welcome() {
   const [detectedDomain, setDetectedDomain] = useState('');
   const [slideIndex, setSlideIndex] = useState(0);
   const [fadeIn, setFadeIn] = useState(true);
+  const [isPreparingDeviceRegistration, setIsPreparingDeviceRegistration] = useState(false);
   const { toast } = useToast();
 
   // Auto-rotate carousel every 4 seconds
@@ -124,28 +157,31 @@ export default function Welcome() {
         setLocation('/dashboard');
       }
     },
-    onError: () => {
-      toast({ title: 'Sign in failed', description: 'Please check your credentials and try again.', variant: 'destructive' });
+    onError: (error) => {
+      toast({ title: 'Sign in failed', description: signInErrorMessage(error), variant: 'destructive' });
     },
   });
 
   const handleContinue = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (email) {
-      try {
-        localStorage.removeItem('device_token');
-        signInMutation.mutate({
-          email,
-          deviceRegistration: await prepareDeviceRegistration({ rotate: true }),
-        });
-      } catch {
-        toast({ title: 'Secure sign in unavailable', description: 'This browser cannot create a device key.', variant: 'destructive' });
-      }
+    if (!email || isPreparingDeviceRegistration || signInMutation.isPending) return;
+
+    setIsPreparingDeviceRegistration(true);
+    try {
+      localStorage.removeItem('device_token');
+      const deviceRegistration = await prepareDeviceRegistration({ rotate: true });
+      signInMutation.mutate({ email, deviceRegistration });
+    } catch {
+      toast({ title: 'Secure sign in unavailable', description: 'This browser cannot create a device key.', variant: 'destructive' });
+    } finally {
+      setIsPreparingDeviceRegistration(false);
     }
   };
 
   const handleMicrosoftSignIn = async () => {
-    if (!detectedDomain) return;
+    if (!detectedDomain || isPreparingDeviceRegistration) return;
+
+    setIsPreparingDeviceRegistration(true);
     try {
       const deviceRegistration = await prepareDeviceRegistration({ rotate: true });
       const result = await apiRequest<{ initiateUrl: string }>('POST', '/api/auth/sso/microsoft/prepare', {
@@ -155,6 +191,8 @@ export default function Welcome() {
       window.location.href = result.initiateUrl;
     } catch {
       toast({ title: 'Sign in failed', description: 'Unable to start Microsoft sign in.', variant: 'destructive' });
+    } finally {
+      setIsPreparingDeviceRegistration(false);
     }
   };
 
@@ -218,7 +256,7 @@ export default function Welcome() {
                   <Button
                     type="submit"
                     className="w-full h-12 text-sm font-semibold flex items-center justify-center gap-2.5"
-                    disabled={!email || isResolvingAuthMethod}
+                     disabled={!email || isResolvingAuthMethod || isPreparingDeviceRegistration}
                     data-testid="button-microsoft-signin"
                   >
                     <MicrosoftIcon />
@@ -228,11 +266,13 @@ export default function Welcome() {
                   <Button
                     type="submit"
                     className="w-full h-12 bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-semibold"
-                    disabled={!email || signInMutation.isPending || isResolvingAuthMethod}
+                     disabled={!email || signInMutation.isPending || isResolvingAuthMethod || isPreparingDeviceRegistration}
                     data-testid="button-signin"
                   >
                     {isResolvingAuthMethod
-                      ? 'Checking…'
+                       ? 'Checking…'
+                       : isPreparingDeviceRegistration
+                       ? 'Securing sign-in…'
                       : signInMutation.isPending
                       ? 'Sending code…'
                       : 'Continue with email'}
