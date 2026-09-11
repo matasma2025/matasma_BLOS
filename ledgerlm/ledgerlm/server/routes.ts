@@ -101,7 +101,6 @@ import {
   cancelBoardAnalysis,
   createBoardAnalysisRun,
   executeBoardAnalysis,
-  getBoardAnalysisConfig,
   getBoardRun,
   getOrCreateBoardAnalysisConfig,
   listBoardReports,
@@ -2862,6 +2861,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Generic Boards source catalogue. Only metadata is returned; source rows and
+  // provider credentials stay on the server.
+  app.get("/api/boards/sources", async (req, res) => {
+    try {
+      const userId = req.session?.userId;
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      res.json(await listAuthorizedBoardSources(userId));
+    } catch (error) {
+      console.error("Failed to list Board sources:", error);
+      res.status(500).json({ error: "Failed to list authorized Board sources" });
+    }
+  });
+
   app.get("/api/boards/:id", async (req, res) => {
     try {
       const userId = (req.session?.userId ?? "");
@@ -2964,6 +2976,125 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: boardValidationError(error) });
       }
       res.status(500).json({ error: "Failed to update board" });
+    }
+  });
+
+  // Durable, source-aware configuration for the standalone-style Board flow.
+  app.get("/api/boards/:id/analysis-config", async (req, res) => {
+    try {
+      const { userId, board } = await requireOwnedBoard(req, req.params.id);
+      const config = await getOrCreateBoardAnalysisConfig(board.id);
+      res.json(config ?? {
+        boardId: board.id,
+        templateKey: "variance-analysis",
+        sourceType: "enterprise",
+        sourceConfig: (board.settings as any)?.cubeId
+          ? { sourceType: "enterprise", cubeId: (board.settings as any).cubeId }
+          : null,
+        scopeMode: "all",
+        keyColumns: [],
+        excludedColumns: [],
+        timeGranularity: "auto",
+        comparisonBasis: {},
+        ownerId: userId,
+      });
+    } catch (error: any) {
+      res.status(error?.status || 500).json({ error: error?.message || "Failed to fetch Board analysis configuration" });
+    }
+  });
+
+  app.put("/api/boards/:id/analysis-config", async (req, res) => {
+    try {
+      const { board } = await requireOwnedBoard(req, req.params.id);
+      const parsed = boardAnalysisConfigSchema.parse(req.body);
+      await assertBoardSourceAccess(req.session!.userId!, parsed.sourceSelection);
+      const saved = await saveBoardAnalysisConfig(board.id, parsed);
+      res.json(saved);
+    } catch (error: any) {
+      if (error instanceof z.ZodError) return res.status(400).json({ error: "Invalid Board analysis configuration", details: error.flatten() });
+      res.status(error?.status || (error?.message?.includes("not available") ? 403 : 500))
+        .json({ error: error?.message || "Failed to save Board analysis configuration" });
+    }
+  });
+
+  app.get("/api/boards/:id/source-options", async (req, res) => {
+    try {
+      const { userId } = await requireOwnedBoard(req, req.params.id);
+      res.json(await listAuthorizedBoardSources(userId));
+    } catch (error: any) {
+      res.status(error?.status || 500).json({ error: error?.message || "Failed to fetch Board source options" });
+    }
+  });
+
+  app.post("/api/boards/:id/source-selection", async (req, res) => {
+    try {
+      const { userId, board } = await requireOwnedBoard(req, req.params.id);
+      const selection = boardSourceSelectionSchema.parse(req.body);
+      const source = await getAuthorizedBoardSource(userId, selection);
+      const existing = await getOrCreateBoardAnalysisConfig(board.id);
+      const saved = await saveBoardAnalysisConfig(board.id, {
+        templateKey: existing?.templateKey || "variance-analysis",
+        analysisPrompt: existing?.analysisPrompt,
+        sourceType: selection.sourceType,
+        sourceSelection: selection,
+        scopeMode: existing?.scopeMode,
+        keyColumns: (existing?.keyColumns as unknown[]) ?? [],
+        excludedColumns: (existing?.excludedColumns as string[]) ?? [],
+        timeGranularity: existing?.timeGranularity,
+        comparisonBasis: existing?.comparisonBasis,
+      });
+      res.json({ config: saved, source });
+    } catch (error: any) {
+      if (error instanceof z.ZodError) return res.status(400).json({ error: "Invalid source selection", details: error.flatten() });
+      res.status(error?.status || (error?.message?.includes("not available") ? 403 : 500))
+        .json({ error: error?.message || "Failed to save Board source selection" });
+    }
+  });
+
+  app.post("/api/boards/:id/analysis-runs", async (req, res) => {
+    try {
+      const { userId } = await requireOwnedBoard(req, req.params.id);
+      const parsed = boardAnalysisRequestSchema.parse(req.body);
+      const run = await createBoardAnalysisRun({ boardId: req.params.id, userId, request: parsed });
+      // The run is persisted before execution starts, so a browser reload can
+      // recover it. Execution remains server-side and never exposes raw source rows.
+      void executeBoardAnalysis(run.id).catch((error) => {
+        console.error(`Board analysis run ${run.id} failed:`, error);
+      });
+      res.status(202).json(run);
+    } catch (error: any) {
+      if (error instanceof z.ZodError) return res.status(400).json({ error: "Invalid Board analysis request", details: error.flatten() });
+      res.status(error?.status || (error?.message?.includes("not available") ? 403 : 400))
+        .json({ error: error?.message || "Failed to start Board analysis" });
+    }
+  });
+
+  app.get("/api/boards/:id/analysis-runs/:runId", async (req, res) => {
+    try {
+      const { userId } = await requireOwnedBoard(req, req.params.id);
+      const run = await getBoardRun(req.params.id, req.params.runId, userId);
+      if (!run) return res.status(404).json({ error: "Analysis run not found" });
+      res.json(run);
+    } catch (error: any) {
+      res.status(error?.status || 500).json({ error: error?.message || "Failed to fetch Board analysis run" });
+    }
+  });
+
+  app.post("/api/boards/:id/analysis-runs/:runId/cancel", async (req, res) => {
+    try {
+      const { userId } = await requireOwnedBoard(req, req.params.id);
+      res.json(await cancelBoardAnalysis(req.params.id, req.params.runId, userId));
+    } catch (error: any) {
+      res.status(error?.status || 400).json({ error: error?.message || "Failed to cancel Board analysis" });
+    }
+  });
+
+  app.get("/api/boards/:id/reports/search", async (req, res) => {
+    try {
+      const { userId } = await requireOwnedBoard(req, req.params.id);
+      res.json(await listBoardReports(req.params.id, userId));
+    } catch (error: any) {
+      res.status(error?.status || 500).json({ error: error?.message || "Failed to search Board reports" });
     }
   });
 
