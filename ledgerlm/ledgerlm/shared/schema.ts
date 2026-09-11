@@ -240,6 +240,73 @@ export const cubeBoardReports = pgTable("cube_board_reports", {
   createdAtIdx: index("cube_board_reports_created_at_idx").on(table.createdAt),
 }));
 
+// Generic Boards migration tables. These extend the legacy cube_board_reports
+// model without replacing it, so existing report URLs and rows remain valid.
+export const boardAnalysisConfigs = pgTable("board_analysis_configs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  boardId: varchar("board_id").notNull().unique().references(() => boards.id, { onDelete: "cascade" }),
+  templateKey: varchar("template_key", { length: 100 }).notNull(),
+  systemPrompt: text("system_prompt"),
+  analysisPrompt: text("analysis_prompt"),
+  sourceType: varchar("source_type", { length: 30 }).notNull().default("enterprise"),
+  sourceConfig: jsonb("source_config").notNull().default({}),
+  scopeMode: varchar("scope_mode", { length: 20 }).notNull().default("all"),
+  keyColumns: jsonb("key_columns").notNull().default([]),
+  excludedColumns: jsonb("excluded_columns").notNull().default([]),
+  timeGranularity: varchar("time_granularity", { length: 20 }).notNull().default("auto"),
+  comparisonBasis: jsonb("comparison_basis").notNull().default({}),
+  settingsVersion: integer("settings_version").notNull().default(1),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, (table) => ({
+  boardIdx: index("board_analysis_configs_board_idx").on(table.boardId),
+  templateIdx: index("board_analysis_configs_template_idx").on(table.templateKey),
+}));
+
+export const boardAnalysisRuns = pgTable("board_analysis_runs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  boardId: varchar("board_id").notNull().references(() => boards.id, { onDelete: "cascade" }),
+  requestedBy: varchar("requested_by").notNull().references(() => users.id, { onDelete: "cascade" }),
+  trigger: varchar("trigger", { length: 20 }).notNull().default("manual"),
+  status: varchar("status", { length: 20 }).notNull().default("queued"),
+  progressPercent: integer("progress_percent").notNull().default(0),
+  progressStage: text("progress_stage"),
+  cancelRequested: integer("cancel_requested").notNull().default(0),
+  templateKey: varchar("template_key", { length: 100 }).notNull(),
+  requestConfig: jsonb("request_config").notNull().default({}),
+  sourceSnapshot: jsonb("source_snapshot").notNull().default({}),
+  errorMessage: text("error_message"),
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+  durationMs: integer("duration_ms"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => ({
+  boardIdx: index("board_analysis_runs_board_idx").on(table.boardId),
+  requesterIdx: index("board_analysis_runs_requester_idx").on(table.requestedBy),
+  statusIdx: index("board_analysis_runs_status_idx").on(table.status),
+  createdAtIdx: index("board_analysis_runs_created_at_idx").on(table.createdAt),
+}));
+
+export const boardReports = pgTable("board_reports", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  boardId: varchar("board_id").notNull().references(() => boards.id, { onDelete: "cascade" }),
+  runId: varchar("run_id").notNull().unique().references(() => boardAnalysisRuns.id, { onDelete: "cascade" }),
+  templateKey: varchar("template_key", { length: 100 }).notNull(),
+  title: text("title").notNull(),
+  periodLabel: text("period_label"),
+  result: jsonb("result").notNull().default({}),
+  deterministicMetrics: jsonb("deterministic_metrics"),
+  sourceSnapshot: jsonb("source_snapshot").notNull().default({}),
+  configSnapshot: jsonb("config_snapshot").notNull().default({}),
+  rawModelOutput: text("raw_model_output"),
+  status: varchar("status", { length: 20 }).notNull().default("complete"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => ({
+  boardIdx: index("board_reports_board_idx").on(table.boardId),
+  templateIdx: index("board_reports_template_idx").on(table.templateKey),
+  createdAtIdx: index("board_reports_created_at_idx").on(table.createdAt),
+}));
+
 export const documentChunks = pgTable("document_chunks", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   documentId: varchar("document_id").notNull().references(() => documents.id, { onDelete: 'cascade' }),
@@ -1203,6 +1270,16 @@ export const insertCubeBoardReportSchema = createInsertSchema(cubeBoardReports).
 });
 export type InsertCubeBoardReport = z.infer<typeof insertCubeBoardReportSchema>;
 export type CubeBoardReport = typeof cubeBoardReports.$inferSelect;
+
+export const insertBoardAnalysisConfigSchema = createInsertSchema(boardAnalysisConfigs).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertBoardAnalysisRunSchema = createInsertSchema(boardAnalysisRuns).omit({ id: true, createdAt: true });
+export const insertBoardReportSchema = createInsertSchema(boardReports).omit({ id: true, createdAt: true });
+export type InsertBoardAnalysisConfig = z.infer<typeof insertBoardAnalysisConfigSchema>;
+export type BoardAnalysisConfig = typeof boardAnalysisConfigs.$inferSelect;
+export type InsertBoardAnalysisRun = z.infer<typeof insertBoardAnalysisRunSchema>;
+export type BoardAnalysisRun = typeof boardAnalysisRuns.$inferSelect;
+export type InsertBoardReport = z.infer<typeof insertBoardReportSchema>;
+export type BoardReport = typeof boardReports.$inferSelect;
 
 export const insertDocumentChunkSchema = createInsertSchema(documentChunks).omit({
   id: true,
