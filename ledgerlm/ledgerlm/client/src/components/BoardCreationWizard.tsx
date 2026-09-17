@@ -108,6 +108,10 @@ export function BoardCreationWizard({
         setTemplateError('Template content must be 5,000 characters or fewer.');
         return;
       }
+      if (/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F]/.test(content)) {
+        setTemplateError('This file contains binary data. Upload a plain text, Markdown, or CSV template.');
+        return;
+      }
       update({ reportTemplate: content });
     };
     reader.onerror = () => setTemplateError('The template file could not be read. Try a plain text, Markdown, or CSV file.');
