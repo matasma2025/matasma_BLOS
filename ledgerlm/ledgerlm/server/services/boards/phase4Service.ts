@@ -262,8 +262,10 @@ export async function runDueBoardSchedules(now = new Date()): Promise<number> {
   let executed = 0;
   for (const schedule of due) {
     // Atomic timestamp claim prevents two workers from starting the same schedule.
+    const occurrenceKey = `${schedule.id}:${schedule.nextRunAt?.toISOString() ?? now.toISOString()}`;
+    const nextRunAt = computeNextBoardScheduleRun(schedule, now);
     const claim = await db.update(boardSchedules).set({
-      nextRunAt: new Date(now.getTime() + 60 * 60 * 1000),
+      nextRunAt,
       lastRunAt: now, lastRunStatus: "claimed", updatedAt: now,
     }).where(and(eq(boardSchedules.id, schedule.id), eq(boardSchedules.enabled, 1), lte(boardSchedules.nextRunAt, now))).returning();
     if (!claim[0]) continue;
@@ -272,7 +274,11 @@ export async function runDueBoardSchedules(now = new Date()): Promise<number> {
       const sourceSelection = config?.sourceConfig as BoardSourceSelection | undefined;
       if (!sourceSelection) throw new Error("Scheduled Board has no source configuration");
       await assertBoardSourceAccess(schedule.createdBy, sourceSelection);
-      const run = await createBoardAnalysisRun({ boardId: schedule.boardId, userId: schedule.createdBy, request: { sourceSelection } });
+      const run = await createBoardAnalysisRun({
+        boardId: schedule.boardId, userId: schedule.createdBy,
+        trigger: "schedule", idempotencyKey: `schedule:${occurrenceKey}`,
+        request: { sourceSelection },
+      });
       await executeBoardAnalysis(run.id);
       await db.update(boardSchedules).set({ lastRunStatus: "success", updatedAt: new Date() }).where(eq(boardSchedules.id, schedule.id));
       executed++;

@@ -106,6 +106,8 @@ export async function createBoardAnalysisRun(params: {
   boardId: string;
   userId: string;
   request: BoardAnalysisRequest;
+  trigger?: string;
+  idempotencyKey?: string;
 }) {
   const board = await storage.getBoard(params.boardId);
   if (!board || board.userId !== params.userId) throw new Error("Board not found");
@@ -128,6 +130,8 @@ export async function createBoardAnalysisRun(params: {
   const created = await db.insert(boardAnalysisRuns).values({
     boardId: params.boardId,
     requestedBy: params.userId,
+    trigger: params.trigger ?? "manual",
+    idempotencyKey: params.idempotencyKey ?? null,
     templateKey,
     requestConfig: normalizedRequest,
     sourceSnapshot: { id: source.id, name: source.name, sourceType: source.sourceType, ...(vaultVersion ? { version: vaultVersion } : {}) },
@@ -138,8 +142,14 @@ export async function createBoardAnalysisRun(params: {
     status: "queued",
     progressPercent: 0,
     progressStage: "Queued",
-  }).returning();
-  return created[0];
+  }).onConflictDoNothing({ target: boardAnalysisRuns.idempotencyKey }).returning();
+  if (created[0]) return created[0];
+  if (params.idempotencyKey) {
+    const existing = await db.select().from(boardAnalysisRuns)
+      .where(eq(boardAnalysisRuns.idempotencyKey, params.idempotencyKey)).limit(1);
+    if (existing[0]) return existing[0];
+  }
+  throw new Error("Unable to create Board analysis run");
 }
 
 export async function executeBoardAnalysis(runId: string) {

@@ -3240,8 +3240,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const bytes = format === "csv" ? exportDeterministicCsv(report.deterministicMetrics) : await exportDeterministicXlsx(report.deterministicMetrics);
       const storageKey = path.join(dir, `${id}.${format}`);
       await fs.writeFile(storageKey, bytes, { flag: "wx" });
-      const created = (await db.insert(boardExports).values({ id, reportId: report.id, format, status: "complete", storageKey, createdBy: userId, completedAt: new Date() }).returning())[0];
-      res.status(201).json({ id: created.id, reportId: created.reportId, format: created.format, status: created.status, createdAt: created.createdAt, completedAt: created.completedAt, expiresAt: new Date(created.createdAt.getTime() + 24 * 60 * 60 * 1000), downloadUrl: `/api/boards/${board.id}/exports/${id}/download` });
+       const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+       const created = (await db.insert(boardExports).values({ id, reportId: report.id, format, status: "complete", storageKey, createdBy: userId, completedAt: new Date(), expiresAt }).returning())[0];
+       res.status(201).json({ id: created.id, reportId: created.reportId, format: created.format, status: created.status, createdAt: created.createdAt, completedAt: created.completedAt, expiresAt: created.expiresAt, downloadUrl: `/api/boards/${board.id}/exports/${id}/download` });
     } catch (error: any) { res.status(error?.status || 500).json({ error: error?.message || "Failed to create Board export" }); }
   });
 
@@ -3250,7 +3251,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { board } = await requireOwnedBoard(req, req.params.id);
       const exportRow = (await db.select().from(boardExports).where(eq(boardExports.id, req.params.exportId)).limit(1))[0];
       if (!exportRow) return res.status(404).json({ error: "Export not found" });
-      if (exportRow.createdAt.getTime() + 24 * 60 * 60 * 1000 <= Date.now()) {
+       if (exportRow.expiresAt && exportRow.expiresAt.getTime() <= Date.now()) {
         await db.update(boardExports).set({ status: "expired", errorCategory: "expired" }).where(eq(boardExports.id, exportRow.id));
         return res.status(410).json({ error: "Export has expired" });
       }

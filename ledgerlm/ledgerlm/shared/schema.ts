@@ -362,6 +362,7 @@ export const boardExports = pgTable("board_exports", {
   createdBy: varchar("created_by").notNull().references(() => users.id, { onDelete: "cascade" }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   completedAt: timestamp("completed_at"),
+  expiresAt: timestamp("expires_at"),
 }, (table) => ({
   reportIdx: index("board_exports_report_idx").on(table.reportId),
   creatorIdx: index("board_exports_creator_idx").on(table.createdBy),
