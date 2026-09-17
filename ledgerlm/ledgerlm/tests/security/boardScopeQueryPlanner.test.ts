@@ -23,7 +23,7 @@ test("plans selected measures, dimensions, filters, and normalized periods", () 
   assert.equal(plan.metricColumn, "amount_usd");
   assert.deepEqual(plan.months, [1, 2, 3]);
   assert.deepEqual(plan.dimensions, ["Entity", "Cost Category"]);
-  assert.deepEqual(plan.filters[0]?.values, ["BGSW", "BGSV"]);
+  assert.deepEqual(plan.measures[0]?.filters[0]?.values, ["BGSW", "BGSV"]);
   assert.deepEqual(plan.comparison?.months, [1, 2, 3]);
 });
 
@@ -61,7 +61,7 @@ test("supports legacy exclude mode without allowing arbitrary identifiers", () =
   }), /Unsupported Enterprise dimension/);
 });
 
-test("fails closed for unsupported measures and excessive grouping", () => {
+test("supports multiple measures while failing closed for unsupported measures and excessive grouping", () => {
   assert.throws(() => createEnterpriseScopePlan({
     config: null,
     request: {
@@ -72,7 +72,7 @@ test("fails closed for unsupported measures and excessive grouping", () => {
     },
   }), /Unsupported Enterprise measure/);
 
-  assert.throws(() => createEnterpriseScopePlan({
+  const multiMeasure = createEnterpriseScopePlan({
     config: null,
     request: {
       scopeMode: "selected",
@@ -83,9 +83,10 @@ test("fails closed for unsupported measures and excessive grouping", () => {
         { column: "capacity", label: "Capacity" },
       ],
     },
-  }), /Multiple selected measures require/);
+  });
+  assert.deepEqual(multiMeasure.measures.map((measure) => measure.column), ["amount_usd", "capacity"]);
 
-  assert.throws(() => createEnterpriseScopePlan({
+  const headcount = createEnterpriseScopePlan({
     config: null,
     request: {
       scopeMode: "selected",
@@ -93,9 +94,10 @@ test("fails closed for unsupported measures and excessive grouping", () => {
       months: [1],
       keyColumns: [{ column: "headcount", label: "Headcount" }],
     },
-  }), /supports only Amount/);
+  });
+  assert.equal(headcount.measures[0]?.aggregation, "last");
 
-  assert.throws(() => createEnterpriseScopePlan({
+  const average = createEnterpriseScopePlan({
     config: null,
     request: {
       scopeMode: "selected",
@@ -103,7 +105,8 @@ test("fails closed for unsupported measures and excessive grouping", () => {
       months: [1],
       keyColumns: [{ column: "amount_usd", label: "Amount", aggregation: "average" }],
     },
-  }), /supports only sum aggregation/);
+  });
+  assert.equal(average.measures[0]?.aggregation, "average");
 
   assert.throws(() => createEnterpriseScopePlan({
     config: null,

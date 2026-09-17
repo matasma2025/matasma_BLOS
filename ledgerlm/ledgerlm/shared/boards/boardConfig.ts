@@ -6,8 +6,11 @@ export const BOARD_CONFIG_SCHEMA_VERSION = 2;
 export const boardMetricSelectionSchema = z.object({
   column: z.string().trim().min(1).max(200),
   label: z.string().trim().min(1).max(200),
-  aggregation: z.enum(["sum", "last", "average", "min", "max"]).optional(),
-  valueType: z.enum(["currency", "percentage", "count", "ratio"]).optional(),
+  aggregation: z.enum(["sum", "last", "latest", "average", "min", "max", "count", "ratio"]).optional(),
+  valueType: z.enum(["currency", "percentage", "count", "ratio", "number"]).optional(),
+  favorability: z.enum(["higher-is-favorable", "lower-is-favorable", "neutral"]).optional(),
+  numerator: z.string().trim().min(1).max(200).optional(),
+  denominator: z.string().trim().min(1).max(200).optional(),
   dimension: z.string().trim().min(1).max(200).optional(),
   dimensionValues: z.array(z.string().trim().min(1).max(500)).max(500).optional(),
 }).strict();

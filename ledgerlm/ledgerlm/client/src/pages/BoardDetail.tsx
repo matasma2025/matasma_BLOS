@@ -32,6 +32,11 @@ interface GenericReport {
   periodLabel?: string | null;
   result?: { summary?: string; insights?: string[]; tables?: Array<{ title?: string; columns: string[]; rows: unknown[][] }> };
   sourceSnapshot?: { name?: string; sourceType?: string };
+  deterministicMetrics?: {
+    measures?: Array<{ measureId: string; actual: number; budget: number; variance: number; variancePct: number | null; favorable: boolean | null }>;
+    contributors?: Array<{ key: string; measures: Array<{ measureId: string; actual: number; variance: number; contribution: number | null }> }>;
+    evidence?: Array<{ sourceType: string; sourceId: string; period: string }>;
+  };
   createdAt: string | Date;
 }
 
@@ -44,6 +49,20 @@ export default function BoardDetail() {
   const [activeTab, setActiveTab] = useState<TabId>('reports');
   const [openReportId, setOpenReportId] = useState<string | null>(null);
   const [activeRunId, setActiveRunId] = useState<string | null>(null);
+
+  const { data: recentRuns = [] } = useQuery<GenericRun[]>({
+    queryKey: ['/api/boards', boardId, 'analysis-runs'],
+    queryFn: () => apiRequest('GET', `/api/boards/${boardId}/analysis-runs`) as Promise<GenericRun[]>,
+    enabled: !!boardId,
+    staleTime: 5_000,
+  });
+
+  useEffect(() => {
+    if (!activeRunId) {
+      const resumable = recentRuns.find((run) => ['queued', 'running', 'cancel_requested'].includes(run.status));
+      if (resumable) setActiveRunId(resumable.id);
+    }
+  }, [activeRunId, recentRuns]);
 
   const { data: board, isLoading: boardLoading } = useQuery<Board>({
     queryKey: ['/api/boards', boardId],
@@ -88,13 +107,33 @@ export default function BoardDetail() {
   }, [activeRun, boardId, toast]);
 
   const governedRunMutation = useMutation({
-    mutationFn: () => apiRequest('POST', `/api/boards/${board.id}/analysis-runs`, {
-      year: new Date().getFullYear(),
-      months: [new Date().getMonth() + 1],
-      dimensions: ['Entity', 'Sector', 'Cost Category'],
-    }) as Promise<GenericRun>,
+    mutationFn: () => {
+      const settings = board.settings as any ?? {};
+      const config = settings.analysisConfig ?? {};
+      return apiRequest('POST', `/api/boards/${board.id}/analysis-runs`, {
+        year: config.year ?? new Date().getFullYear(),
+        months: config.months?.length ? config.months : [new Date().getMonth() + 1],
+        dimensions: config.dimensions ?? settings.defaultDimensions ?? ['Entity', 'Sector', 'Cost Category'],
+        keyColumns: config.keyColumns ?? settings.keyColumns ?? undefined,
+        excludedColumns: config.excludedColumns ?? undefined,
+        comparison: config.comparison ?? undefined,
+      }) as Promise<GenericRun>;
+    },
     onSuccess: (run) => setActiveRunId(run.id),
     onError: (error: Error) => toast({ title: 'Could not start analysis', description: error.message, variant: 'destructive' }),
+  });
+
+  const cancelRunMutation = useMutation({
+    mutationFn: () => apiRequest('POST', `/api/boards/${board.id}/analysis-runs/${activeRunId}/cancel`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['/api/boards', board.id, 'analysis-runs', activeRunId] }),
+    onError: (error: Error) => toast({ title: 'Could not cancel analysis', description: error.message, variant: 'destructive' }),
+  });
+
+  const exportMutation = useMutation({
+    mutationFn: (input: { reportId: string; format: 'csv' | 'xlsx' }) =>
+      apiRequest('POST', `/api/boards/${board.id}/reports/${input.reportId}/exports`, { format: input.format }) as Promise<{ downloadUrl: string }>,
+    onSuccess: ({ downloadUrl }) => { window.location.assign(downloadUrl); },
+    onError: (error: Error) => toast({ title: 'Export unavailable', description: error.message, variant: 'destructive' }),
   });
 
   const createChatMutation = useMutation({
@@ -221,6 +260,18 @@ export default function BoardDetail() {
                 <div className="mt-2 h-2 rounded-full bg-muted overflow-hidden">
                   <div className="h-full bg-primary transition-all" style={{ width: `${activeRun.progressPercent ?? 0}%` }} />
                 </div>
+                {['queued', 'running', 'cancel_requested'].includes(activeRun.status) && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-3"
+                    onClick={() => cancelRunMutation.mutate()}
+                    disabled={cancelRunMutation.isPending}
+                    aria-label="Cancel governed analysis"
+                  >
+                    {cancelRunMutation.isPending ? 'Cancelling…' : 'Cancel analysis'}
+                  </Button>
+                )}
               </Card>
             )}
             {board.description && (
@@ -320,6 +371,33 @@ export default function BoardDetail() {
                       </div>
                       <Badge variant="secondary">Governed</Badge>
                     </div>
+                     {report.deterministicMetrics?.measures?.length ? (
+                       <div className="space-y-2" aria-label="Verified deterministic metrics">
+                         <div className="flex items-center justify-between gap-2">
+                           <p className="text-xs font-semibold uppercase tracking-wide text-primary">Verified metrics</p>
+                           <div className="flex gap-1">
+                             <Button variant="outline" size="sm" onClick={() => exportMutation.mutate({ reportId: report.id, format: 'csv' })} disabled={exportMutation.isPending}>CSV</Button>
+                             <Button variant="outline" size="sm" onClick={() => exportMutation.mutate({ reportId: report.id, format: 'xlsx' })} disabled={exportMutation.isPending}>XLSX</Button>
+                           </div>
+                         </div>
+                         <div className="overflow-x-auto">
+                           <table className="w-full text-xs border-collapse">
+                             <thead><tr>{['Measure', 'Actual', 'Budget', 'Variance', 'Variance %', 'Favorability'].map((column) => <th key={column} className="border px-2 py-1 text-left bg-muted">{column}</th>)}</tr></thead>
+                             <tbody>{report.deterministicMetrics.measures.map((measure) => (
+                               <tr key={measure.measureId}>
+                                 <td className="border px-2 py-1 font-medium">{measure.measureId}</td>
+                                 <td className="border px-2 py-1">{measure.actual}</td>
+                                 <td className="border px-2 py-1">{measure.budget}</td>
+                                 <td className="border px-2 py-1">{measure.variance}</td>
+                                 <td className="border px-2 py-1">{measure.variancePct ?? '—'}</td>
+                                 <td className="border px-2 py-1">{measure.favorable === null ? 'Neutral' : measure.favorable ? 'Favorable' : 'Unfavorable'}</td>
+                               </tr>
+                             ))}</tbody>
+                           </table>
+                         </div>
+                         <p className="text-[11px] text-muted-foreground">Calculated by the governed deterministic engine. AI narrative below is explanatory only.</p>
+                       </div>
+                     ) : null}
                     {report.result?.summary && <p className="text-sm whitespace-pre-wrap">{report.result.summary}</p>}
                     {!!report.result?.insights?.length && (
                       <ul className="list-disc pl-5 text-sm text-muted-foreground space-y-1">

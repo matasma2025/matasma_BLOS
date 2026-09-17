@@ -14,6 +14,17 @@ export interface BoardScopeFilter {
 
 export interface BoardScopeQueryPlan {
   metricColumn: EnterpriseMeasureColumn;
+  measures: Array<{
+    id: string;
+    label: string;
+    column: EnterpriseMeasureColumn;
+    aggregation: "sum" | "last" | "average" | "min" | "max" | "count" | "ratio";
+    valueType: "currency" | "percentage" | "count" | "ratio" | "number";
+    favorability: "higher-is-favorable" | "lower-is-favorable" | "neutral";
+    numerator?: EnterpriseMeasureColumn;
+    denominator?: EnterpriseMeasureColumn;
+    filters: BoardScopeFilter[];
+  }>;
   dimensions: EnterpriseDimensionName[];
   filters: BoardScopeFilter[];
   year: number;
@@ -90,22 +101,6 @@ export function createEnterpriseScopePlan(params: {
   if (requestedButUnsupported.length > 0) {
     throw new Error(`Unsupported Enterprise measure: ${requestedButUnsupported[0]}`);
   }
-  if (selectedMeasures.length > 1) {
-    throw new Error("Multiple selected measures require the Phase 3 deterministic engine; select one measure for the current variance engine");
-  }
-  if (selectedMeasures.some((column) => column !== "amount_usd")) {
-    throw new Error("The Phase 2 variance renderer supports only Amount (USD); other measures require the Phase 3 deterministic engine");
-  }
-  const incompatibleAggregation = keyColumns.find((item) =>
-    item.aggregation !== undefined && item.aggregation !== "sum");
-  if (incompatibleAggregation) {
-    throw new Error("The Phase 2 Amount (USD) variance measure supports only sum aggregation");
-  }
-  const incompatibleValueType = keyColumns.find((item) =>
-    item.valueType !== undefined && item.valueType !== "currency");
-  if (incompatibleValueType) {
-    throw new Error("The Phase 2 Amount (USD) variance measure must use currency value type");
-  }
   if (scopeMode === "selected" && selectedMeasures.length === 0) {
     throw new Error("Selected-column scope requires at least one supported Enterprise measure");
   }
@@ -136,13 +131,7 @@ export function createEnterpriseScopePlan(params: {
     throw new Error(`A Board can group by at most ${BOARD_SOURCE_LIMITS.maxDimensions} dimensions`);
   }
 
-  const keyColumnFilters = keyColumns
-    .filter((item) => item.dimension && Array.isArray(item.dimensionValues) && item.dimensionValues.length > 0)
-    .map((item) => ({ column: item.dimension, values: item.dimensionValues }));
-  const rawFilters = [
-    ...(Array.isArray(scopeConfig.filters) ? scopeConfig.filters : []),
-    ...keyColumnFilters,
-  ];
+  const rawFilters = Array.isArray(scopeConfig.filters) ? scopeConfig.filters : [];
   if (rawFilters.length > BOARD_SOURCE_LIMITS.maxFilters) {
     throw new Error(`A Board can use at most ${BOARD_SOURCE_LIMITS.maxFilters} dimension filters`);
   }
@@ -159,6 +148,62 @@ export function createEnterpriseScopePlan(params: {
     }
     return { dimension, dbColumn: ENTERPRISE_DIMENSIONS[dimension], values };
   });
+  const measures = keyColumns.map((item, index) => {
+    const column = String(item.column ?? item.sourceColumn ?? "") as EnterpriseMeasureColumn;
+    const aggregationValues = new Set(["sum", "last", "latest", "average", "min", "max", "count", "ratio"]);
+    const valueTypeValues = new Set(["currency", "percentage", "count", "ratio", "number"]);
+    const favorabilityValues = new Set(["higher-is-favorable", "lower-is-favorable", "neutral"]);
+    const requestedAggregation = item.aggregation;
+    if (requestedAggregation !== undefined && (typeof requestedAggregation !== "string" || !aggregationValues.has(requestedAggregation))) {
+      throw new Error(`Unsupported aggregation for Enterprise measure ${column}`);
+    }
+    const aggregationValue = requestedAggregation === "latest" ? "last" : (requestedAggregation ?? ENTERPRISE_MEASURES[column].aggregation);
+    if (!aggregationValues.has(aggregationValue)) throw new Error(`Unsupported aggregation for Enterprise measure ${column}`);
+    const aggregation = aggregationValue as "sum" | "last" | "average" | "min" | "max" | "count" | "ratio";
+    const valueTypeValue = item.valueType ?? (column.includes("amount") ? "currency" : "number");
+    if (typeof valueTypeValue !== "string" || !valueTypeValues.has(valueTypeValue)) throw new Error(`Unsupported value type for Enterprise measure ${column}`);
+    const valueType = valueTypeValue as "currency" | "percentage" | "count" | "ratio" | "number";
+    const numeratorValue = item.numerator;
+    const denominatorValue = item.denominator;
+    if ((numeratorValue !== undefined && typeof numeratorValue !== "string")
+      || (denominatorValue !== undefined && typeof denominatorValue !== "string")) {
+      throw new Error(`Ratio operands for ${column} must be allowlisted measure names`);
+    }
+    const numerator = numeratorValue as EnterpriseMeasureColumn | undefined;
+    const denominator = denominatorValue as EnterpriseMeasureColumn | undefined;
+    if (aggregation === "ratio" && valueType !== "ratio") throw new Error(`Ratio measure ${column} must use ratio value type`);
+    if (aggregation === "ratio" && (!numerator || !denominator || !(numerator in ENTERPRISE_MEASURES) || !(denominator in ENTERPRISE_MEASURES))) {
+      throw new Error(`Ratio measure ${column} requires allowlisted numerator and denominator`);
+    }
+    if (aggregation !== "ratio" && (numerator || denominator)) throw new Error(`Numerator and denominator are only valid for ratio measure ${column}`);
+    let measureFilters: BoardScopeFilter[] = [];
+    if (item.dimension && Array.isArray(item.dimensionValues) && item.dimensionValues.length > 0) {
+      const dimension = String(item.dimension) as EnterpriseDimensionName;
+      if (!(dimension in ENTERPRISE_DIMENSIONS)) throw new Error(`Unsupported Enterprise dimension: ${dimension}`);
+      const values = Array.from(new Set(item.dimensionValues.map(String).map((value) => value.trim()).filter(Boolean)));
+      if (values.length === 0 || values.length > BOARD_SOURCE_LIMITS.maxValuesPerFilter) {
+        throw new Error(`Dimension filters require 1-${BOARD_SOURCE_LIMITS.maxValuesPerFilter} values`);
+      }
+      measureFilters = [{ dimension, dbColumn: ENTERPRISE_DIMENSIONS[dimension], values }];
+    }
+    return {
+      id: keyColumns.filter((candidate) => String(candidate.column ?? candidate.sourceColumn ?? "") === column).length > 1
+        ? `${column}.${index + 1}`
+        : column,
+      label: String(item.label ?? ENTERPRISE_MEASURES[column].label),
+      column,
+      aggregation,
+      valueType,
+      favorability: (() => {
+        const value = item.favorability ?? "neutral";
+        if (typeof value !== "string" || !favorabilityValues.has(value)) throw new Error(`Unsupported favorability rule for Enterprise measure ${column}`);
+        return value as "higher-is-favorable" | "lower-is-favorable" | "neutral";
+      })(),
+      numerator,
+      denominator,
+      filters: measureFilters,
+    };
+  });
 
   const year = normalizeYear(params.request.year, "Primary");
   const months = normalizeMonths(params.request.months, "Primary");
@@ -170,6 +215,15 @@ export function createEnterpriseScopePlan(params: {
 
   return {
     metricColumn,
+    measures: measures.length ? measures : [{
+      id: metricColumn,
+      label: ENTERPRISE_MEASURES[metricColumn].label,
+      column: metricColumn,
+      aggregation: ENTERPRISE_MEASURES[metricColumn].aggregation as "sum" | "last",
+      valueType: (metricColumn.includes("amount") ? "currency" : "number") as "currency" | "number",
+      favorability: "neutral",
+      filters: [],
+    }],
     dimensions,
     filters,
     year,

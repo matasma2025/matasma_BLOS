@@ -8,6 +8,12 @@ export const boardScheduleConfigurationSchema = z.object({
   timezone: z.string().trim().min(1).max(100),
   startAt: z.string().datetime(),
   nextRunAt: z.string().datetime().optional(),
-}).strict();
+}).strict().superRefine((value, ctx) => {
+  try { new Intl.DateTimeFormat("en-US", { timeZone: value.timezone }).format(); }
+  catch { ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["timezone"], message: "Invalid IANA timezone" }); }
+  if (value.frequency === "custom" && (!value.interval || !value.intervalUnit)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["interval"], message: "Custom schedules require interval and intervalUnit" });
+  }
+});
 
 export type BoardScheduleConfiguration = z.infer<typeof boardScheduleConfigurationSchema>;

@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const BOARD_RESULT_SCHEMA_VERSION = 2;
-export const BOARD_FORMULA_ENGINE_VERSION = "legacy-variance-v1";
+export const BOARD_FORMULA_ENGINE_VERSION = "deterministic-board-v1";
 
 export const boardRunStatusSchema = z.enum([
   "queued",

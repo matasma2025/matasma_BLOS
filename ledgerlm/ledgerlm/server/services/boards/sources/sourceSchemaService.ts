@@ -31,7 +31,7 @@ export interface BoardSourceSchema {
   measures: Array<{
     column: EnterpriseMeasureColumn;
     label: string;
-    aggregation: "sum" | "last";
+    aggregation: "sum" | "last" | "average" | "min" | "max" | "count";
   }>;
 }
 

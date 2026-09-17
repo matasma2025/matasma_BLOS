@@ -112,8 +112,11 @@ export const boardSourceSelectionSchema = z.discriminatedUnion("sourceType", [
 export const boardKeyColumnSchema = z.object({
   column: safeDisplayText("Column", 200, true),
   label: safeDisplayText("Column label", 200, true),
-  aggregation: z.enum(["sum", "last", "average", "min", "max"]).optional(),
-  valueType: z.enum(["currency", "percentage", "count", "ratio"]).optional(),
+  aggregation: z.enum(["sum", "last", "latest", "average", "min", "max", "count", "ratio"]).optional(),
+  valueType: z.enum(["currency", "percentage", "count", "ratio", "number"]).optional(),
+  favorability: z.enum(["higher-is-favorable", "lower-is-favorable", "neutral"]).optional(),
+  numerator: safeDisplayText("Ratio numerator", 200, true).optional(),
+  denominator: safeDisplayText("Ratio denominator", 200, true).optional(),
   dimension: safeDisplayText("Dimension", 200, true).nullable().optional(),
   dimensionValues: z.array(safeDisplayText("Dimension value", 200, true)).max(200).optional(),
 }).strict();

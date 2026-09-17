@@ -2,6 +2,8 @@ import { storage } from "../storage";
 import { db } from "../db";
 import { documents, cubeMetadata } from "@shared/schema";
 import { and, eq } from "drizzle-orm";
+import { promises as fs } from "node:fs";
+import { createHash } from "node:crypto";
 
 export type BoardSourceSelection =
   | { sourceType: "enterprise"; cubeId: string }
@@ -77,4 +79,17 @@ export async function assertBoardDocumentAccess(userId: string, documentId: stri
   const row = await db.select({ id: documents.id }).from(documents)
     .where(and(eq(documents.id, documentId), eq(documents.userId, userId))).limit(1);
   if (row.length === 0) throw new Error("The selected document is not available to this user");
+}
+
+/** Immutable server-side Vault identity; paths never leave this service. */
+export async function getAuthorizedVaultVersion(userId: string, documentId: string) {
+  await assertBoardDocumentAccess(userId, documentId);
+  const doc = (await db.select().from(documents).where(and(eq(documents.id, documentId), eq(documents.userId, userId))).limit(1))[0];
+  if (!doc) throw new Error("The selected document is not available to this user");
+  const bytes = await fs.readFile(doc.filePath);
+  return {
+    documentId: doc.id,
+    uploadedAt: doc.uploadedAt.toISOString(),
+    contentHash: createHash("sha256").update(bytes).digest("hex"),
+  };
 }

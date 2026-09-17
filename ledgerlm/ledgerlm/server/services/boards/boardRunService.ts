@@ -8,14 +8,16 @@ import {
 import { and, desc, eq } from "drizzle-orm";
 import { runBoardAnalysis, type AnalysisRequest } from "../boardAnalysisService";
 import { resolveDomainAiConfigForUser } from "../domainAiConfigService";
-import { assertBoardSourceAccess, type BoardSourceSelection, getAuthorizedBoardSource } from "../boardSourceService";
-import { markdownToBoardAnalysisResult } from "./boardResultSchema";
+import { assertBoardSourceAccess, type BoardSourceSelection, getAuthorizedBoardSource, getAuthorizedVaultVersion } from "../boardSourceService";
+import { parseBoardAnalysisResult } from "./boardResultSchema";
 import {
   BOARD_FORMULA_ENGINE_VERSION,
   BOARD_RESULT_SCHEMA_VERSION,
 } from "@shared/boards/boardRun";
 import { prepareEnterpriseBoardSource } from "./sources/enterpriseSourceLoader";
 import { createLegacyBoardAnalysisRequest } from "./legacyBoardAnalysisAdapter";
+import { executeEnterpriseDeterministicAnalysis } from "./sources/enterpriseDeterministicExecutor";
+import { deterministicAnalysisResultSchema } from "@shared/boards/deterministicAnalysis";
 
 export interface BoardAnalysisRequest {
   year?: number;
@@ -24,8 +26,11 @@ export interface BoardAnalysisRequest {
   keyColumns?: Array<{
     column: string;
     label: string;
-    aggregation?: "sum" | "last" | "average" | "min" | "max";
-    valueType?: "currency" | "percentage" | "count" | "ratio";
+    aggregation?: "sum" | "last" | "latest" | "average" | "min" | "max" | "count" | "ratio";
+    valueType?: "currency" | "percentage" | "count" | "ratio" | "number";
+    favorability?: "higher-is-favorable" | "lower-is-favorable" | "neutral";
+    numerator?: string;
+    denominator?: string;
     dimension?: string | null;
     dimensionValues?: string[];
   }>;
@@ -50,6 +55,12 @@ export function normalizeBoardRunRequest(
     year: Number(request.year ?? now.getFullYear()),
     months: (request.months?.length ? request.months : [now.getMonth() + 1]).map(Number),
   };
+}
+
+export function decideBoardRunClaim(status: string): "claim" | "complete" | "refuse" {
+  if (status === "queued") return "claim";
+  if (status === "complete") return "complete";
+  return "refuse";
 }
 
 export async function getOrCreateBoardAnalysisConfig(boardId: string) {
@@ -103,11 +114,9 @@ export async function createBoardAnalysisRun(params: {
     ?? (config?.sourceConfig as BoardSourceSelection | undefined)
     ?? ((board.settings as any)?.cubeId ? { sourceType: "enterprise", cubeId: (board.settings as any).cubeId } : undefined);
   if (!selection) throw new Error("Select an authorized source before starting an analysis");
-  if (selection.sourceType !== "enterprise") {
-    throw new Error("Vault analysis is not available in this phase; select an authorized Enterprise Data source");
-  }
   await assertBoardSourceAccess(params.userId, selection);
   const source = await getAuthorizedBoardSource(params.userId, selection);
+  const vaultVersion = selection.sourceType === "vault" ? await getAuthorizedVaultVersion(params.userId, selection.documentId) : undefined;
   const normalizedRequest = normalizeBoardRunRequest(params.request);
   const templateKey = config?.templateKey ?? "variance-analysis";
   const effectiveConfigSnapshot = {
@@ -121,7 +130,7 @@ export async function createBoardAnalysisRun(params: {
     requestedBy: params.userId,
     templateKey,
     requestConfig: normalizedRequest,
-    sourceSnapshot: { id: source.id, name: source.name, sourceType: source.sourceType },
+    sourceSnapshot: { id: source.id, name: source.name, sourceType: source.sourceType, ...(vaultVersion ? { version: vaultVersion } : {}) },
     configSnapshot: effectiveConfigSnapshot,
     resultSchemaVersion: BOARD_RESULT_SCHEMA_VERSION,
     formulaEngineVersion: BOARD_FORMULA_ENGINE_VERSION,
@@ -137,6 +146,27 @@ export async function executeBoardAnalysis(runId: string) {
   const rows = await db.select().from(boardAnalysisRuns).where(eq(boardAnalysisRuns.id, runId)).limit(1);
   const run = rows[0];
   if (!run) throw new Error("Analysis run not found");
+  const queuedSnapshot = (run.configSnapshot ?? {}) as { sourceSelection?: BoardSourceSelection };
+  if (queuedSnapshot.sourceSelection) {
+    await assertBoardSourceAccess(run.requestedBy, queuedSnapshot.sourceSelection);
+    if (queuedSnapshot.sourceSelection.sourceType === "vault") {
+      const expected = (run.sourceSnapshot as any)?.version;
+      const current = await getAuthorizedVaultVersion(run.requestedBy, queuedSnapshot.sourceSelection.documentId);
+      if (!expected || expected.documentId !== current.documentId || expected.contentHash !== current.contentHash) {
+        throw new Error("Vault document changed since this Board run was queued");
+      }
+    }
+  }
+  const claim = await db.update(boardAnalysisRuns).set({
+    status: "running", progressPercent: 15, progressStage: "Authorizing source", startedAt: new Date(),
+  }).where(and(eq(boardAnalysisRuns.id, runId), eq(boardAnalysisRuns.status, "queued"))).returning();
+  if (!claim[0]) {
+    if (decideBoardRunClaim(String(run.status)) === "complete") {
+      const existingReport = await db.select().from(boardReports).where(eq(boardReports.runId, runId)).limit(1);
+      return { run, report: existingReport[0], legacyReport: undefined };
+    }
+    throw new Error(`Analysis run is not executable from status ${run.status}`);
+  }
   const board = await storage.getBoard(run.boardId);
   if (!board || board.userId !== run.requestedBy) throw new Error("Board not found");
   const effectiveSnapshot = (run.configSnapshot ?? {}) as {
@@ -147,16 +177,12 @@ export async function executeBoardAnalysis(runId: string) {
   };
   const request = effectiveSnapshot.request ?? (run.requestConfig ?? {}) as BoardAnalysisRequest;
   const selection = (run.sourceSnapshot ?? {}) as { sourceType?: "enterprise" | "vault"; id?: string };
-  await db.update(boardAnalysisRuns).set({
-    status: "running", progressPercent: 15, progressStage: "Authorizing source", startedAt: new Date(),
-  }).where(eq(boardAnalysisRuns.id, runId));
-
   const started = Date.now();
   try {
-    if (selection.sourceType !== "enterprise" || !selection.id) {
-      throw new Error("Vault analysis is not available for this Board template yet; select an authorized Enterprise Data source.");
-    }
-    const sourceSelection = { sourceType: "enterprise" as const, cubeId: selection.id };
+    if (!selection.id) throw new Error("Board source snapshot is incomplete");
+    const sourceSelection = effectiveSnapshot.sourceSelection ?? (selection.sourceType === "vault"
+      ? { sourceType: "vault" as const, documentId: selection.id }
+      : { sourceType: "enterprise" as const, cubeId: selection.id });
     if (effectiveSnapshot.sourceSelection) {
       const snapshottedSourceId = sourceId(effectiveSnapshot.sourceSelection);
       if (effectiveSnapshot.sourceSelection.sourceType !== selection.sourceType || snapshottedSourceId !== selection.id) {
@@ -173,23 +199,43 @@ export async function executeBoardAnalysis(runId: string) {
     const normalizedRequest = normalizeBoardRunRequest(request);
     await db.update(boardAnalysisRuns).set({ progressPercent: 35, progressStage: "Computing deterministic metrics" })
       .where(eq(boardAnalysisRuns.id, runId));
-    const preparedSource = await prepareEnterpriseBoardSource({
-      userId: run.requestedBy,
-      selection: sourceSelection,
-      config: effectiveSnapshot.config,
-      boardSettings: settings,
-      request: normalizedRequest,
-    });
-    const legacyRequest: AnalysisRequest = createLegacyBoardAnalysisRequest({
-      boardId: board.id,
-      cubeId: preparedSource.source.id,
-      mapping,
-      settings,
-      request: normalizedRequest,
-      plan: preparedSource.plan,
-      domainAiConfig: await resolveDomainAiConfigForUser(run.requestedBy),
-    });
-    const legacyReport = await runBoardAnalysis(legacyRequest);
+    let preparedSource: any;
+    let deterministic;
+    if (sourceSelection.sourceType === "vault") {
+      const { loadVaultBoardDataset, runVaultDeterministicAnalysis, assertVaultIdentity } = await import("./phase4Service");
+      const dataset = await loadVaultBoardDataset(run.requestedBy, sourceSelection.documentId);
+      assertVaultIdentity((run.sourceSnapshot as any).version, { documentId: dataset.documentId, contentHash: dataset.contentHash });
+      deterministic = runVaultDeterministicAnalysis(dataset, { request: normalizedRequest, settings });
+      preparedSource = { source: { id: dataset.documentId, name: dataset.name, sourceType: "vault" }, plan: { year: normalizedRequest.year, measures: (normalizedRequest.keyColumns ?? []).map((key) => ({ column: key.column, label: key.label, aggregation: key.aggregation ?? "sum", valueType: key.valueType ?? "number", filters: [] })) } };
+    } else {
+      preparedSource = await prepareEnterpriseBoardSource({
+        userId: run.requestedBy, selection: sourceSelection, config: effectiveSnapshot.config,
+        boardSettings: settings, request: normalizedRequest,
+      });
+      deterministic = deterministicAnalysisResultSchema.parse(await executeEnterpriseDeterministicAnalysis({
+        cubeId: preparedSource.source.id, actualVersion: mapping.actuals, budgetVersion: mapping.budget,
+        plan: preparedSource.plan, sourceName: preparedSource.source.name,
+      }));
+    }
+    const primaryMeasure = preparedSource.plan.measures[0];
+    const legacyCompatible = primaryMeasure?.column === "amount_usd"
+      && primaryMeasure.aggregation === "sum"
+      && primaryMeasure.valueType === "currency"
+      && preparedSource.plan.measures.length === 1
+      && primaryMeasure.filters.length === 0;
+    let legacyReport: Awaited<ReturnType<typeof runBoardAnalysis>> | undefined;
+    if (legacyCompatible && sourceSelection.sourceType === "enterprise") {
+      const legacyRequest: AnalysisRequest = createLegacyBoardAnalysisRequest({
+        boardId: board.id,
+        cubeId: preparedSource.source.id,
+        mapping,
+        settings,
+        request: normalizedRequest,
+        plan: preparedSource.plan,
+        domainAiConfig: await resolveDomainAiConfigForUser(run.requestedBy),
+      });
+      legacyReport = await runBoardAnalysis(legacyRequest);
+    }
     const currentRun = await db.select({ cancelRequested: boardAnalysisRuns.cancelRequested })
       .from(boardAnalysisRuns).where(eq(boardAnalysisRuns.id, runId)).limit(1);
     if (currentRun[0]?.cancelRequested === 1) {
@@ -200,16 +246,30 @@ export async function executeBoardAnalysis(runId: string) {
     }
     await db.update(boardAnalysisRuns).set({ progressPercent: 85, progressStage: "Persisting report" })
       .where(eq(boardAnalysisRuns.id, runId));
-    const result = markdownToBoardAnalysisResult(legacyReport.rawAnalysis ?? "", legacyReport.varianceData);
+    const result = parseBoardAnalysisResult({
+        summary: legacyReport?.rawAnalysis?.slice(0, 4_000)
+          || `Deterministic analysis for ${preparedSource.plan.measures.map((measure: { label: string }) => measure.label).join(", ")}.`,
+        kpis: deterministic.measures.map((measure) => ({
+          label: measure.measureId,
+          value: String(measure.actual),
+          change: String(measure.variance),
+          direction: measure.variance === 0 ? "flat" : measure.variance > 0 ? "up" : "down",
+        })),
+        tables: [{
+          title: "Deterministic totals",
+          columns: ["Measure", "Actual", "Budget", "Variance", "Variance %"],
+          rows: deterministic.measures.map((measure) => [measure.measureId, measure.actual, measure.budget, measure.variance, measure.variancePct]),
+        }],
+      });
     const created = await db.insert(boardReports).values({
       boardId: board.id,
       runId: run.id,
       templateKey: run.templateKey,
-      title: legacyReport.title,
-      periodLabel: legacyReport.periodLabel,
+      title: legacyReport?.title ?? `${preparedSource.plan.year} — Deterministic Analysis`,
+      periodLabel: legacyReport?.periodLabel ?? `${preparedSource.plan.year}`,
       result,
       schemaVersion: BOARD_RESULT_SCHEMA_VERSION,
-      deterministicMetrics: { varianceData: legacyReport.varianceData, dimensions: legacyReport.dimensions },
+      deterministicMetrics: deterministic,
       sourceSnapshot: run.sourceSnapshot,
       configSnapshot: run.configSnapshot,
       evidenceManifest: {
@@ -220,20 +280,28 @@ export async function executeBoardAnalysis(runId: string) {
       formulaEngineVersion: run.formulaEngineVersion ?? BOARD_FORMULA_ENGINE_VERSION,
       promptVersion: run.promptVersion ?? "legacy-board-prompt-v1",
       modelMetadata: {},
-      rawModelOutput: legacyReport.rawAnalysis,
+      rawModelOutput: legacyReport?.rawAnalysis ?? null,
       status: "complete",
-    }).returning();
-    await db.update(boardAnalysisRuns).set({
+    }).onConflictDoNothing({ target: boardReports.runId }).returning();
+    const persistedReport = created[0] ?? (await db.select().from(boardReports).where(eq(boardReports.runId, runId)).limit(1))[0];
+    const finalized = await db.update(boardAnalysisRuns).set({
       status: "complete", progressPercent: 100, progressStage: "Complete",
       completedAt: new Date(), durationMs: Date.now() - started,
-    }).where(eq(boardAnalysisRuns.id, runId));
-    return { run: { ...run, status: "complete", progressPercent: 100 }, report: created[0], legacyReport };
+    }).where(and(eq(boardAnalysisRuns.id, runId), eq(boardAnalysisRuns.status, "running"), eq(boardAnalysisRuns.cancelRequested, 0))).returning();
+    if (!finalized[0]) {
+      await db.delete(boardReports).where(eq(boardReports.runId, runId));
+      await db.update(boardAnalysisRuns).set({
+        status: "cancelled", progressStage: "Cancelled", completedAt: new Date(), durationMs: Date.now() - started,
+      }).where(and(eq(boardAnalysisRuns.id, runId), eq(boardAnalysisRuns.status, "running")));
+      return { run: { ...run, status: "cancelled" }, report: persistedReport, legacyReport: undefined };
+    }
+    return { run: { ...run, status: "complete", progressPercent: 100 }, report: persistedReport, legacyReport };
   } catch (error) {
     await db.update(boardAnalysisRuns).set({
       status: "error", progressStage: "Error", errorMessage: error instanceof Error ? error.message : String(error),
       failureCategory: "analysis_error",
       completedAt: new Date(), durationMs: Date.now() - started,
-    }).where(eq(boardAnalysisRuns.id, runId));
+    }).where(and(eq(boardAnalysisRuns.id, runId), eq(boardAnalysisRuns.status, "running")));
     throw error;
   }
 }
@@ -252,6 +320,15 @@ export async function getBoardRun(boardId: string, runId: string, userId: string
   return result[0];
 }
 
+export async function listBoardRuns(boardId: string, userId: string) {
+  const board = await storage.getBoard(boardId);
+  if (!board || board.userId !== userId) throw new Error("Board not found");
+  return db.select().from(boardAnalysisRuns)
+    .where(eq(boardAnalysisRuns.boardId, boardId))
+    .orderBy(desc(boardAnalysisRuns.createdAt))
+    .limit(10);
+}
+
 export async function cancelBoardAnalysis(boardId: string, runId: string, userId: string) {
   const run = await getBoardRun(boardId, runId, userId);
   if (!run) throw new Error("Analysis run not found");
@@ -259,6 +336,6 @@ export async function cancelBoardAnalysis(boardId: string, runId: string, userId
     cancelRequested: 1, status: run.status === "queued" ? "cancelled" : "cancel_requested",
     progressStage: "Cancellation requested",
     cancelRequestedAt: new Date(),
-  }).where(eq(boardAnalysisRuns.id, runId)).returning();
+  }).where(and(eq(boardAnalysisRuns.id, runId), eq(boardAnalysisRuns.status, run.status))).returning();
   return updated[0];
 }

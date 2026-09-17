@@ -519,6 +519,13 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   };
   scheduleNightlyJobs().catch((e) => logger.error({ e }, "scheduleNightlyJobs failed"));
 
+  // Board schedules use an atomic database claim; each worker may poll safely.
+  setInterval(() => {
+    import("./services/boards/phase4Service")
+      .then(({ runDueBoardSchedules }) => runDueBoardSchedules())
+      .catch((e) => logger.error({ e }, "Board schedule worker error"));
+  }, 60_000);
+
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";

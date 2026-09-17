@@ -14,8 +14,8 @@ import {
   insertQueryAuditSchema,
   enterpriseDocuments,
 } from "@shared/schema";
-import { eq, desc, sql as sqlTag, sql } from "drizzle-orm";
-import { randomBytes, createHash } from "crypto";
+import { and, eq, desc, sql as sqlTag, sql } from "drizzle-orm";
+import { randomBytes, randomUUID, createHash } from "crypto";
 import { z } from "zod";
 import multer from "multer";
 import path from "path";
@@ -104,11 +104,21 @@ import {
   getBoardRun,
   getOrCreateBoardAnalysisConfig,
   listBoardReports,
+  listBoardRuns,
   saveBoardAnalysisConfig,
 } from "./services/boards/boardRunService";
 import { requireOwnedBoard } from "./security/boardAccess";
 import { getBoardTemplateDefinition } from "./services/boardTemplateCatalog";
 import { resolveDomainAiConfigForUser } from "./services/domainAiConfigService";
+import {
+  getBoardSourcePreview,
+  exportDeterministicCsv,
+  exportDeterministicXlsx,
+  loadVaultBoardDataset,
+  computeNextBoardScheduleRun,
+} from "./services/boards/phase4Service";
+import { boardExports, boardSchedules, boardReports } from "@shared/schema";
+import { boardScheduleConfigurationSchema } from "@shared/boards/boardSchedule";
 
 const SUPER_ADMIN_EMAIL = "customer@ledgerlm.ai";
 
@@ -3080,6 +3090,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/boards/:id/analysis-runs", async (req, res) => {
+    try {
+      const { userId } = await requireOwnedBoard(req, req.params.id);
+      res.json(await listBoardRuns(req.params.id, userId));
+    } catch (error: any) {
+      res.status(error?.status || 500).json({ error: error?.message || "Failed to fetch Board analysis runs" });
+    }
+  });
+
   app.post("/api/boards/:id/analysis-runs/:runId/cancel", async (req, res) => {
     try {
       const { userId } = await requireOwnedBoard(req, req.params.id);
@@ -3151,6 +3170,96 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       res.status(500).json({ error: error?.message || "Failed to fetch preview data" });
     }
+  });
+
+  // Bounded Phase 4 source metadata preview. No raw rows are returned.
+  app.get("/api/boards/:id/source-preview", async (req, res) => {
+    try {
+      const { userId } = await requireOwnedBoard(req, req.params.id);
+      const sourceType = req.query.sourceType === "vault" ? "vault" : "enterprise";
+      const id = String(req.query.id || "");
+      if (!id) return res.status(400).json({ error: "source id is required" });
+      const preview = await getBoardSourcePreview(userId, sourceType === "vault"
+        ? { sourceType, documentId: id }
+        : { sourceType, cubeId: id });
+      res.json(preview);
+    } catch (error: any) {
+      res.status(error?.message?.includes("not available") ? 403 : 400).json({ error: error?.message || "Failed to preview source" });
+    }
+  });
+
+  app.put("/api/boards/:id/schedule", async (req, res) => {
+    try {
+      const { board } = await requireOwnedBoard(req, req.params.id);
+      const parsed = boardScheduleConfigurationSchema.parse(req.body);
+      const nextRunAt = computeNextBoardScheduleRun({
+        frequency: parsed.frequency, interval: parsed.interval, intervalUnit: parsed.intervalUnit,
+        timezone: parsed.timezone, startAt: new Date(parsed.startAt),
+      });
+      const values = {
+        boardId: board.id, createdBy: board.userId, enabled: parsed.enabled ? 1 : 0,
+        frequency: parsed.frequency, interval: parsed.interval ?? null, intervalUnit: parsed.intervalUnit ?? null,
+        timezone: parsed.timezone, startAt: new Date(parsed.startAt), nextRunAt, retryPolicy: {},
+        updatedAt: new Date(),
+      };
+      const existing = (await db.select().from(boardSchedules).where(eq(boardSchedules.boardId, board.id)).limit(1))[0];
+      const saved = existing
+        ? (await db.update(boardSchedules).set(values).where(eq(boardSchedules.boardId, board.id)).returning())[0]
+        : (await db.insert(boardSchedules).values(values).returning())[0];
+      res.json(saved);
+    } catch (error: any) {
+      res.status(error instanceof z.ZodError ? 400 : 500).json({ error: error?.message || "Failed to save Board schedule" });
+    }
+  });
+
+  app.get("/api/boards/:id/schedule", async (req, res) => {
+    try {
+      const { board } = await requireOwnedBoard(req, req.params.id);
+      res.json((await db.select().from(boardSchedules).where(eq(boardSchedules.boardId, board.id)).limit(1))[0] ?? null);
+    } catch (error: any) { res.status(500).json({ error: error?.message || "Failed to fetch Board schedule" }); }
+  });
+
+  app.delete("/api/boards/:id/schedule", async (req, res) => {
+    try {
+      const { board } = await requireOwnedBoard(req, req.params.id);
+      await db.delete(boardSchedules).where(eq(boardSchedules.boardId, board.id));
+      res.status(204).send();
+    } catch (error: any) { res.status(500).json({ error: error?.message || "Failed to delete Board schedule" }); }
+  });
+
+  app.post("/api/boards/:id/reports/:reportId/exports", async (req, res) => {
+    try {
+      const { userId, board } = await requireOwnedBoard(req, req.params.id);
+      const format = req.body?.format;
+      if (format !== "csv" && format !== "xlsx") return res.status(400).json({ error: "Only CSV and XLSX exports are supported; PDF is unavailable" });
+      const report = (await db.select().from(boardReports).where(and(eq(boardReports.id, req.params.reportId), eq(boardReports.boardId, board.id))).limit(1))[0];
+      if (!report) return res.status(404).json({ error: "Report not found" });
+      const dir = path.resolve(process.cwd(), "data", "board-exports");
+      await fs.mkdir(dir, { recursive: true });
+      const id = randomUUID();
+      const bytes = format === "csv" ? exportDeterministicCsv(report.deterministicMetrics) : await exportDeterministicXlsx(report.deterministicMetrics);
+      const storageKey = path.join(dir, `${id}.${format}`);
+      await fs.writeFile(storageKey, bytes, { flag: "wx" });
+      const created = (await db.insert(boardExports).values({ id, reportId: report.id, format, status: "complete", storageKey, createdBy: userId, completedAt: new Date() }).returning())[0];
+      res.status(201).json({ id: created.id, reportId: created.reportId, format: created.format, status: created.status, createdAt: created.createdAt, completedAt: created.completedAt, expiresAt: new Date(created.createdAt.getTime() + 24 * 60 * 60 * 1000), downloadUrl: `/api/boards/${board.id}/exports/${id}/download` });
+    } catch (error: any) { res.status(error?.status || 500).json({ error: error?.message || "Failed to create Board export" }); }
+  });
+
+  app.get("/api/boards/:id/exports/:exportId/download", async (req, res) => {
+    try {
+      const { board } = await requireOwnedBoard(req, req.params.id);
+      const exportRow = (await db.select().from(boardExports).where(eq(boardExports.id, req.params.exportId)).limit(1))[0];
+      if (!exportRow) return res.status(404).json({ error: "Export not found" });
+      if (exportRow.createdAt.getTime() + 24 * 60 * 60 * 1000 <= Date.now()) {
+        await db.update(boardExports).set({ status: "expired", errorCategory: "expired" }).where(eq(boardExports.id, exportRow.id));
+        return res.status(410).json({ error: "Export has expired" });
+      }
+      const report = (await db.select().from(boardReports).where(and(eq(boardReports.id, exportRow.reportId), eq(boardReports.boardId, board.id))).limit(1))[0];
+      if (!report || !exportRow.storageKey) return res.status(404).json({ error: "Export not found" });
+      const resolved = path.resolve(exportRow.storageKey);
+      if (!resolved.startsWith(path.resolve(process.cwd(), "data", "board-exports") + path.sep)) return res.status(403).json({ error: "Invalid export path" });
+      res.download(resolved, `board-${board.id}.${exportRow.format}`);
+    } catch (error: any) { res.status(500).json({ error: error?.message || "Failed to download Board export" }); }
   });
 
   // ── POST /api/boards/:id/reports/:reportId/follow-up — quick-intent chat ──
