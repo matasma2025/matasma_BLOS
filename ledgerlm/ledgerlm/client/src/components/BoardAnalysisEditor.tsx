@@ -214,6 +214,14 @@ export function BoardAnalysisEditor({ open, onOpenChange, board, onReportGenerat
               </div>
             </div>
           )}
+          {hasCube && !hasMapping && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 flex items-start gap-2">
+              <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+              <p className="text-sm text-amber-800">
+                Map the <strong>Actuals</strong> and <strong>Budget</strong> versions in <strong>Edit Board</strong> before generating this report.
+              </p>
+            </div>
+          )}
 
           {/* ── Period picker ──────────────────────────────────────── */}
           <div className="space-y-3">
@@ -450,7 +458,7 @@ export function BoardAnalysisEditor({ open, onOpenChange, board, onReportGenerat
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={runMutation.isPending}>Cancel</Button>
           <Button
             onClick={() => runMutation.mutate()}
-            disabled={runMutation.isPending || !hasCube || months.length === 0 || dimensions.length === 0}
+            disabled={runMutation.isPending || !hasCube || !hasMapping || months.length === 0 || dimensions.length === 0}
             className="gap-2">
             {runMutation.isPending
               ? <><Loader2 className="w-4 h-4 animate-spin"/>Generating…</>
