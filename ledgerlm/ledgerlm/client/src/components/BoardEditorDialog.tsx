@@ -24,7 +24,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Database, ChevronDown } from 'lucide-react';
+import { Loader2, Database, ChevronDown, ChevronLeft, ChevronRight, CalendarDays, Check, Upload } from 'lucide-react';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { useLocation } from 'wouter';
@@ -50,6 +50,10 @@ export function BoardEditorDialog({
   const { toast } = useToast();
   const isEditing = !!board;
   const isFromTemplate = !!template && !board;
+  const templateSlug = template?.slug ?? (board?.settings as any)?.templateKey ?? '';
+  const isKpiTemplate = templateSlug === 'kpi-metrics';
+  const isBalanceSheetTemplate = templateSlug === 'balance-sheet-tracker';
+  const isEntityPnlTemplate = templateSlug === 'entity-pnl';
 
   // ── Accessible cubes ───────────────────────────────────────────────────────
   const { data: cubeAccess } = useQuery<CubeAccess>({
@@ -78,14 +82,34 @@ export function BoardEditorDialog({
         webApis:      src?.dataSources?.webApis      ?? false,
         financialApis: src?.dataSources?.financialApis ?? false,
       },
+      comparisonBasis: src?.boardFlow?.comparisonBasis ?? 'previous-period',
+      scope: {
+        entity: src?.boardFlow?.scope?.entity ?? '',
+        year: src?.boardFlow?.scope?.year ?? String(new Date().getFullYear()),
+        month: src?.boardFlow?.scope?.month ?? String(new Date().getMonth() + 1),
+        forecastScenario: src?.boardFlow?.scope?.forecastScenario ?? 'YTD Forecast',
+      },
+      reportTemplate: src?.boardFlow?.reportTemplate ?? '',
+      schedule: {
+        enabled: false,
+        frequency: 'monthly',
+        interval: 1,
+        intervalUnit: 'months',
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+        startAt: new Date(Date.now() + 60 * 60 * 1000).toISOString().slice(0, 16),
+      },
     };
   };
 
   const [formData, setFormData] = useState(getInitialFormData);
   const [showVersionDropdown, setShowVersionDropdown] = useState(false);
+  const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
 
   useEffect(() => {
-    if (open) setFormData(getInitialFormData());
+    if (open) {
+      setFormData(getInitialFormData());
+      setCurrentStep(1);
+    }
   }, [open, template, board]);
 
   // ── Available versions for selected cube ───────────────────────────────────
@@ -109,12 +133,31 @@ export function BoardEditorDialog({
           cubeId: data.cubeId || undefined,
           columnMapping: data.cubeId ? data.columnMapping : undefined,
           dataSources: data.dataSources,
+          templateKey: templateSlug || undefined,
+          boardFlow: {
+            comparisonBasis: data.comparisonBasis,
+            scope: data.scope,
+            reportTemplate: data.reportTemplate || undefined,
+          },
         },
       };
-      if (isEditing && board) {
-        return apiRequest('PUT', `/api/boards/${board.id}`, payload);
+      const saved = isEditing && board
+        ? await apiRequest('PUT', `/api/boards/${board.id}`, payload) as any
+        : await apiRequest('POST', `/api/boards`, payload) as any;
+      const savedBoardId = saved.id;
+      if (data.schedule.enabled) {
+        await apiRequest('PUT', `/api/boards/${savedBoardId}/schedule`, {
+          enabled: true,
+          frequency: data.schedule.frequency,
+          interval: data.schedule.frequency === 'custom' ? data.schedule.interval : undefined,
+          intervalUnit: data.schedule.frequency === 'custom' ? data.schedule.intervalUnit : undefined,
+          timezone: data.schedule.timezone,
+          startAt: new Date(data.schedule.startAt).toISOString(),
+        });
+      } else if (isEditing && board) {
+        await apiRequest('DELETE', `/api/boards/${board.id}/schedule`);
       }
-      return apiRequest('POST', `/api/boards`, payload);
+      return saved;
     },
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/boards'] });
@@ -134,6 +177,10 @@ export function BoardEditorDialog({
     cubeId: '',
     columnMapping: { actuals: '', budget: '', forecast: '', rollingForecasts: [] },
     dataSources: { enterprise: true, vault: true, webApis: false, financialApis: false },
+    comparisonBasis: 'previous-period',
+    scope: { entity: '', year: String(new Date().getFullYear()), month: String(new Date().getMonth() + 1), forecastScenario: 'YTD Forecast' },
+    reportTemplate: '',
+    schedule: { enabled: false, frequency: 'monthly', interval: 1, intervalUnit: 'months', timezone: 'UTC', startAt: '' },
   });
 
   const setMapping = (field: string, value: string) =>
