@@ -52,12 +52,16 @@ export function BoardCreationWizard({
   resetForm,
 }: BoardCreationWizardProps) {
   const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [templateError, setTemplateError] = useState<string | null>(null);
   const isKpi = templateSlug === 'kpi-metrics';
   const isBalanceSheet = templateSlug === 'balance-sheet-tracker';
   const isEntityPnl = templateSlug === 'entity-pnl';
 
   useEffect(() => {
-    if (open) setStep(1);
+    if (open) {
+      setStep(1);
+      setTemplateError(null);
+    }
   }, [open]);
 
   const update = (patch: Record<string, unknown>) => setFormData((current: any) => ({ ...current, ...patch }));
@@ -84,9 +88,29 @@ export function BoardCreationWizard({
   const loadTextTemplate = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    if (file.size > 100_000) return;
+    const extension = file.name.toLowerCase().slice(file.name.lastIndexOf('.'));
+    const supportedExtensions = new Set(['.txt', '.md', '.csv']);
+    if (!supportedExtensions.has(extension)) {
+      setTemplateError('PowerPoint and other binary files are not supported here. Upload a .txt, .md, or .csv template.');
+      event.target.value = '';
+      return;
+    }
+    if (file.size > 20_000) {
+      setTemplateError('Template files must be 20 KB or smaller.');
+      event.target.value = '';
+      return;
+    }
+    setTemplateError(null);
     const reader = new FileReader();
-    reader.onload = () => update({ reportTemplate: String(reader.result ?? '') });
+    reader.onload = () => {
+      const content = String(reader.result ?? '');
+      if (content.length > 5_000) {
+        setTemplateError('Template content must be 5,000 characters or fewer.');
+        return;
+      }
+      update({ reportTemplate: content });
+    };
+    reader.onerror = () => setTemplateError('The template file could not be read. Try a plain text, Markdown, or CSV file.');
     reader.readAsText(file);
   };
 
@@ -238,8 +262,8 @@ export function BoardCreationWizard({
                       <input type="file" accept=".txt,.md,.csv" className="sr-only" onChange={loadTextTemplate} />
                     </label>
                   </div>
-                  <Textarea id="wizard-report-template" rows={9} value={formData.reportTemplate || ''} onChange={(event) => update({ reportTemplate: event.target.value })} placeholder={'Define how the analysis should be captured — sections, tables, order, tone. e.g.\n\n1. Executive Summary (3 bullets)\n2. Variance Table: Period | Actual | Budget | Var | Var %\n3. Top 3 adverse variances with likely drivers\n4. Recommended actions'} className="font-mono text-xs" />
-                  <p className="text-xs text-muted-foreground">The generated report follows this structure. Text and Markdown templates are supported in this flow.</p>
+                   <Textarea id="wizard-report-template" rows={9} maxLength={5000} value={formData.reportTemplate || ''} onChange={(event) => update({ reportTemplate: event.target.value })} placeholder={'Define how the analysis should be captured — sections, tables, order, tone. e.g.\n\n1. Executive Summary (3 bullets)\n2. Variance Table: Period | Actual | Budget | Var | Var %\n3. Top 3 adverse variances with likely drivers\n4. Recommended actions'} className="font-mono text-xs" />
+                   {templateError ? <p className="text-xs text-destructive" role="alert" data-testid="text-board-template-error">{templateError}</p> : <p className="text-xs text-muted-foreground">The generated report follows this structure. Text and Markdown templates are supported in this flow.</p>}
                 </div>
                 <div className="rounded-lg border p-4 flex items-center justify-between">
                   <div className="flex items-center gap-3"><CalendarDays className="w-5 h-5 text-primary" /><div><p className="text-sm font-medium">Scheduled Run</p><p className="text-xs text-muted-foreground">Automatically run the analysis and file the report under Reports.</p></div></div>
