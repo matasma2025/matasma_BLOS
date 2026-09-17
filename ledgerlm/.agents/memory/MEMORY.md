@@ -1,1 +1,2 @@
 - [queryContext follow-up architecture](querycontext-followups.md) — structured_query from Python saved in msg metadata; follow-ups skip LLM re-parse via pre-parsed context
+- [Boards source safety boundary](boards-source-safety.md) — Vault tabular analysis requires content identity and bounded parsing; unsafe XLSX expansion stays disabled until ZIP limits are enforced
