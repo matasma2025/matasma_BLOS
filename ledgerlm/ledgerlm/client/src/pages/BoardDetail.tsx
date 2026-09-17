@@ -207,41 +207,20 @@ export default function BoardDetail() {
             <Button variant="outline" size="sm" onClick={() => setIsEditDialogOpen(true)} data-testid="button-edit-board">
               Edit Board
             </Button>
-            {hasCube ? (
-              <Button
-                size="sm"
-                className="gap-1.5"
-                onClick={() => setIsAnalysisEditorOpen(true)}
-                data-testid="button-run-analysis"
-              >
-                <Sparkles className="w-4 h-4" />
-                Run Analysis
-              </Button>
-            ) : (
-              <Button
-                size="sm"
-                onClick={() => createChatMutation.mutate()}
-                disabled={createChatMutation.isPending}
-                data-testid="button-new-analysis"
-              >
-                {createChatMutation.isPending ? (
-                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Creating…</>
-                ) : (
-                  <><MessageSquare className="w-4 h-4 mr-2" />New Analysis</>
-                )}
-              </Button>
-            )}
             <Button
-              variant="outline"
               size="sm"
               className="gap-1.5"
-              onClick={() => governedRunMutation.mutate()}
-              disabled={governedRunMutation.isPending || !!activeRunId}
-              data-testid="button-run-governed-analysis"
+              onClick={() => hasCube ? setIsAnalysisEditorOpen(true) : createChatMutation.mutate()}
+              disabled={createChatMutation.isPending || governedRunMutation.isPending || !!activeRunId}
+              data-testid="button-run-analysis"
             >
-              {governedRunMutation.isPending || activeRunId
-                ? <><Loader2 className="w-4 h-4 animate-spin" />{activeRun?.progressStage || 'Running…'}</>
-                : <><ShieldCheck className="w-4 h-4" />Governed Analysis</>}
+              {createChatMutation.isPending || governedRunMutation.isPending || activeRunId ? (
+                <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{activeRun?.progressStage || 'Running…'}</>
+              ) : hasCube ? (
+                <><Sparkles className="w-4 h-4" />Run Analysis</>
+              ) : (
+                <><MessageSquare className="w-4 h-4 mr-2" />New Analysis</>
+              )}
             </Button>
           </div>
         </div>
@@ -251,6 +230,14 @@ export default function BoardDetail() {
           {/* Meta section */}
           <div className="space-y-4">
             <BoardSourceSelector boardId={board.id} />
+            {!hasCube && (
+              <Card className="p-4 border-amber-200 bg-amber-50">
+                <div className="flex items-start gap-2 text-sm text-amber-800">
+                  <ShieldCheck className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                  <p>Select an authorized Enterprise Data cube and map Actuals and Budget in <strong>Edit Board</strong> to use the shared analysis journey for this Board.</p>
+                </div>
+              </Card>
+            )}
             {activeRun && (
               <Card className="p-4 border-primary/30 bg-primary/5">
                 <div className="flex items-center justify-between text-sm">
