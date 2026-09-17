@@ -263,6 +263,7 @@ export function BoardCreationWizard({
           <div className="flex gap-2">
             {step > 1 && <Button type="button" variant="outline" onClick={() => setStep((step - 1) as 1 | 2 | 3)}><ChevronLeft className="w-4 h-4 mr-1" />Back</Button>}
             <Button type="button" variant="outline" onClick={() => close(false)} disabled={saveMutation.isPending}>{step === 3 ? 'Discard' : 'Cancel'}</Button>
+            {step < 3 && <Button type="button" variant="outline" onClick={submit} disabled={saveMutation.isPending || !formData.title.trim()}>{saveMutation.isPending ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Saving…</> : 'Save changes'}</Button>}
             {step < 3 ? <Button type="button" onClick={() => setStep((step + 1) as 1 | 2 | 3)} disabled={step === 1 && !formData.title.trim()}>Next<ChevronRight className="w-4 h-4 ml-1" /></Button> : <Button type="button" onClick={submit} disabled={saveMutation.isPending || !formData.title.trim()}>{saveMutation.isPending ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Saving…</> : isEditing ? 'Save changes' : 'Submit'}</Button>}
           </div>
         </DialogFooter>
