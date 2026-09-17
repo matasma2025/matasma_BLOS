@@ -210,16 +210,14 @@ export default function BoardDetail() {
             <Button
               size="sm"
               className="gap-1.5"
-              onClick={() => hasCube ? setIsAnalysisEditorOpen(true) : createChatMutation.mutate()}
-              disabled={createChatMutation.isPending || governedRunMutation.isPending || !!activeRunId}
+              onClick={() => setIsAnalysisEditorOpen(true)}
+              disabled={governedRunMutation.isPending || !!activeRunId}
               data-testid="button-run-analysis"
             >
-              {createChatMutation.isPending || governedRunMutation.isPending || activeRunId ? (
+              {governedRunMutation.isPending || activeRunId ? (
                 <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{activeRun?.progressStage || 'Running…'}</>
-              ) : hasCube ? (
-                <><Sparkles className="w-4 h-4" />Run Analysis</>
               ) : (
-                <><MessageSquare className="w-4 h-4 mr-2" />New Analysis</>
+                <><Sparkles className="w-4 h-4" />Run Analysis</>
               )}
             </Button>
           </div>
