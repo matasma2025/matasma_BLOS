@@ -1,4 +1,4 @@
-import type { ChangeEvent, Dispatch, SetStateAction } from 'react';
+import { useEffect, useState, type ChangeEvent, type Dispatch, type SetStateAction } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -51,10 +51,14 @@ export function BoardCreationWizard({
   saveMutation,
   resetForm,
 }: BoardCreationWizardProps) {
-  const [step, setStep] = useWizardStep(open);
+  const [step, setStep] = useState<1 | 2 | 3>(1);
   const isKpi = templateSlug === 'kpi-metrics';
   const isBalanceSheet = templateSlug === 'balance-sheet-tracker';
   const isEntityPnl = templateSlug === 'entity-pnl';
+
+  useEffect(() => {
+    if (open) setStep(1);
+  }, [open]);
 
   const update = (patch: Record<string, unknown>) => setFormData((current: any) => ({ ...current, ...patch }));
   const updateScope = (patch: Record<string, unknown>) =>
@@ -265,18 +269,6 @@ export function BoardCreationWizard({
       </DialogContent>
     </Dialog>
   );
-}
-
-function useWizardStep(open: boolean): [1 | 2 | 3, Dispatch<SetStateAction<1 | 2 | 3>>] {
-  const [step, setStep] = requireReactState<1 | 2 | 3>(1);
-  if (!open && step !== 1) setStep(1);
-  return [step, setStep];
-}
-
-function requireReactState<T>(initial: T) {
-  // Kept in a tiny helper so the wizard's step state stays strongly typed.
-  // React is imported lazily by the bundler through this component's hook call.
-  return (globalThis as any).__ledgerlmReactUseState(initial) as [T, Dispatch<SetStateAction<T>>];
 }
 
 function VersionSelectInline({ label, value, versions, onChange }: { label: string; value: string; versions: string[]; onChange: (value: string) => void }) {

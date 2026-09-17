@@ -29,6 +29,7 @@ import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { useLocation } from 'wouter';
 import { type BoardTemplate, type Board } from '@shared/schema';
+import { BoardCreationWizard } from './BoardCreationWizard';
 
 interface Cube { id: string; name: string; description?: string }
 interface CubeAccess { cubes: Cube[] }
@@ -192,6 +193,24 @@ export function BoardEditorDialog({
       const next = cur.includes(v) ? cur.filter((x: string) => x !== v) : [...cur, v];
       return { ...f, columnMapping: { ...f.columnMapping, rollingForecasts: next } };
     });
+
+  return (
+    <BoardCreationWizard
+      open={open}
+      onOpenChange={onOpenChange}
+      isEditing={isEditing}
+      isFromTemplate={isFromTemplate}
+      templateName={template?.name}
+      templateSlug={templateSlug}
+      formData={formData}
+      setFormData={setFormData}
+      cubes={cubes}
+      selectedCube={selectedCube}
+      cubeVersions={cubeVersions}
+      saveMutation={saveMutation}
+      resetForm={resetForm}
+    />
+  );
 
   return (
     <Dialog open={open} onOpenChange={(o) => { onOpenChange(o); if (!o && !isEditing) resetForm(); }}>
