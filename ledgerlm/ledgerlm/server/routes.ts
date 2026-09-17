@@ -3236,46 +3236,19 @@ ${intentDef.question}`;
   // ── POST /api/boards/:id/run-analysis — generate a Smart Board report ─────
   app.post("/api/boards/:id/run-analysis", async (req, res) => {
     try {
-      const userId = (req.session?.userId ?? "");
-      if (!userId) return res.status(401).json({ error: "Unauthorized" });
-
-      const board = await storage.getBoard(req.params.id);
-      if (!board || board.userId !== userId) return res.status(403).json({ error: "Forbidden" });
-
-      const settings = (board.settings as any) ?? {};
-      const cubeId: string = settings.cubeId;
-      if (!cubeId) return res.status(400).json({ error: "No data cube configured on this board. Edit the board and select a cube first." });
-      await assertBoardSourceAccess(userId, { sourceType: "enterprise", cubeId });
-
-      const columnMapping = settings.columnMapping;
-      if (!columnMapping?.actuals || !columnMapping?.budget) {
-        return res.status(400).json({ error: "Column mapping (actuals + budget) is required. Edit the board to configure it." });
+      const { userId } = await requireOwnedBoard(req, req.params.id);
+      const request = boardAnalysisRequestSchema.parse(req.body);
+      const run = await createBoardAnalysisRun({ boardId: req.params.id, userId, request });
+      const completed = await executeBoardAnalysis(run.id);
+      if (!completed.legacyReport) {
+        return res.status(409).json({ error: "The Board analysis did not produce a report" });
       }
-
-      const { year, months, userPromptTemplate, extraContext } = req.body;
-      if (!year || !months?.length) return res.status(400).json({ error: "year and months are required" });
-
-      const domainAiConfig = await resolveDomainAiConfigForUser(userId);
-
-      const dimensions: string[] = req.body.dimensions ?? ['Entity', 'Sector', 'Cost Category'];
-
-      const report = await runBoardAnalysis({
-        boardId:             req.params.id,
-        cubeId,
-        columnMapping,
-        year:                Number(year),
-        months:              (months as number[]).map(Number),
-        dimensions,
-        systemPromptTemplate: settings.analysisPrompts || '',
-        userPromptTemplate:   userPromptTemplate || '',
-        extraContext:         extraContext || '',
-        domainAiConfig,
-      });
-
-      res.status(201).json(report);
+      res.status(201).json(completed.legacyReport);
     } catch (error: any) {
       console.error("run-analysis error:", error);
-      res.status(500).json({ error: error?.message || "Failed to run analysis" });
+      if (error instanceof z.ZodError) return res.status(400).json({ error: "Invalid Board analysis request", details: error.flatten() });
+      res.status(error?.status || (error?.message?.includes("not available") ? 403 : 400))
+        .json({ error: error?.message || "Failed to run analysis" });
     }
   });
 

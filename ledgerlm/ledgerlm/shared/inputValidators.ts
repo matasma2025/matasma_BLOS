@@ -40,6 +40,18 @@ export const safeDisplayText = (label: string, max: number, trim = false) =>
     })
     .refine(isSafeDisplayText, `${label} contains unsafe characters or content`);
 
+const BOARD_PROMPT_PLACEHOLDER = /\{\{(?:#comparison|\/comparison|period|actuals_column|budget_column|forecast_column|variance_table|actuals_table|budget_table|total_actual|total_budget|total_variance|total_variance_pct|top_unfavorable|top_favorable|dimensions|data_rows_count|comparison_period|comparison_table|comparison_total_variance|yoy_change|extra_context)\}\}/g;
+
+export const boardPromptTemplateSchema = z.string()
+  .max(20_000, "Analysis prompt must be at most 20000 characters")
+  .transform((value) => value.normalize("NFC"))
+  .refine((value) => {
+    const withoutKnownPlaceholders = value.replace(BOARD_PROMPT_PLACEHOLDER, "");
+    return !withoutKnownPlaceholders.includes("{{")
+      && !withoutKnownPlaceholders.includes("}}")
+      && isSafeDisplayText(withoutKnownPlaceholders);
+  }, "Analysis prompt contains an unsupported placeholder or unsafe content");
+
 export const boardTitleSchema = z.string()
   .max(200, "Board title must be at most 200 characters")
   .transform((value) => value.normalize("NFC").trim())
@@ -84,24 +96,24 @@ export const createBoardDtoSchema = z.object({
 export const updateBoardDtoSchema = z.object(boardFields).strict()
   .refine((value) => Object.keys(value).length > 0, "At least one board field is required");
 
-export const boardSourceSelectionSchema = z.object({
-  sourceType: z.enum(["enterprise", "vault"]),
-  cubeId: z.string().min(1).max(255).optional(),
-  documentId: z.string().min(1).max(255).optional(),
-  version: safeDisplayText("Source version", 200, true).optional(),
-  entity: safeDisplayText("Source entity", 200, true).optional(),
-}).strict().superRefine((value, context) => {
-  if (value.sourceType === "enterprise" && !value.cubeId) {
-    context.addIssue({ code: z.ZodIssueCode.custom, path: ["cubeId"], message: "cubeId is required for Enterprise Data" });
-  }
-  if (value.sourceType === "vault" && !value.documentId) {
-    context.addIssue({ code: z.ZodIssueCode.custom, path: ["documentId"], message: "documentId is required for Vault" });
-  }
-});
+export const boardSourceSelectionSchema = z.discriminatedUnion("sourceType", [
+  z.object({
+    sourceType: z.literal("enterprise"),
+    cubeId: z.string().min(1).max(255),
+    version: safeDisplayText("Source version", 200, true).optional(),
+    entity: safeDisplayText("Source entity", 200, true).optional(),
+  }).strict(),
+  z.object({
+    sourceType: z.literal("vault"),
+    documentId: z.string().min(1).max(255),
+  }).strict(),
+]);
 
 export const boardKeyColumnSchema = z.object({
   column: safeDisplayText("Column", 200, true),
   label: safeDisplayText("Column label", 200, true),
+  aggregation: z.enum(["sum", "last", "average", "min", "max"]).optional(),
+  valueType: z.enum(["currency", "percentage", "count", "ratio"]).optional(),
   dimension: safeDisplayText("Dimension", 200, true).nullable().optional(),
   dimensionValues: z.array(safeDisplayText("Dimension value", 200, true)).max(200).optional(),
 }).strict();
@@ -109,17 +121,17 @@ export const boardKeyColumnSchema = z.object({
 export const boardAnalysisRequestSchema = z.object({
   year: z.number().int().min(1900).max(2200).optional(),
   months: z.array(z.number().int().min(1).max(12)).max(12).optional(),
-  period: safeDisplayText("Analysis period", 100, true).optional(),
   keyColumns: z.array(boardKeyColumnSchema).max(50).optional(),
-  scopeMode: z.enum(["all", "selected", "exclude"]).optional(),
+  scopeMode: z.enum(["all", "selected", "exclude", "all-except"]).optional(),
   excludedColumns: z.array(safeDisplayText("Excluded column", 200, true)).max(200).optional(),
-  comparisonBasis: z.object({
-    mode: z.enum(["previous", "opening", "year-ago", "specific"]),
-    periods: z.array(safeDisplayText("Comparison period", 100, true)).max(20),
+  comparison: z.object({
+    year: z.number().int().min(1900).max(2200),
+    months: z.array(z.number().int().min(1).max(12)).min(1).max(12),
+    label: safeDisplayText("Comparison label", 200, true).optional(),
   }).strict().optional(),
   sourceSelection: boardSourceSelectionSchema.optional(),
   extraContext: safeDisplayText("Extra context", 10_000).optional(),
-  userPromptTemplate: safeDisplayText("Analysis prompt", 20_000).optional(),
+  userPromptTemplate: boardPromptTemplateSchema.optional(),
   dimensions: z.array(safeDisplayText("Dimension", 100, true)).max(20).optional(),
 }).strict();
 
@@ -128,7 +140,7 @@ export const boardAnalysisConfigSchema = z.object({
   analysisPrompt: safeDisplayText("Analysis prompt", 20_000).nullable().optional(),
   sourceType: z.enum(["enterprise", "vault"]),
   sourceSelection: boardSourceSelectionSchema,
-  scopeMode: z.enum(["all", "selected", "exclude"]).optional(),
+  scopeMode: z.enum(["all", "selected", "exclude", "all-except"]).optional(),
   keyColumns: z.array(boardKeyColumnSchema).max(50).optional(),
   excludedColumns: z.array(safeDisplayText("Excluded column", 200, true)).max(200).optional(),
   timeGranularity: z.enum(["auto", "monthly", "quarterly", "yearly"]).optional(),

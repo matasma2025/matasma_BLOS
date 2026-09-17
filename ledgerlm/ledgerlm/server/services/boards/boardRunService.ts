@@ -14,11 +14,23 @@ import {
   BOARD_FORMULA_ENGINE_VERSION,
   BOARD_RESULT_SCHEMA_VERSION,
 } from "@shared/boards/boardRun";
+import { prepareEnterpriseBoardSource } from "./sources/enterpriseSourceLoader";
+import { createLegacyBoardAnalysisRequest } from "./legacyBoardAnalysisAdapter";
 
 export interface BoardAnalysisRequest {
   year?: number;
   months?: number[];
   dimensions?: string[];
+  keyColumns?: Array<{
+    column: string;
+    label: string;
+    aggregation?: "sum" | "last" | "average" | "min" | "max";
+    valueType?: "currency" | "percentage" | "count" | "ratio";
+    dimension?: string | null;
+    dimensionValues?: string[];
+  }>;
+  scopeMode?: "all" | "selected" | "exclude" | "all-except";
+  excludedColumns?: string[];
   sourceSelection?: BoardSourceSelection;
   extraContext?: string;
   userPromptTemplate?: string;
@@ -27,6 +39,17 @@ export interface BoardAnalysisRequest {
 
 function sourceId(selection: BoardSourceSelection) {
   return selection.sourceType === "enterprise" ? selection.cubeId : selection.documentId;
+}
+
+export function normalizeBoardRunRequest(
+  request: BoardAnalysisRequest,
+  now = new Date(),
+): BoardAnalysisRequest {
+  return {
+    ...request,
+    year: Number(request.year ?? now.getFullYear()),
+    months: (request.months?.length ? request.months : [now.getMonth() + 1]).map(Number),
+  };
 }
 
 export async function getOrCreateBoardAnalysisConfig(boardId: string) {
@@ -80,20 +103,24 @@ export async function createBoardAnalysisRun(params: {
     ?? (config?.sourceConfig as BoardSourceSelection | undefined)
     ?? ((board.settings as any)?.cubeId ? { sourceType: "enterprise", cubeId: (board.settings as any).cubeId } : undefined);
   if (!selection) throw new Error("Select an authorized source before starting an analysis");
+  if (selection.sourceType !== "enterprise") {
+    throw new Error("Vault analysis is not available in this phase; select an authorized Enterprise Data source");
+  }
   await assertBoardSourceAccess(params.userId, selection);
   const source = await getAuthorizedBoardSource(params.userId, selection);
+  const normalizedRequest = normalizeBoardRunRequest(params.request);
   const templateKey = config?.templateKey ?? "variance-analysis";
   const effectiveConfigSnapshot = {
     config: config ?? null,
     boardSettings: board.settings ?? {},
-    request: params.request,
+    request: normalizedRequest,
     sourceSelection: selection,
   };
   const created = await db.insert(boardAnalysisRuns).values({
     boardId: params.boardId,
     requestedBy: params.userId,
     templateKey,
-    requestConfig: params.request,
+    requestConfig: normalizedRequest,
     sourceSnapshot: { id: source.id, name: source.name, sourceType: source.sourceType },
     configSnapshot: effectiveConfigSnapshot,
     resultSchemaVersion: BOARD_RESULT_SCHEMA_VERSION,
@@ -113,6 +140,7 @@ export async function executeBoardAnalysis(runId: string) {
   const board = await storage.getBoard(run.boardId);
   if (!board || board.userId !== run.requestedBy) throw new Error("Board not found");
   const effectiveSnapshot = (run.configSnapshot ?? {}) as {
+    config?: Record<string, unknown> | null;
     boardSettings?: Record<string, unknown>;
     request?: BoardAnalysisRequest;
     sourceSelection?: BoardSourceSelection;
@@ -128,35 +156,39 @@ export async function executeBoardAnalysis(runId: string) {
     if (selection.sourceType !== "enterprise" || !selection.id) {
       throw new Error("Vault analysis is not available for this Board template yet; select an authorized Enterprise Data source.");
     }
-    const sourceSelection = effectiveSnapshot.sourceSelection
-      ?? { sourceType: "enterprise" as const, cubeId: selection.id };
-    await assertBoardSourceAccess(run.requestedBy, sourceSelection);
-    const authorizedSource = await getAuthorizedBoardSource(run.requestedBy, sourceSelection);
-    if (authorizedSource.sourceType !== "enterprise") {
-      throw new Error("Vault analysis is not available for this Board template yet; select an authorized Enterprise Data source.");
+    const sourceSelection = { sourceType: "enterprise" as const, cubeId: selection.id };
+    if (effectiveSnapshot.sourceSelection) {
+      const snapshottedSourceId = sourceId(effectiveSnapshot.sourceSelection);
+      if (effectiveSnapshot.sourceSelection.sourceType !== selection.sourceType || snapshottedSourceId !== selection.id) {
+        throw new Error("Board run source snapshot does not match the queued configuration");
+      }
     }
     const settings = (effectiveSnapshot.boardSettings ?? board.settings ?? {}) as any;
     const mapping = settings.columnMapping;
     if (!mapping?.actuals || !mapping?.budget) {
       throw new Error("Configure actuals and budget versions on the Board before running an Enterprise Data analysis.");
     }
-    const year = Number(request.year ?? new Date().getFullYear());
-    const months = (request.months?.length ? request.months : [new Date().getMonth() + 1]).map(Number);
+    // New runs already contain queue-time normalized periods. This fallback is
+    // retained only for immutable snapshots created before Phase 2.
+    const normalizedRequest = normalizeBoardRunRequest(request);
     await db.update(boardAnalysisRuns).set({ progressPercent: 35, progressStage: "Computing deterministic metrics" })
       .where(eq(boardAnalysisRuns.id, runId));
-    const legacyRequest: AnalysisRequest = {
+    const preparedSource = await prepareEnterpriseBoardSource({
+      userId: run.requestedBy,
+      selection: sourceSelection,
+      config: effectiveSnapshot.config,
+      boardSettings: settings,
+      request: normalizedRequest,
+    });
+    const legacyRequest: AnalysisRequest = createLegacyBoardAnalysisRequest({
       boardId: board.id,
-      cubeId: authorizedSource.id,
-      columnMapping: mapping,
-      year,
-      months,
-      dimensions: request.dimensions ?? settings.defaultDimensions ?? ["Entity", "Sector", "Cost Category"],
-      systemPromptTemplate: settings.analysisPrompts ?? "",
-      userPromptTemplate: request.userPromptTemplate ?? settings.userPromptTemplate ?? "",
-      extraContext: request.extraContext ?? "",
-      comparison: request.comparison,
+      cubeId: preparedSource.source.id,
+      mapping,
+      settings,
+      request: normalizedRequest,
+      plan: preparedSource.plan,
       domainAiConfig: await resolveDomainAiConfigForUser(run.requestedBy),
-    };
+    });
     const legacyReport = await runBoardAnalysis(legacyRequest);
     const currentRun = await db.select({ cancelRequested: boardAnalysisRuns.cancelRequested })
       .from(boardAnalysisRuns).where(eq(boardAnalysisRuns.id, runId)).limit(1);
@@ -181,8 +213,8 @@ export async function executeBoardAnalysis(runId: string) {
       sourceSnapshot: run.sourceSnapshot,
       configSnapshot: run.configSnapshot,
       evidenceManifest: {
-        sourceType: selection.sourceType,
-        sourceIds: selection.id ? [selection.id] : [],
+        sourceType: preparedSource.source.sourceType,
+        sourceIds: [preparedSource.source.id],
         generatedAt: new Date().toISOString(),
       },
       formulaEngineVersion: run.formulaEngineVersion ?? BOARD_FORMULA_ENGINE_VERSION,

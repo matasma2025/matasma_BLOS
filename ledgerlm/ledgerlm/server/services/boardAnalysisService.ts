@@ -34,6 +34,9 @@ export interface AnalysisRequest {
   year: number;
   months: number[];
   dimensions: string[];
+  metricColumn?: string;
+  scopeFilters?: Array<{ dbColumn: string; values: string[] }>;
+  maxGroups?: number;
   systemPromptTemplate: string;
   userPromptTemplate: string;
   extraContext?: string;
@@ -97,6 +100,8 @@ export const DIMENSION_TO_COLUMN: Record<string, string> = {
   'Salary Level':    'salary_level',
   'Cost Center':     'cost_center',
   'Service Area':    'service_area',
+  'Project Type':    'project_type',
+  Customer:          'customer',
 };
 
 // ── Data fetching ─────────────────────────────────────────────────────────────
@@ -107,29 +112,51 @@ async function fetchFactData(
   year: number,
   months: number[],
   dimensions: string[],
+  metricColumn = "amount_usd",
+  scopeFilters: Array<{ dbColumn: string; values: string[] }> = [],
+  maxGroups = 500,
 ): Promise<Record<string, Metrics>> {
   const dbCols = dimensions.map((d) => DIMENSION_TO_COLUMN[d]).filter(Boolean);
-  const groupCols = dbCols.length > 0 ? dbCols : ['region_entity', 'cost_category'];
+  if (dbCols.length === 0) {
+    throw new Error("Board analysis requires at least one permitted Enterprise dimension");
+  }
+  const groupCols = dbCols;
   const selectExpr = groupCols.map((c) => `COALESCE(${c}::text, 'Unknown')`).join(` || ' | ' || `);
   const groupByExpr = groupCols.join(', ');
   const monthsSql = sql.join(months.map((m) => sql`${m}`), sql`, `);
+  const allowedMeasures = new Set(["amount_usd", "amount_inr", "capacity", "billed_capacity", "headcount", "total_hours", "billable_hours"]);
+  const allowedFilterColumns = new Set(Object.values(DIMENSION_TO_COLUMN));
+  if (!allowedMeasures.has(metricColumn)) throw new Error("Unsupported Enterprise measure");
+  if (scopeFilters.some((filter) => !allowedFilterColumns.has(filter.dbColumn))) {
+    throw new Error("Unsupported Enterprise dimension filter");
+  }
+  const filterSql = scopeFilters.length
+    ? sql` AND ${sql.join(scopeFilters.map((filter) => {
+        if (filter.values.length === 0) throw new Error("Dimension filters cannot be empty");
+        return sql`${sql.raw(filter.dbColumn)}::text IN (${sql.join(filter.values.map((value) => sql`${value}`), sql`, `)})`;
+      }), sql` AND `)}`
+    : sql``;
 
   const result = await db.execute(
     sql`SELECT ${sql.raw(selectExpr)} AS dimension_key,
-               COALESCE(SUM(amount_usd::float),      0) AS total_amount_usd,
+               COALESCE(SUM(${sql.raw(metricColumn)}::float), 0) AS total_amount_usd,
                COALESCE(SUM(capacity::float),        0) AS total_capacity,
                COALESCE(SUM(headcount::float),       0) AS total_headcount,
                COALESCE(SUM(billed_capacity::float), 0) AS total_billed_capacity
         FROM cube_fact_data
         WHERE cube_id = ${cubeId} AND version = ${version}
-          AND year = ${year} AND month IN (${monthsSql})
+          AND year = ${year} AND month IN (${monthsSql}) ${filterSql}
         GROUP BY ${sql.raw(groupByExpr)}
         ORDER BY total_amount_usd DESC
-        LIMIT 60`
+        LIMIT ${maxGroups + 1}`
   );
 
   const map: Record<string, Metrics> = {};
-  for (const row of (result.rows ?? result) as unknown as AggRow[]) {
+  const rows = (result.rows ?? result) as unknown as AggRow[];
+  if (rows.length > maxGroups) {
+    throw new Error(`Board scope produces more than ${maxGroups} groups; reduce dimensions or filters`);
+  }
+  for (const row of rows) {
     map[row.dimension_key] = {
       amountUsd:      Number(row.total_amount_usd)      || 0,
       capacity:       Number(row.total_capacity)        || 0,
@@ -284,14 +311,23 @@ export async function runBoardAnalysis(request: AnalysisRequest): Promise<CubeBo
     : null;
 
   const fetches: Promise<Record<string, Metrics>>[] = [
-    fetchFactData(request.cubeId, request.columnMapping.actuals, request.year, request.months, request.dimensions),
-    fetchFactData(request.cubeId, request.columnMapping.budget,  request.year, request.months, request.dimensions),
+    fetchFactData(request.cubeId, request.columnMapping.actuals, request.year, request.months, request.dimensions, request.metricColumn, request.scopeFilters, request.maxGroups),
+    fetchFactData(request.cubeId, request.columnMapping.budget,  request.year, request.months, request.dimensions, request.metricColumn, request.scopeFilters, request.maxGroups),
   ];
   if (request.comparison) {
-    fetches.push(fetchFactData(request.cubeId, request.columnMapping.actuals, request.comparison.year, request.comparison.months, request.dimensions));
-    fetches.push(fetchFactData(request.cubeId, request.columnMapping.budget,  request.comparison.year, request.comparison.months, request.dimensions));
+    fetches.push(fetchFactData(request.cubeId, request.columnMapping.actuals, request.comparison.year, request.comparison.months, request.dimensions, request.metricColumn, request.scopeFilters, request.maxGroups));
+    fetches.push(fetchFactData(request.cubeId, request.columnMapping.budget,  request.comparison.year, request.comparison.months, request.dimensions, request.metricColumn, request.scopeFilters, request.maxGroups));
   }
   const [actualsData, budgetData, compActualsData, compBudgetData] = await Promise.all(fetches);
+  const scopedKeyUniverse = new Set([
+    ...Object.keys(actualsData),
+    ...Object.keys(budgetData),
+    ...Object.keys(compActualsData ?? {}),
+    ...Object.keys(compBudgetData ?? {}),
+  ]);
+  if (scopedKeyUniverse.size > (request.maxGroups ?? 500)) {
+    throw new Error(`Board scope produces more than ${request.maxGroups ?? 500} groups across selected versions; reduce dimensions or filters`);
+  }
 
   // 2. Compute primary variance
   const varianceRows       = computeVariance(actualsData, budgetData);
