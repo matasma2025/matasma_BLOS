@@ -66,6 +66,20 @@ const boardVersionName = safeDisplayText("Board version", 255);
 
 export const boardSettingsSchema = z.object({
   analysisPrompts: boardSettingText.optional(),
+  templateKey: z.enum([
+    "entity-pnl",
+    "kpi-metrics",
+    "variance-analysis",
+    "trend-analysis",
+    "balance-sheet-tracker",
+    "audit-preparation",
+    "cashflow-monitoring",
+    "company-research",
+    "custom-kpi-board",
+    "financial-ratios-dashboard",
+    "investor-updates",
+    "quarterly-pnl-review",
+  ]).optional(),
   cubeId: z.string().uuid("cubeId must be a UUID").optional(),
   columnMapping: z.object({
     actuals: boardVersionName.optional(),
@@ -78,6 +92,21 @@ export const boardSettingsSchema = z.object({
     vault: z.boolean().optional(),
     webApis: z.boolean().optional(),
     financialApis: z.boolean().optional(),
+  }).strict().optional(),
+  boardFlow: z.object({
+    comparisonBasis: z.enum([
+      "previous-period",
+      "same-period-last-year",
+      "opening-position",
+      "specific-period",
+    ]).optional(),
+    scope: z.object({
+      entity: boardVersionName.optional(),
+      year: z.string().regex(/^\d{4}$/, "Scope year must be four digits").optional(),
+      month: z.string().regex(/^(?:[1-9]|1[0-2])$/, "Scope month must be 1-12").optional(),
+      forecastScenario: boardVersionName.optional(),
+    }).strict().optional(),
+    reportTemplate: boardSettingText.optional(),
   }).strict().optional(),
 }).strict();
 
