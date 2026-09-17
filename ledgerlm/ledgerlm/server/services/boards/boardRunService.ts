@@ -10,6 +10,10 @@ import { runBoardAnalysis, type AnalysisRequest } from "../boardAnalysisService"
 import { resolveDomainAiConfigForUser } from "../domainAiConfigService";
 import { assertBoardSourceAccess, type BoardSourceSelection, getAuthorizedBoardSource } from "../boardSourceService";
 import { markdownToBoardAnalysisResult } from "./boardResultSchema";
+import {
+  BOARD_FORMULA_ENGINE_VERSION,
+  BOARD_RESULT_SCHEMA_VERSION,
+} from "@shared/boards/boardRun";
 
 export interface BoardAnalysisRequest {
   year?: number;
@@ -79,12 +83,22 @@ export async function createBoardAnalysisRun(params: {
   await assertBoardSourceAccess(params.userId, selection);
   const source = await getAuthorizedBoardSource(params.userId, selection);
   const templateKey = config?.templateKey ?? "variance-analysis";
+  const effectiveConfigSnapshot = {
+    config: config ?? null,
+    boardSettings: board.settings ?? {},
+    request: params.request,
+    sourceSelection: selection,
+  };
   const created = await db.insert(boardAnalysisRuns).values({
     boardId: params.boardId,
     requestedBy: params.userId,
     templateKey,
     requestConfig: params.request,
     sourceSnapshot: { id: source.id, name: source.name, sourceType: source.sourceType },
+    configSnapshot: effectiveConfigSnapshot,
+    resultSchemaVersion: BOARD_RESULT_SCHEMA_VERSION,
+    formulaEngineVersion: BOARD_FORMULA_ENGINE_VERSION,
+    promptVersion: "legacy-board-prompt-v1",
     status: "queued",
     progressPercent: 0,
     progressStage: "Queued",
@@ -98,7 +112,12 @@ export async function executeBoardAnalysis(runId: string) {
   if (!run) throw new Error("Analysis run not found");
   const board = await storage.getBoard(run.boardId);
   if (!board || board.userId !== run.requestedBy) throw new Error("Board not found");
-  const request = (run.requestConfig ?? {}) as BoardAnalysisRequest;
+  const effectiveSnapshot = (run.configSnapshot ?? {}) as {
+    boardSettings?: Record<string, unknown>;
+    request?: BoardAnalysisRequest;
+    sourceSelection?: BoardSourceSelection;
+  };
+  const request = effectiveSnapshot.request ?? (run.requestConfig ?? {}) as BoardAnalysisRequest;
   const selection = (run.sourceSnapshot ?? {}) as { sourceType?: "enterprise" | "vault"; id?: string };
   await db.update(boardAnalysisRuns).set({
     status: "running", progressPercent: 15, progressStage: "Authorizing source", startedAt: new Date(),
@@ -109,7 +128,14 @@ export async function executeBoardAnalysis(runId: string) {
     if (selection.sourceType !== "enterprise" || !selection.id) {
       throw new Error("Vault analysis is not available for this Board template yet; select an authorized Enterprise Data source.");
     }
-    const settings = (board.settings as any) ?? {};
+    const sourceSelection = effectiveSnapshot.sourceSelection
+      ?? { sourceType: "enterprise" as const, cubeId: selection.id };
+    await assertBoardSourceAccess(run.requestedBy, sourceSelection);
+    const authorizedSource = await getAuthorizedBoardSource(run.requestedBy, sourceSelection);
+    if (authorizedSource.sourceType !== "enterprise") {
+      throw new Error("Vault analysis is not available for this Board template yet; select an authorized Enterprise Data source.");
+    }
+    const settings = (effectiveSnapshot.boardSettings ?? board.settings ?? {}) as any;
     const mapping = settings.columnMapping;
     if (!mapping?.actuals || !mapping?.budget) {
       throw new Error("Configure actuals and budget versions on the Board before running an Enterprise Data analysis.");
@@ -120,7 +146,7 @@ export async function executeBoardAnalysis(runId: string) {
       .where(eq(boardAnalysisRuns.id, runId));
     const legacyRequest: AnalysisRequest = {
       boardId: board.id,
-      cubeId: selection.id,
+      cubeId: authorizedSource.id,
       columnMapping: mapping,
       year,
       months,
@@ -150,9 +176,18 @@ export async function executeBoardAnalysis(runId: string) {
       title: legacyReport.title,
       periodLabel: legacyReport.periodLabel,
       result,
+      schemaVersion: BOARD_RESULT_SCHEMA_VERSION,
       deterministicMetrics: { varianceData: legacyReport.varianceData, dimensions: legacyReport.dimensions },
       sourceSnapshot: run.sourceSnapshot,
-      configSnapshot: (await getOrCreateBoardAnalysisConfig(board.id)) ?? {},
+      configSnapshot: run.configSnapshot,
+      evidenceManifest: {
+        sourceType: selection.sourceType,
+        sourceIds: selection.id ? [selection.id] : [],
+        generatedAt: new Date().toISOString(),
+      },
+      formulaEngineVersion: run.formulaEngineVersion ?? BOARD_FORMULA_ENGINE_VERSION,
+      promptVersion: run.promptVersion ?? "legacy-board-prompt-v1",
+      modelMetadata: {},
       rawModelOutput: legacyReport.rawAnalysis,
       status: "complete",
     }).returning();
@@ -164,6 +199,7 @@ export async function executeBoardAnalysis(runId: string) {
   } catch (error) {
     await db.update(boardAnalysisRuns).set({
       status: "error", progressStage: "Error", errorMessage: error instanceof Error ? error.message : String(error),
+      failureCategory: "analysis_error",
       completedAt: new Date(), durationMs: Date.now() - started,
     }).where(eq(boardAnalysisRuns.id, runId));
     throw error;
@@ -190,6 +226,7 @@ export async function cancelBoardAnalysis(boardId: string, runId: string, userId
   const updated = await db.update(boardAnalysisRuns).set({
     cancelRequested: 1, status: run.status === "queued" ? "cancelled" : "cancel_requested",
     progressStage: "Cancellation requested",
+    cancelRequestedAt: new Date(),
   }).where(eq(boardAnalysisRuns.id, runId)).returning();
   return updated[0];
 }
