@@ -180,7 +180,7 @@ export function BoardEditorDialog({
     columnMapping: { actuals: '', budget: '', forecast: '', rollingForecasts: [] },
     dataSources: { enterprise: true, vault: true, webApis: false, financialApis: false },
     comparisonBasis: 'previous-period',
-    scope: { entity: '', year: String(new Date().getFullYear()), month: String(new Date().getMonth() + 1), forecastScenario: 'YTD Forecast' },
+    scope: { entity: '', version: '', year: String(new Date().getFullYear()), month: String(new Date().getMonth() + 1), forecastScenario: 'YTD Forecast' },
     reportTemplate: '',
     schedule: { enabled: false, frequency: 'monthly', interval: 1, intervalUnit: 'months', timezone: 'UTC', startAt: '' },
   });
