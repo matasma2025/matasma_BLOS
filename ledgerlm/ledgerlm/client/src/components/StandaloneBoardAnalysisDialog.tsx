@@ -14,7 +14,7 @@ interface StandaloneBoardAnalysisDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   board: Board;
-  onRunStarted?: () => void;
+  onRunStarted?: (run: { id: string }) => void;
 }
 
 interface AnalysisConfig {
@@ -97,13 +97,13 @@ export function StandaloneBoardAnalysisDialog({
         excludedColumns: config?.excludedColumns,
         sourceSelection,
         extraContext: extraContext.trim() || undefined,
-      });
+      }) as Promise<{ id: string }>;
     },
-    onSuccess: () => {
+    onSuccess: (run) => {
       queryClient.invalidateQueries({ queryKey: ['/api/boards', board.id, 'analysis-runs'] });
       toast({ title: 'Analysis started', description: `${label} is being prepared.` });
       onOpenChange(false);
-      onRunStarted?.();
+      onRunStarted?.(run);
     },
     onError: (error: Error) => toast({ title: 'Could not start analysis', description: error.message, variant: 'destructive' }),
   });

@@ -160,7 +160,8 @@ export default function BoardDetail() {
       toast({ title: 'Error', description: 'Failed to create analysis chat', variant: 'destructive' }),
   });
 
-  const handleRunStarted = () => {
+  const handleRunStarted = (run: { id: string }) => {
+    setActiveRunId(run.id);
     setActiveTab('reports');
     queryClient.invalidateQueries({ queryKey: ['/api/boards', boardId, 'reports', 'search'] });
   };
