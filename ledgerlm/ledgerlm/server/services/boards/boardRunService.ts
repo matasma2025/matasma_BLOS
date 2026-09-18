@@ -6,7 +6,7 @@ import {
   boardReports,
 } from "@shared/schema";
 import { and, desc, eq } from "drizzle-orm";
-import { runBoardAnalysis, type AnalysisRequest } from "../boardAnalysisService";
+import { getCubeVersions, runBoardAnalysis, type AnalysisRequest } from "../boardAnalysisService";
 import { resolveDomainAiConfigForUser } from "../domainAiConfigService";
 import { assertBoardSourceAccess, type BoardSourceSelection, getAuthorizedBoardSource, getAuthorizedVaultVersion } from "../boardSourceService";
 import { parseBoardAnalysisResult } from "./boardResultSchema";
@@ -112,18 +112,19 @@ export async function createBoardAnalysisRun(params: {
   const board = await storage.getBoard(params.boardId);
   if (!board || board.userId !== params.userId) throw new Error("Board not found");
   const config = await getOrCreateBoardAnalysisConfig(params.boardId);
+  const boardSettings = (board.settings as any) ?? {};
   const selection = params.request.sourceSelection
     ?? (config?.sourceConfig as BoardSourceSelection | undefined)
-    ?? ((board.settings as any)?.cubeId ? { sourceType: "enterprise", cubeId: (board.settings as any).cubeId } : undefined);
+    ?? (boardSettings.cubeId ? { sourceType: "enterprise", cubeId: boardSettings.cubeId } : undefined);
   if (!selection) throw new Error("Select an authorized source before starting an analysis");
   await assertBoardSourceAccess(params.userId, selection);
   const source = await getAuthorizedBoardSource(params.userId, selection);
   const vaultVersion = selection.sourceType === "vault" ? await getAuthorizedVaultVersion(params.userId, selection.documentId) : undefined;
   const normalizedRequest = normalizeBoardRunRequest(params.request);
-  const templateKey = config?.templateKey ?? "variance-analysis";
+  const templateKey = boardSettings.templateKey ?? config?.templateKey ?? "variance-analysis";
   const effectiveConfigSnapshot = {
     config: config ?? null,
-    boardSettings: board.settings ?? {},
+    boardSettings,
     request: normalizedRequest,
     sourceSelection: selection,
   };
@@ -200,8 +201,15 @@ export async function executeBoardAnalysis(runId: string) {
       }
     }
     const settings = (effectiveSnapshot.boardSettings ?? board.settings ?? {}) as any;
-    const mapping = settings.columnMapping;
-    if (!mapping?.actuals || !mapping?.budget) {
+    const mapping = settings.columnMapping ?? {};
+    const standaloneTemplate = ["kpi-metrics", "entity-pnl", "balance-sheet-tracker"].includes(String(run.templateKey));
+    const configuredVersion = settings.boardFlow?.scope?.version || mapping.actuals || mapping.forecast;
+    let standaloneVersion = configuredVersion ? String(configuredVersion) : undefined;
+    if (standaloneTemplate && sourceSelection.sourceType === "enterprise" && !standaloneVersion) {
+      standaloneVersion = (await getCubeVersions(sourceSelection.cubeId))[0];
+      if (!standaloneVersion) throw new Error("The selected Enterprise source has no available data versions");
+    }
+    if (!standaloneTemplate && (!mapping.actuals || !mapping.budget)) {
       throw new Error("Configure actuals and budget versions on the Board before running an Enterprise Data analysis.");
     }
     // New runs already contain queue-time normalized periods. This fallback is
@@ -223,12 +231,14 @@ export async function executeBoardAnalysis(runId: string) {
         boardSettings: settings, request: normalizedRequest,
       });
       deterministic = deterministicAnalysisResultSchema.parse(await executeEnterpriseDeterministicAnalysis({
-        cubeId: preparedSource.source.id, actualVersion: mapping.actuals, budgetVersion: mapping.budget,
+        cubeId: preparedSource.source.id,
+        actualVersion: standaloneTemplate ? standaloneVersion : mapping.actuals,
+        budgetVersion: standaloneTemplate ? standaloneVersion : mapping.budget,
         plan: preparedSource.plan, sourceName: preparedSource.source.name,
       }));
     }
     const primaryMeasure = preparedSource.plan.measures[0];
-    const legacyCompatible = primaryMeasure?.column === "amount_usd"
+    const legacyCompatible = !standaloneTemplate && !!mapping.actuals && !!mapping.budget && primaryMeasure?.column === "amount_usd"
       && primaryMeasure.aggregation === "sum"
       && primaryMeasure.valueType === "currency"
       && preparedSource.plan.measures.length === 1
@@ -256,21 +266,43 @@ export async function executeBoardAnalysis(runId: string) {
     }
     await db.update(boardAnalysisRuns).set({ progressPercent: 85, progressStage: "Persisting report" })
       .where(eq(boardAnalysisRuns.id, runId));
-    const result = parseBoardAnalysisResult({
-        summary: legacyReport?.rawAnalysis?.slice(0, 4_000)
-          || `Deterministic analysis for ${preparedSource.plan.measures.map((measure: { label: string }) => measure.label).join(", ")}.`,
-        kpis: deterministic.measures.map((measure) => ({
+    const result = parseBoardAnalysisResult(standaloneTemplate ? {
+      summary: `Standalone ${run.templateKey} analysis for ${preparedSource.plan.year}.`,
+      kpis: deterministic.measures.map((measure) => ({
+        label: measure.measureId,
+        value: String(measure.actual),
+      })),
+      tables: [{
+        title: "Board metrics",
+        columns: ["Metric", "Value"],
+        rows: deterministic.measures.map((measure) => [measure.measureId, measure.actual]),
+      }],
+      kpiReport: {
+        scope: `${preparedSource.source.name} · ${standaloneVersion ?? "available source data"} · ${preparedSource.plan.year}`,
+        metrics: deterministic.measures.map((measure) => ({
           label: measure.measureId,
-          value: String(measure.actual),
-          change: String(measure.variance),
-          direction: measure.variance === 0 ? "flat" : measure.variance > 0 ? "up" : "down",
+          actual: measure.actual,
+          forecast: null,
+          variance: null,
+          variancePercent: null,
         })),
-        tables: [{
-          title: "Deterministic totals",
-          columns: ["Measure", "Actual", "Budget", "Variance", "Variance %"],
-          rows: deterministic.measures.map((measure) => [measure.measureId, measure.actual, measure.budget, measure.variance, measure.variancePct]),
-        }],
-      });
+        warnings: standaloneVersion ? [] : ["No explicit data version was selected; the first available source version was used."],
+      },
+    } : {
+      summary: legacyReport?.rawAnalysis?.slice(0, 4_000)
+        || `Deterministic analysis for ${preparedSource.plan.measures.map((measure: { label: string }) => measure.label).join(", ")}.`,
+      kpis: deterministic.measures.map((measure) => ({
+        label: measure.measureId,
+        value: String(measure.actual),
+        change: String(measure.variance),
+        direction: measure.variance === 0 ? "flat" : measure.variance > 0 ? "up" : "down",
+      })),
+      tables: [{
+        title: "Deterministic totals",
+        columns: ["Measure", "Actual", "Budget", "Variance", "Variance %"],
+        rows: deterministic.measures.map((measure) => [measure.measureId, measure.actual, measure.budget, measure.variance, measure.variancePct]),
+      }],
+    });
     const created = await db.insert(boardReports).values({
       boardId: board.id,
       runId: run.id,

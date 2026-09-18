@@ -32,7 +32,7 @@ export interface VaultDataset {
 
 export interface VaultAnalysisPlan {
   request: { year?: number; dimensions?: string[]; keyColumns?: Array<{ column: string; label: string; aggregation?: "sum" | "last" | "latest" | "average" | "min" | "max" | "count" | "ratio"; valueType?: "currency" | "percentage" | "count" | "ratio" | "number"; favorability?: "higher-is-favorable" | "lower-is-favorable" | "neutral"; numerator?: string; denominator?: string; dimension?: string | null; dimensionValues?: string[] }>; months?: number[]; comparison?: { year: number; months: number[] } };
-  settings: { columnMapping: { actuals: string; budget: string; forecast?: string }; scopeConfig?: { filters?: Array<{ column?: string; dimension?: string; values?: string[] }> } };
+  settings: { columnMapping?: { actuals?: string; budget?: string; forecast?: string }; scopeConfig?: { filters?: Array<{ column?: string; dimension?: string; values?: string[] }> } };
 }
 
 function uniqueHeader(headers: string[], requested: string): string {
@@ -100,12 +100,15 @@ export function runVaultDeterministicAnalysis(dataset: VaultDataset, plan: Vault
     } else result[measure.id] = measure.aggregation === "count" ? set.length : aggregate(valuesFor(set, measure.column), measure.aggregation);
     return result;
   };
+  const actualVersion = plan.settings.columnMapping?.actuals || String(rows.find((row) => row[versionHeader] != null)?.[versionHeader] ?? "");
+  const budgetVersion = plan.settings.columnMapping?.budget || actualVersion;
+  if (!actualVersion) throw new Error("Vault source does not contain a usable data version");
   const total = (measure: typeof measures[number]) => {
-    const actualSet = sideRows(plan.settings.columnMapping.actuals, period);
-    const budgetSet = sideRows(plan.settings.columnMapping.budget, period);
+    const actualSet = sideRows(actualVersion, period);
+    const budgetSet = sideRows(budgetVersion, period);
     const actual = toRecord(actualSet, measure); const budget = toRecord(budgetSet, measure);
-    const comparisonActual = comparison ? toRecord(sideRows(plan.settings.columnMapping.actuals, comparison), measure) : undefined;
-    const comparisonBudget = comparison ? toRecord(sideRows(plan.settings.columnMapping.budget, comparison), measure) : undefined;
+    const comparisonActual = comparison ? toRecord(sideRows(actualVersion, comparison), measure) : undefined;
+    const comparisonBudget = comparison ? toRecord(sideRows(budgetVersion, comparison), measure) : undefined;
     return { actual, budget, comparisonActual, comparisonBudget };
   };
   const engineMeasures = measures.map((measure) => ({ id: measure.id, label: measure.label, aggregation: measure.aggregation, valueType: measure.valueType ?? "number", favorability: measure.favorability ?? "neutral", numerator: measure.numerator ? ratioOperandKey(measure.id, "numerator") : undefined, denominator: measure.denominator ? ratioOperandKey(measure.id, "denominator") : undefined, filters: [] }));
@@ -117,11 +120,11 @@ export function runVaultDeterministicAnalysis(dataset: VaultDataset, plan: Vault
   const factRows: DeterministicFactRow[] = Array.from(grouped, ([key, entry]) => {
     const actual: Record<string, number> = {}; const budget: Record<string, number> = {}; const comparisonActual: Record<string, number> = {}; const comparisonBudget: Record<string, number> = {};
     for (const measure of measures) {
-      Object.assign(actual, toRecord(entry.rows.filter((row) => String(row[versionHeader]) === plan.settings.columnMapping.actuals && (!requestedMonths || requestedMonths.has(Number(row[monthHeader])))), measure));
-      Object.assign(budget, toRecord(entry.rows.filter((row) => String(row[versionHeader]) === plan.settings.columnMapping.budget && (!requestedMonths || requestedMonths.has(Number(row[monthHeader])))), measure));
+       Object.assign(actual, toRecord(entry.rows.filter((row) => String(row[versionHeader]) === actualVersion && (!requestedMonths || requestedMonths.has(Number(row[monthHeader])))), measure));
+       Object.assign(budget, toRecord(entry.rows.filter((row) => String(row[versionHeader]) === budgetVersion && (!requestedMonths || requestedMonths.has(Number(row[monthHeader])))), measure));
       if (comparison) {
-        Object.assign(comparisonActual, toRecord(entry.rows.filter((row) => String(row[versionHeader]) === plan.settings.columnMapping.actuals && Number(row[yearHeader]) === comparison.year && comparison.months.includes(Number(row[monthHeader]))), measure));
-        Object.assign(comparisonBudget, toRecord(entry.rows.filter((row) => String(row[versionHeader]) === plan.settings.columnMapping.budget && Number(row[yearHeader]) === comparison.year && comparison.months.includes(Number(row[monthHeader]))), measure));
+         Object.assign(comparisonActual, toRecord(entry.rows.filter((row) => String(row[versionHeader]) === actualVersion && Number(row[yearHeader]) === comparison.year && comparison.months.includes(Number(row[monthHeader]))), measure));
+         Object.assign(comparisonBudget, toRecord(entry.rows.filter((row) => String(row[versionHeader]) === budgetVersion && Number(row[yearHeader]) === comparison.year && comparison.months.includes(Number(row[monthHeader]))), measure));
       }
     }
     return { key, actual, budget, comparisonActual, comparisonBudget };

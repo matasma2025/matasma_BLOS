@@ -3043,7 +3043,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const source = await getAuthorizedBoardSource(userId, selection);
       const existing = await getOrCreateBoardAnalysisConfig(board.id);
       const saved = await saveBoardAnalysisConfig(board.id, {
-        templateKey: existing?.templateKey || "variance-analysis",
+        templateKey: (board.settings as any)?.templateKey || existing?.templateKey || "variance-analysis",
         analysisPrompt: existing?.analysisPrompt,
         sourceType: selection.sourceType,
         sourceSelection: selection,
