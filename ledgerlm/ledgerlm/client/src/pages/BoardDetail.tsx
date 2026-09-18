@@ -12,7 +12,7 @@ import { type Board, type Chat, type CubeBoardReport } from '@shared/schema';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { BoardEditorDialog } from '@/components/BoardEditorDialog';
-import { BoardAnalysisEditor } from '@/components/BoardAnalysisEditor';
+import { StandaloneBoardAnalysisDialog } from '@/components/StandaloneBoardAnalysisDialog';
 import { BoardReport } from '@/components/BoardReport';
 import { BoardSourceSelector } from '@/components/BoardSourceSelector';
 
@@ -36,6 +36,11 @@ interface GenericReport {
     measures?: Array<{ measureId: string; actual: number; budget: number; variance: number; variancePct: number | null; favorable: boolean | null }>;
     contributors?: Array<{ key: string; measures: Array<{ measureId: string; actual: number; variance: number; contribution: number | null }> }>;
     evidence?: Array<{ sourceType: string; sourceId: string; period: string }>;
+  };
+  kpiReport?: {
+    scope?: string;
+    metrics: Array<{ label: string; actual: number | null; forecast?: number | null; variance?: number | null; variancePercent?: number | null }>;
+    warnings?: string[];
   };
   createdAt: string | Date;
 }
@@ -155,9 +160,9 @@ export default function BoardDetail() {
       toast({ title: 'Error', description: 'Failed to create analysis chat', variant: 'destructive' }),
   });
 
-  const handleReportGenerated = (report: CubeBoardReport) => {
+  const handleRunStarted = () => {
     setActiveTab('reports');
-    setOpenReportId(report.id);
+    queryClient.invalidateQueries({ queryKey: ['/api/boards', boardId, 'reports', 'search'] });
   };
 
   if (boardLoading) {
@@ -181,6 +186,8 @@ export default function BoardDetail() {
   }
 
   const boardSettings = board.settings as any ?? {};
+  const boardTemplateKey = boardSettings.templateKey ?? '';
+  const isStandaloneBoard = ['kpi-metrics', 'entity-pnl', 'balance-sheet-tracker'].includes(boardTemplateKey);
   const hasCube = !!boardSettings.cubeId;
   const mapping = boardSettings.columnMapping ?? {};
 
@@ -228,11 +235,11 @@ export default function BoardDetail() {
           {/* Meta section */}
           <div className="space-y-4">
             <BoardSourceSelector boardId={board.id} />
-            {!hasCube && (
+             {!hasCube && !isStandaloneBoard && (
               <Card className="p-4 border-amber-200 bg-amber-50">
                 <div className="flex items-start gap-2 text-sm text-amber-800">
                   <ShieldCheck className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                  <p>Select an authorized Enterprise Data cube and map Actuals and Budget in <strong>Edit Board</strong> to use the shared analysis journey for this Board.</p>
+                   <p>Select an authorized source in the source selector or connect a data source in <strong>Edit Board</strong> before running this Board.</p>
                 </div>
               </Card>
             )}
@@ -266,8 +273,26 @@ export default function BoardDetail() {
               </div>
             )}
 
-            {/* Cube / column-mapping summary */}
-            {hasCube && (
+             {/* Standalone configuration summary */}
+             {isStandaloneBoard && (
+               <div className="rounded-lg border bg-muted/30 p-4 space-y-2">
+                 <div className="flex items-center gap-2">
+                   <Database className="w-4 h-4 text-primary" />
+                   <span className="text-sm font-medium">Standalone Board configuration</span>
+                 </div>
+                 <div className="flex flex-wrap gap-2">
+                   <Badge variant="secondary" className="text-xs">{boardTemplateKey === 'kpi-metrics' ? 'KPI Metrics' : boardTemplateKey === 'entity-pnl' ? 'Entity P&L' : 'Balance Sheet'}</Badge>
+                   {boardSettings.boardFlow?.scope?.version && <Badge variant="outline" className="text-xs">Version · {boardSettings.boardFlow.scope.version}</Badge>}
+                   {boardSettings.boardFlow?.scope?.entity && <Badge variant="outline" className="text-xs">Entity · {boardSettings.boardFlow.scope.entity}</Badge>}
+                 </div>
+                 <p className="text-xs text-muted-foreground">
+                   Runs use the selected authorized source and configured period. Actuals and Budget mappings are not required.
+                 </p>
+               </div>
+             )}
+
+             {/* Legacy compatibility summary */}
+             {!isStandaloneBoard && hasCube && (
               <div className="rounded-lg border bg-muted/30 p-4 space-y-2">
                 <div className="flex items-center gap-2">
                   <Database className="w-4 h-4 text-primary" />
@@ -288,7 +313,7 @@ export default function BoardDetail() {
                   ))}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Click <strong>Run Analysis</strong> to generate an AI-powered BvA variance report.
+                   Click <strong>Run Analysis</strong> to generate the configured Board report.
                 </p>
               </div>
             )}
@@ -315,7 +340,7 @@ export default function BoardDetail() {
           <div className="space-y-4">
             <div className="flex border-b gap-1">
               {([
-                { id: 'reports' as TabId,  label: 'Reports',          icon: BarChart3,    count: reports.length },
+                { id: 'reports' as TabId,  label: 'Reports',          icon: BarChart3,    count: genericReports.length + (isStandaloneBoard ? 0 : reports.length) },
                 { id: 'threads' as TabId,  label: 'Analysis Threads', icon: MessageSquare, count: boardThreads.length },
               ] as { id: TabId; label: string; icon: any; count: number }[]).map((tab) => (
                 <button
@@ -356,7 +381,7 @@ export default function BoardDetail() {
                       </div>
                       <Badge variant="secondary">Governed</Badge>
                     </div>
-                     {report.deterministicMetrics?.measures?.length ? (
+                     {!isStandaloneBoard && report.deterministicMetrics?.measures?.length ? (
                        <div className="space-y-2" aria-label="Verified deterministic metrics">
                          <div className="flex items-center justify-between gap-2">
                            <p className="text-xs font-semibold uppercase tracking-wide text-primary">Verified metrics</p>
@@ -383,6 +408,20 @@ export default function BoardDetail() {
                          <p className="text-[11px] text-muted-foreground">Calculated by the governed deterministic engine. AI narrative below is explanatory only.</p>
                        </div>
                      ) : null}
+                     {isStandaloneBoard && report.kpiReport?.metrics?.length ? (
+                       <div className="space-y-2" aria-label="Board metrics">
+                         <p className="text-xs font-semibold uppercase tracking-wide text-primary">Board metrics</p>
+                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                           {report.kpiReport.metrics.map((metric) => (
+                             <div key={metric.label} className="rounded-md border bg-muted/20 p-3">
+                               <p className="text-xs text-muted-foreground">{metric.label}</p>
+                               <p className="text-lg font-semibold">{metric.actual ?? '—'}</p>
+                               {metric.forecast !== undefined && <p className="text-xs text-muted-foreground">Forecast: {metric.forecast ?? '—'}</p>}
+                             </div>
+                           ))}
+                         </div>
+                       </div>
+                     ) : null}
                     {report.result?.summary && <p className="text-sm whitespace-pre-wrap">{report.result.summary}</p>}
                     {!!report.result?.insights?.length && (
                       <ul className="list-disc pl-5 text-sm text-muted-foreground space-y-1">
@@ -402,18 +441,20 @@ export default function BoardDetail() {
                 {genericReportsLoading && <div className="text-center py-4 text-muted-foreground">Loading governed reports…</div>}
                 {reportsLoading ? (
                   <div className="text-center py-10 text-muted-foreground">Loading reports…</div>
-                ) : reports.length === 0 ? (
+                 ) : (isStandaloneBoard ? genericReports.length === 0 : reports.length === 0) ? (
                   <Card className="p-12 text-center border-dashed">
                     <div className="w-16 h-16 rounded-full bg-muted mx-auto mb-4 flex items-center justify-center">
                       <FileText className="w-8 h-8 text-muted-foreground" />
                     </div>
                     <h3 className="text-lg font-semibold mb-2">No reports yet</h3>
                     <p className="text-sm text-muted-foreground mb-4 max-w-sm mx-auto">
-                      {hasCube
-                        ? 'Click "Run Analysis" to generate an AI-powered Budget vs Actual variance report from your cube data.'
-                        : 'Edit this board and connect a data cube to enable Smart Analysis reports.'}
+                       {isStandaloneBoard
+                         ? 'Click "Run Analysis" to generate a report using this Board’s template, source, and configured scope.'
+                         : hasCube
+                           ? 'Click "Run Analysis" to generate the configured Board report from your source data.'
+                           : 'Edit this board and connect an authorized source to enable analysis reports.'}
                     </p>
-                    {hasCube ? (
+                     {isStandaloneBoard || hasCube ? (
                       <Button onClick={() => setIsAnalysisEditorOpen(true)} className="gap-2">
                         <Sparkles className="w-4 h-4" />
                         Run First Analysis
@@ -427,7 +468,7 @@ export default function BoardDetail() {
                   </Card>
                 ) : (
                   <div className="space-y-4">
-                    {reports.map((report) => (
+                     {reports.map((report) => (
                       <div
                         key={report.id}
                         onClick={() => setOpenReportId(openReportId === report.id ? null : report.id)}
@@ -517,11 +558,11 @@ export default function BoardDetail() {
       />
 
       {isAnalysisEditorOpen && (
-        <BoardAnalysisEditor
+        <StandaloneBoardAnalysisDialog
           open={isAnalysisEditorOpen}
           onOpenChange={setIsAnalysisEditorOpen}
           board={board}
-          onReportGenerated={handleReportGenerated}
+          onRunStarted={handleRunStarted}
         />
       )}
     </div>
