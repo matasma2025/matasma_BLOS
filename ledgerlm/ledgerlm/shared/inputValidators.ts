@@ -102,6 +102,7 @@ export const boardSettingsSchema = z.object({
     ]).optional(),
     scope: z.object({
       entity: boardVersionName.optional(),
+      version: boardVersionName.optional(),
       year: z.string().regex(/^\d{4}$/, "Scope year must be four digits").optional(),
       month: z.string().regex(/^(?:[1-9]|1[0-2])$/, "Scope month must be 1-12").optional(),
       forecastScenario: boardVersionName.optional(),

@@ -86,6 +86,7 @@ export function BoardEditorDialog({
       comparisonBasis: src?.boardFlow?.comparisonBasis ?? 'previous-period',
       scope: {
         entity: src?.boardFlow?.scope?.entity ?? '',
+        version: src?.boardFlow?.scope?.version ?? src?.columnMapping?.actuals ?? '',
         year: src?.boardFlow?.scope?.year ?? String(new Date().getFullYear()),
         month: src?.boardFlow?.scope?.month ?? String(new Date().getMonth() + 1),
         forecastScenario: src?.boardFlow?.scope?.forecastScenario ?? 'YTD Forecast',

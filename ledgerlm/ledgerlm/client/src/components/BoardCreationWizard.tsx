@@ -56,6 +56,7 @@ export function BoardCreationWizard({
   const isKpi = templateSlug === 'kpi-metrics';
   const isBalanceSheet = templateSlug === 'balance-sheet-tracker';
   const isEntityPnl = templateSlug === 'entity-pnl';
+  const isStandaloneTemplate = isKpi || isBalanceSheet || isEntityPnl;
 
   useEffect(() => {
     if (open) {
@@ -226,6 +227,15 @@ export function BoardCreationWizard({
                       <Label className="text-xs">Entity {isKpi || isEntityPnl ? '(optional)' : ''}</Label>
                       <Input value={formData.scope.entity} onChange={(event) => updateScope({ entity: event.target.value })} placeholder="All entities" />
                     </div>
+                    {isStandaloneTemplate && (
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Data version <span className="font-normal text-muted-foreground">(optional)</span></Label>
+                        <select value={formData.scope.version} onChange={(event) => updateScope({ version: event.target.value })} className="w-full h-9 rounded-md border bg-background px-3 text-sm">
+                          <option value="">Use the available source data</option>
+                          {cubeVersions.map((version) => <option key={version} value={version}>{version}</option>)}
+                        </select>
+                      </div>
+                    )}
                     <div className="space-y-1.5">
                       <Label className="text-xs">Year</Label>
                       <select value={formData.scope.year} onChange={(event) => updateScope({ year: event.target.value })} className="w-full h-9 rounded-md border bg-background px-3 text-sm">
@@ -245,7 +255,7 @@ export function BoardCreationWizard({
                       </select>
                     </div>
                   </div>
-                  {formData.cubeId && (
+                  {formData.cubeId && !isStandaloneTemplate && (
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2 border-t">
                       <VersionSelectInline label="Actuals version" value={formData.columnMapping.actuals} versions={cubeVersions} onChange={(value) => update({ columnMapping: { ...formData.columnMapping, actuals: value } })} />
                       <VersionSelectInline label="Budget version" value={formData.columnMapping.budget} versions={cubeVersions} onChange={(value) => update({ columnMapping: { ...formData.columnMapping, budget: value } })} />
