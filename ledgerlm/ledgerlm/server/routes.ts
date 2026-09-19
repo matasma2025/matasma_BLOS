@@ -2996,7 +2996,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const config = await getOrCreateBoardAnalysisConfig(board.id);
       res.json(config ?? {
         boardId: board.id,
-        templateKey: "variance-analysis",
+        templateKey: (board.settings as any)?.templateKey || "variance-analysis",
         sourceType: "enterprise",
         sourceConfig: (board.settings as any)?.cubeId
           ? { sourceType: "enterprise", cubeId: (board.settings as any).cubeId }

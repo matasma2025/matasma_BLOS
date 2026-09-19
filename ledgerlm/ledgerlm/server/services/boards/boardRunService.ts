@@ -202,7 +202,7 @@ export async function executeBoardAnalysis(runId: string) {
     }
     const settings = (effectiveSnapshot.boardSettings ?? board.settings ?? {}) as any;
     const mapping = settings.columnMapping ?? {};
-    const standaloneTemplate = ["kpi-metrics", "entity-pnl", "balance-sheet-tracker"].includes(String(run.templateKey));
+    const standaloneTemplate = String(run.templateKey) !== "variance-analysis" || !mapping.actuals || !mapping.budget;
     const configuredVersion = settings.boardFlow?.scope?.version || mapping.actuals || mapping.forecast;
     let standaloneVersion = configuredVersion ? String(configuredVersion) : undefined;
     if (standaloneTemplate && sourceSelection.sourceType === "enterprise" && !standaloneVersion) {

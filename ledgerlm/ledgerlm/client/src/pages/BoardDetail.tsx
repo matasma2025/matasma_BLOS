@@ -188,9 +188,9 @@ export default function BoardDetail() {
 
   const boardSettings = board.settings as any ?? {};
   const boardTemplateKey = boardSettings.templateKey ?? '';
-  const isStandaloneBoard = ['kpi-metrics', 'entity-pnl', 'balance-sheet-tracker'].includes(boardTemplateKey);
   const hasCube = !!boardSettings.cubeId;
   const mapping = boardSettings.columnMapping ?? {};
+  const isStandaloneBoard = boardTemplateKey !== 'variance-analysis' || !mapping.actuals || !mapping.budget;
 
   return (
     <div className="h-full flex-1 bg-muted/20 p-4 lg:p-6 overflow-hidden">

@@ -56,7 +56,11 @@ export function BoardCreationWizard({
   const isKpi = templateSlug === 'kpi-metrics';
   const isBalanceSheet = templateSlug === 'balance-sheet-tracker';
   const isEntityPnl = templateSlug === 'entity-pnl';
-  const isStandaloneTemplate = isKpi || isBalanceSheet || isEntityPnl;
+  const hasLegacyVarianceConfig = isEditing
+    && templateSlug === 'variance-analysis'
+    && !!formData.columnMapping?.actuals
+    && !!formData.columnMapping?.budget;
+  const isStandaloneTemplate = !hasLegacyVarianceConfig;
 
   useEffect(() => {
     if (open) {
