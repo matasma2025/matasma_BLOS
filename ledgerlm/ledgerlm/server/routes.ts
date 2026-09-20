@@ -117,6 +117,7 @@ import {
   loadVaultBoardDataset,
   computeNextBoardScheduleRun,
 } from "./services/boards/phase4Service";
+import { exportKpiReportPptx } from "./services/boards/kpiPptxExportService";
 import { boardExports, boardSchedules, boardReports } from "@shared/schema";
 import { boardScheduleConfigurationSchema } from "@shared/boards/boardSchedule";
 import {
@@ -3262,13 +3263,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { userId, board } = await requireOwnedBoard(req, req.params.id);
       const format = req.body?.format;
-      if (format !== "csv" && format !== "xlsx") return res.status(400).json({ error: "Only CSV and XLSX exports are supported; PDF is unavailable" });
+      if (format !== "csv" && format !== "xlsx" && format !== "pptx") return res.status(400).json({ error: "Supported exports are CSV, XLSX, and PPTX" });
       const report = (await db.select().from(boardReports).where(and(eq(boardReports.id, req.params.reportId), eq(boardReports.boardId, board.id))).limit(1))[0];
       if (!report) return res.status(404).json({ error: "Report not found" });
       const dir = path.resolve(process.cwd(), "data", "board-exports");
       await fs.mkdir(dir, { recursive: true });
       const id = randomUUID();
-      const bytes = format === "csv" ? exportDeterministicCsv(report.deterministicMetrics) : await exportDeterministicXlsx(report.deterministicMetrics);
+      const bytes = format === "csv"
+        ? exportDeterministicCsv(report.deterministicMetrics)
+        : format === "xlsx"
+          ? await exportDeterministicXlsx(report.deterministicMetrics)
+          : await exportKpiReportPptx(report as any, typeof req.body?.scopeCode === "string" ? req.body.scopeCode : undefined);
       const storageKey = path.join(dir, `${id}.${format}`);
       await fs.writeFile(storageKey, bytes, { flag: "wx" });
        const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);

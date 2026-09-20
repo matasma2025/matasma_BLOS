@@ -1,5 +1,6 @@
 import { Badge } from '@/components/ui/badge';
-import { ShieldCheck, Sparkles } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Download, ShieldCheck, Sparkles } from 'lucide-react';
 
 interface KpiMetric {
   label: string;
@@ -34,6 +35,8 @@ interface KpiTemplateReportProps {
   sourceName?: string;
   templateSource?: string;
   kpiReport: KpiTemplateData;
+  onExport?: (scopeCode?: string) => void;
+  isExporting?: boolean;
 }
 
 const SCOPE_COLORS = [
@@ -68,6 +71,8 @@ export function KpiTemplateReport({
   sourceName,
   templateSource,
   kpiReport,
+  onExport,
+  isExporting = false,
 }: KpiTemplateReportProps) {
   const scopes: KpiScope[] = kpiReport.scopeBadges?.length
     ? kpiReport.scopeBadges
@@ -149,27 +154,56 @@ export function KpiTemplateReport({
             {scopes.map((scope, index) => {
               const colors = SCOPE_COLORS[index % SCOPE_COLORS.length];
               return (
-                <a
+                <div
                   key={`catalog-${scope.id}`}
-                  href={`#kpi-slide-${scope.code.toLowerCase()}`}
-                  className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-left transition-colors hover:bg-slate-100"
+                  className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-left transition-colors hover:bg-slate-100"
                 >
-                  <span
-                    className="flex h-7 w-7 items-center justify-center rounded-md text-[11px] font-bold"
-                    style={{ backgroundColor: colors.soft, color: colors.text }}
-                  >
-                    {index + 1}
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block truncate text-sm font-medium text-slate-800">
-                      Slide {index + 1} · {scope.label}
+                  <a href={`#kpi-slide-${scope.code.toLowerCase()}`} className="flex min-w-0 flex-1 items-center gap-3">
+                    <span
+                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[11px] font-bold"
+                      style={{ backgroundColor: colors.soft, color: colors.text }}
+                    >
+                      {index + 1}
                     </span>
-                    <span className="block text-[11px] text-slate-500">{scope.code} · Rendered KPI section</span>
-                  </span>
-                </a>
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-medium text-slate-800">
+                        Slide {index + 1} · {scope.label}
+                      </span>
+                      <span className="block text-[11px] text-slate-500">{scope.code} · Rendered KPI section</span>
+                    </span>
+                  </a>
+                  {onExport && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 shrink-0 px-2 text-[11px]"
+                      onClick={() => onExport(scope.code)}
+                      disabled={isExporting}
+                      aria-label={`Download ${scope.label} PowerPoint`}
+                    >
+                      <Download className="h-3 w-3" />
+                      PPT
+                    </Button>
+                  )}
+                </div>
               );
             })}
           </div>
+          {onExport && (
+            <div className="mt-3 flex justify-end border-t border-slate-200 pt-3">
+              <Button
+                variant="secondary"
+                size="sm"
+                className="gap-1.5"
+                onClick={() => onExport()}
+                disabled={isExporting}
+                data-testid="button-download-summary-ppt"
+              >
+                <Download className="h-3.5 w-3.5" />
+                {isExporting ? 'Preparing PPT…' : 'Download summary PPT'}
+              </Button>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center justify-between">

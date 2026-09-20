@@ -143,8 +143,11 @@ export default function BoardDetail() {
   });
 
   const exportMutation = useMutation({
-    mutationFn: (input: { reportId: string; format: 'csv' | 'xlsx' }) =>
-      apiRequest('POST', `/api/boards/${board.id}/reports/${input.reportId}/exports`, { format: input.format }) as Promise<{ downloadUrl: string }>,
+    mutationFn: (input: { reportId: string; format: 'csv' | 'xlsx' | 'pptx'; scopeCode?: string }) =>
+      apiRequest('POST', `/api/boards/${board.id}/reports/${input.reportId}/exports`, {
+        format: input.format,
+        ...(input.scopeCode ? { scopeCode: input.scopeCode } : {}),
+      }) as Promise<{ downloadUrl: string }>,
     onSuccess: ({ downloadUrl }) => { window.location.assign(downloadUrl); },
     onError: (error: Error) => toast({ title: 'Export unavailable', description: error.message, variant: 'destructive' }),
   });
@@ -430,6 +433,8 @@ export default function BoardDetail() {
                          sourceName={report.sourceSnapshot?.name}
                          templateSource={templateSource}
                          kpiReport={kpiReport}
+                          onExport={(scopeCode) => exportMutation.mutate({ reportId: report.id, format: 'pptx', scopeCode })}
+                          isExporting={exportMutation.isPending}
                        />
                      ) : null}
                     {report.result?.summary && <p className="text-sm whitespace-pre-wrap">{report.result.summary}</p>}
