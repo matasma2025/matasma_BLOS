@@ -199,6 +199,10 @@ export default function BoardDetail() {
   const hasCube = !!boardSettings.cubeId;
   const mapping = boardSettings.columnMapping ?? {};
   const isStandaloneBoard = boardTemplateKey !== 'variance-analysis' || !mapping.actuals || !mapping.budget;
+  const reportTemplate = typeof boardSettings.boardFlow?.reportTemplate === 'string'
+    ? boardSettings.boardFlow.reportTemplate
+    : '';
+  const templateSource = reportTemplate.match(/^# Source:\s*(.+)$/m)?.[1]?.trim();
 
   return (
     <div className="h-full flex-1 bg-muted/20 p-4 lg:p-6 overflow-hidden">
@@ -424,6 +428,7 @@ export default function BoardDetail() {
                          title={report.title}
                          periodLabel={report.periodLabel}
                          sourceName={report.sourceSnapshot?.name}
+                         templateSource={templateSource}
                          kpiReport={kpiReport}
                        />
                      ) : null}

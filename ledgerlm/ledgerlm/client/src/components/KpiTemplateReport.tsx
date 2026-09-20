@@ -32,6 +32,7 @@ interface KpiTemplateReportProps {
   title: string;
   periodLabel?: string | null;
   sourceName?: string;
+  templateSource?: string;
   kpiReport: KpiTemplateData;
 }
 
@@ -65,6 +66,7 @@ export function KpiTemplateReport({
   title,
   periodLabel,
   sourceName,
+  templateSource,
   kpiReport,
 }: KpiTemplateReportProps) {
   const scopes: KpiScope[] = kpiReport.scopeBadges?.length
@@ -112,6 +114,7 @@ export function KpiTemplateReport({
             Internal · Governed Enterprise Data · KPI Metrics Board
           </span>
           {sourceName && <span>{sourceName}</span>}
+          {templateSource && <span>Template: {templateSource}</span>}
         </div>
       </div>
 
@@ -131,6 +134,44 @@ export function KpiTemplateReport({
       </div>
 
       <div className="space-y-4 p-4 sm:p-6">
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4" data-testid="kpi-report-catalog">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Report catalog</p>
+              <p className="mt-1 text-sm font-medium text-slate-800">Uploaded presentation sections</p>
+              <p className="mt-1 text-xs text-slate-500">
+                Select a section to jump to its rendered report output.
+              </p>
+            </div>
+            <span className="text-xs font-semibold text-slate-500">{scopes.length} slides</span>
+          </div>
+          <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {scopes.map((scope, index) => {
+              const colors = SCOPE_COLORS[index % SCOPE_COLORS.length];
+              return (
+                <a
+                  key={`catalog-${scope.id}`}
+                  href={`#kpi-slide-${scope.code.toLowerCase()}`}
+                  className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-left transition-colors hover:bg-slate-100"
+                >
+                  <span
+                    className="flex h-7 w-7 items-center justify-center rounded-md text-[11px] font-bold"
+                    style={{ backgroundColor: colors.soft, color: colors.text }}
+                  >
+                    {index + 1}
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-medium text-slate-800">
+                      Slide {index + 1} · {scope.label}
+                    </span>
+                    <span className="block text-[11px] text-slate-500">{scope.code} · Rendered KPI section</span>
+                  </span>
+                </a>
+              );
+            })}
+          </div>
+        </div>
+
         <div className="flex items-center justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Business metrics</p>
@@ -145,6 +186,7 @@ export function KpiTemplateReport({
             return (
               <section
                 key={scope.id}
+                id={`kpi-slide-${scope.code.toLowerCase()}`}
                 className="scroll-mt-4 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"
                 style={{ borderTop: `4px solid ${colors.accent}` }}
                 data-testid={`kpi-template-slide-${scope.code}`}
