@@ -1,4 +1,4 @@
-import pptxgen from "pptxgenjs";
+import PptxGenJS from "pptxgenjs";
 
 interface KpiMetric {
   label: string;
@@ -66,8 +66,12 @@ function getScopes(kpiReport: KpiReport): KpiScope[] {
     : [{ id: "aggregate", code: "ALL", label: "All entities", entity: "", metrics: kpiReport.metrics }];
 }
 
+// The development loader exposes the CommonJS package as the default class,
+// while the bundled server can expose a nested default. Normalize both shapes.
+const PptxConstructor = ((PptxGenJS as unknown as { default?: typeof PptxGenJS }).default ?? PptxGenJS);
+
 function addScopeSlide(
-  pptx: pptxgen,
+  pptx: InstanceType<typeof PptxGenJS>,
   report: BoardReportForExport,
   kpiReport: KpiReport,
   scope: KpiScope,
@@ -177,7 +181,7 @@ export async function exportKpiReportPptx(report: BoardReportForExport, scopeCod
     : scopes;
   if (!selectedScopes.length) throw new Error("Requested KPI section was not found");
 
-  const pptx = new pptxgen();
+  const pptx = new PptxConstructor();
   pptx.layout = "LAYOUT_WIDE";
   pptx.author = "LedgerLM";
   pptx.company = "LedgerLM";
