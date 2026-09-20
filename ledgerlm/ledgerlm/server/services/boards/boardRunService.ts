@@ -18,6 +18,7 @@ import { prepareEnterpriseBoardSource } from "./sources/enterpriseSourceLoader";
 import { createLegacyBoardAnalysisRequest } from "./legacyBoardAnalysisAdapter";
 import { executeEnterpriseDeterministicAnalysis } from "./sources/enterpriseDeterministicExecutor";
 import { deterministicAnalysisResultSchema } from "@shared/boards/deterministicAnalysis";
+import { runKpiReport, validateKpiReportRequest } from "../kpiReportService";
 
 export interface BoardAnalysisRequest {
   year?: number;
@@ -219,6 +220,7 @@ export async function executeBoardAnalysis(runId: string) {
       .where(eq(boardAnalysisRuns.id, runId));
     let preparedSource: any;
     let deterministic;
+    let governedKpiReport: Awaited<ReturnType<typeof runKpiReport>> | undefined;
     if (sourceSelection.sourceType === "vault") {
       const { loadVaultBoardDataset, runVaultDeterministicAnalysis, assertVaultIdentity } = await import("./phase4Service");
       const dataset = await loadVaultBoardDataset(run.requestedBy, sourceSelection.documentId);
@@ -226,16 +228,64 @@ export async function executeBoardAnalysis(runId: string) {
       deterministic = runVaultDeterministicAnalysis(dataset, { request: normalizedRequest, settings });
       preparedSource = { source: { id: dataset.documentId, name: dataset.name, sourceType: "vault" }, plan: { year: normalizedRequest.year, measures: (normalizedRequest.keyColumns ?? []).map((key) => ({ column: key.column, label: key.label, aggregation: key.aggregation ?? "sum", valueType: key.valueType ?? "number", filters: [] })) } };
     } else {
-      preparedSource = await prepareEnterpriseBoardSource({
-        userId: run.requestedBy, selection: sourceSelection, config: effectiveSnapshot.config,
-        boardSettings: settings, request: normalizedRequest,
-      });
-      deterministic = deterministicAnalysisResultSchema.parse(await executeEnterpriseDeterministicAnalysis({
-        cubeId: preparedSource.source.id,
-        actualVersion: standaloneTemplate ? standaloneVersion : mapping.actuals,
-        budgetVersion: standaloneTemplate ? standaloneVersion : mapping.budget,
-        plan: preparedSource.plan, sourceName: preparedSource.source.name,
-      }));
+      if (run.templateKey === "kpi-metrics") {
+        const scope = settings.boardFlow?.scope ?? {};
+        governedKpiReport = await runKpiReport(validateKpiReportRequest({
+          cubeId: sourceSelection.cubeId,
+          year: normalizedRequest.year,
+          month: normalizedRequest.months[0],
+          entity: scope.entity,
+          forecastScenario: scope.forecastScenario ?? "YTD Forecast",
+        }));
+        preparedSource = {
+          source: { id: sourceSelection.cubeId, name: source.name, sourceType: "enterprise" },
+          plan: {
+            year: normalizedRequest.year,
+            measures: governedKpiReport.metrics.map((metric) => ({
+              column: metric.id,
+              label: metric.label,
+              aggregation: "sum",
+              valueType: metric.unit === "percent" ? "percentage" : metric.unit === "capacity" ? "count" : "currency",
+              filters: [],
+            })),
+          },
+        };
+        deterministic = {
+          measures: governedKpiReport.metrics.map((metric) => ({
+            measureId: metric.id,
+            actual: metric.actual ?? 0,
+            budget: metric.forecast ?? 0,
+            variance: metric.variance ?? 0,
+            variancePct: metric.variancePercent === null || metric.variancePercent === undefined
+              ? null
+              : metric.variancePercent * 100,
+            favorable: null,
+            contribution: null,
+          })),
+          contributors: [],
+          evidence: [{
+            sourceId: sourceSelection.cubeId,
+            sourceType: "enterprise",
+            queryFingerprint: "governed-kpi-v1",
+            period: governedKpiReport.periodLabel,
+            rowCount: governedKpiReport.metrics.reduce(
+              (count, metric) => count + metric.actualSourceRows,
+              0,
+            ),
+          }],
+        };
+      } else {
+        preparedSource = await prepareEnterpriseBoardSource({
+          userId: run.requestedBy, selection: sourceSelection, config: effectiveSnapshot.config,
+          boardSettings: settings, request: normalizedRequest,
+        });
+        deterministic = deterministicAnalysisResultSchema.parse(await executeEnterpriseDeterministicAnalysis({
+          cubeId: preparedSource.source.id,
+          actualVersion: standaloneTemplate ? standaloneVersion : mapping.actuals,
+          budgetVersion: standaloneTemplate ? standaloneVersion : mapping.budget,
+          plan: preparedSource.plan, sourceName: preparedSource.source.name,
+        }));
+      }
     }
     const primaryMeasure = preparedSource.plan.measures[0];
     const legacyCompatible = !standaloneTemplate && !!mapping.actuals && !!mapping.budget && primaryMeasure?.column === "amount_usd"
@@ -277,7 +327,17 @@ export async function executeBoardAnalysis(runId: string) {
         columns: ["Metric", "Value"],
         rows: deterministic.measures.map((measure) => [measure.measureId, measure.actual]),
       }],
-      kpiReport: {
+      kpiReport: governedKpiReport ? {
+        scope: `${preparedSource.source.name} · ${governedKpiReport.entityLabel} · ${governedKpiReport.periodLabel}`,
+        metrics: governedKpiReport.metrics.map((metric) => ({
+          label: metric.label,
+          actual: metric.actual,
+          forecast: metric.forecast,
+          variance: metric.variance,
+          variancePercent: metric.variancePercent,
+        })),
+        warnings: governedKpiReport.warnings,
+      } : {
         scope: `${preparedSource.source.name} · ${standaloneVersion ?? "available source data"} · ${preparedSource.plan.year}`,
         metrics: deterministic.measures.map((measure) => ({
           label: measure.measureId,
