@@ -4,3 +4,4 @@
 - [Privileged step-up assurance](privileged-step-up-assurance.md) — keep login and admin-action OTP separate; sensitive mutations require recent session-bound proof and active membership
 - [Neon migration statements](neon-migration-statements.md) — execute each DDL/DML command separately; Neon prepared statements reject multi-command SQL
 - [Boards Phase 2 compatibility boundary](boards-phase2-compatibility.md) — governed Enterprise runs preserve the legacy renderer; unsupported metric semantics must fail closed until Phase 3
+- [Standalone Board journey](standalone-board-journey.md) — new Boards do not require Actuals/Budget; retain legacy variance only for existing mapped boards
