@@ -119,8 +119,39 @@ import {
 } from "./services/boards/phase4Service";
 import { boardExports, boardSchedules, boardReports } from "@shared/schema";
 import { boardScheduleConfigurationSchema } from "@shared/boards/boardSchedule";
+import {
+  getKpiReportOptions,
+  runKpiReport,
+  validateKpiReportRequest,
+} from "./services/kpiReportService";
 
 const SUPER_ADMIN_EMAIL = "customer@ledgerlm.ai";
+
+async function getAccessibleKpiCubes(userId: string) {
+  const user = await storage.getUser(userId);
+  if (!user) return [];
+  const membership = await storage.getDomainUserByEmail(user.username.toLowerCase());
+  if (!membership) return [];
+  const accessibleIds = await storage.getAccessibleCubeIds(
+    user.username.toLowerCase(),
+    membership.domainId,
+  );
+  if (!accessibleIds.length) return [];
+  const cubes = await storage.getCubes(membership.domainId);
+  return cubes.filter((cube) =>
+    accessibleIds.includes(cube.id) && (!cube.schemaType || cube.schemaType === "kpi"),
+  );
+}
+
+async function requireKpiCubeAccess(userId: string, cubeId: string) {
+  const cube = (await getAccessibleKpiCubes(userId)).find((candidate) => candidate.id === cubeId);
+  if (!cube) {
+    const error = new Error("You do not have access to this KPI cube");
+    (error as Error & { status?: number }).status = 403;
+    throw error;
+  }
+  return cube;
+}
 
 async function resolveActiveAdmin(userId: string, authenticatedAt?: number) {
   const user = await storage.getUser(userId);
