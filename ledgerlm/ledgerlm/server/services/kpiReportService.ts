@@ -243,7 +243,18 @@ async function runKpiMetricSnapshot(request: KpiReportRequest) {
     `),
     db.execute(sql`
       SELECT
-        SUM(${sql.raw("CASE WHEN ")}${scenario}${sql.raw(" AND ")}${forecastEntity}${sql.raw(" AND upper(regexp_replace(trim(coalesce(page, '')), '\\\\s+', ' ', 'g')) = 'ENTITY' AND lower(trim(coalesce(particulars, ''))) = 'BUDGET (MUSD)' AND lower(trim(coalesce(sub_category, ''))) = 'TOTAL' THEN ")}${sql.raw("CASE WHEN replace(trim(coalesce(cost_value, '')), ',', '') ~ '^-?(?:\\\\d+\\\\.?\\\\d*|\\\\.\\\\d+)$' THEN replace(trim(cost_value), ',', '')::numeric END ELSE NULL END")}${sql.raw(" END")}) AS revenue_value,
+        SUM(CASE
+          WHEN ${scenario}
+            AND ${forecastEntity}
+            AND upper(regexp_replace(trim(coalesce(page, '')), '\\s+', ' ', 'g')) = 'ENTITY'
+            AND lower(trim(coalesce(particulars, ''))) = 'BUDGET (MUSD)'
+            AND lower(trim(coalesce(sub_category, ''))) = 'TOTAL'
+          THEN CASE
+            WHEN replace(trim(coalesce(cost_value, '')), ',', '') ~ '^-?(?:\\d+\\.?\\d*|\\.\\d+)$'
+            THEN replace(trim(cost_value), ',', '')::numeric
+          END
+          ELSE NULL
+        END) AS revenue_value,
         COUNT(*) FILTER (
           WHERE ${scenario}
             AND ${forecastEntity}
