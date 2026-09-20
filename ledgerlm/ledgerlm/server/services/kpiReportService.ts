@@ -254,8 +254,8 @@ async function runKpiMetricSnapshot(request: KpiReportRequest) {
           WHEN ${scenario}
             AND ${forecastEntity}
             AND ${forecastPage}
-            AND lower(trim(coalesce(particulars, ''))) = 'BUDGET (MUSD)'
-            AND lower(trim(coalesce(sub_category, ''))) = 'TOTAL'
+            AND lower(trim(coalesce(particulars, ''))) = 'budget (musd)'
+            AND lower(trim(coalesce(sub_category, ''))) = 'total'
           THEN CASE
             WHEN replace(trim(coalesce(cost_value, '')), ',', '') ~ '^-?(?:\\d+\\.?\\d*|\\.\\d+)$'
             THEN replace(trim(cost_value), ',', '')::numeric
