@@ -188,7 +188,11 @@ export async function executeBoardAnalysis(runId: string) {
     sourceSelection?: BoardSourceSelection;
   };
   const request = effectiveSnapshot.request ?? (run.requestConfig ?? {}) as BoardAnalysisRequest;
-  const selection = (run.sourceSnapshot ?? {}) as { sourceType?: "enterprise" | "vault"; id?: string };
+    const selection = (run.sourceSnapshot ?? {}) as {
+      sourceType?: "enterprise" | "vault";
+      id?: string;
+      name?: string;
+    };
   const started = Date.now();
   try {
     if (!selection.id) throw new Error("Board source snapshot is incomplete");
@@ -238,7 +242,11 @@ export async function executeBoardAnalysis(runId: string) {
           forecastScenario: scope.forecastScenario ?? "YTD Forecast",
         }));
         preparedSource = {
-          source: { id: sourceSelection.cubeId, name: source.name, sourceType: "enterprise" },
+          source: {
+            id: sourceSelection.cubeId,
+            name: selection.name ?? sourceSelection.cubeId,
+            sourceType: "enterprise",
+          },
           plan: {
             year: normalizedRequest.year,
             measures: governedKpiReport.metrics.map((metric) => ({
