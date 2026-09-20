@@ -5,3 +5,4 @@
 - [Neon migration statements](neon-migration-statements.md) — execute each DDL/DML command separately; Neon prepared statements reject multi-command SQL
 - [Boards Phase 2 compatibility boundary](boards-phase2-compatibility.md) — governed Enterprise runs preserve the legacy renderer; unsupported metric semantics must fail closed until Phase 3
 - [Standalone Board journey](standalone-board-journey.md) — new Boards do not require Actuals/Budget; retain legacy variance only for existing mapped boards
+- [Uploaded PPTX fidelity](pptx-template-fidelity.md) — preserve original template bytes; extracted slide text cannot reproduce uploaded layout, theme, or placeholders
