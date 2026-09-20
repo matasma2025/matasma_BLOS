@@ -64,6 +64,7 @@ export async function addBoardPhaseOneFoundation(): Promise<void> {
       completed_at TIMESTAMP
     )
   `);
+  await db.execute(sql`ALTER TABLE board_exports ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP`);
   await db.execute(sql`CREATE INDEX IF NOT EXISTS board_exports_report_idx ON board_exports(report_id)`);
   await db.execute(sql`CREATE INDEX IF NOT EXISTS board_exports_creator_idx ON board_exports(created_by)`);
   await db.execute(sql`CREATE INDEX IF NOT EXISTS board_exports_status_idx ON board_exports(status)`);
