@@ -141,7 +141,7 @@ function replaceTemplateTokens(xml: string, report: BoardReportForExport, kpiRep
   return Object.entries(replacements).reduce(
     (result, [token, value]) => result.split(token).join(escapeXml(value)),
     xml,
-  ).replace(/<p:sldIdLst>[\s\S]*?<\/p:sldIdLst>/, (slideList) => slideList);
+  );
 }
 
 function renderUploadedTemplate(
@@ -174,6 +174,17 @@ function renderUploadedTemplate(
   });
 
   if (slidesToRender.length !== slideNames.length) {
+    const selectedSlideNames = new Set(slidesToRender.map((index) => slideNames[index]));
+    for (const slideName of slideNames) {
+      if (selectedSlideNames.has(slideName)) continue;
+      const slideNumber = slideName.match(/slide(\d+)\.xml$/i)?.[1];
+      delete files[slideName];
+      if (slideNumber) {
+        delete files[`ppt/slides/_rels/slide${slideNumber}.xml.rels`];
+        delete files[`ppt/notesSlides/notesSlide${slideNumber}.xml`];
+        delete files[`ppt/notesSlides/_rels/notesSlide${slideNumber}.xml.rels`];
+      }
+    }
     const presentationName = "ppt/presentation.xml";
     const presentationXml = files[presentationName] ? strFromU8(files[presentationName]) : "";
     if (presentationXml) {
@@ -185,6 +196,26 @@ function renderUploadedTemplate(
           presentationXml.replace(slideListMatch[0], `<p:sldIdLst>${selectedIds.join("")}</p:sldIdLst>`),
         );
       }
+    }
+    const presentationRelsName = "ppt/_rels/presentation.xml.rels";
+    if (files[presentationRelsName]) {
+      const presentationRels = strFromU8(files[presentationRelsName]);
+      files[presentationRelsName] = strToU8(
+        presentationRels.replace(
+          /<Relationship\b[^>]*Target="slides\/slide(\d+)\.xml"[^>]*\/>/g,
+          (relationship, slideNumber) => selectedSlideNames.has(`ppt/slides/slide${slideNumber}.xml`) ? relationship : "",
+        ),
+      );
+    }
+    const contentTypesName = "[Content_Types].xml";
+    if (files[contentTypesName]) {
+      const contentTypes = strFromU8(files[contentTypesName]);
+      files[contentTypesName] = strToU8(
+        contentTypes.replace(
+          /<Override\b[^>]*PartName="\/ppt\/slides\/slide(\d+)\.xml"[^>]*\/>/g,
+          (override, slideNumber) => selectedSlideNames.has(`ppt/slides/slide${slideNumber}.xml`) ? override : "",
+        ),
+      );
     }
     const appName = "docProps/app.xml";
     if (files[appName]) {
