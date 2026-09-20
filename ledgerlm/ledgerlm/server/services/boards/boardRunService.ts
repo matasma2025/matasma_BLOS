@@ -337,12 +337,29 @@ export async function executeBoardAnalysis(runId: string) {
       }],
       kpiReport: governedKpiReport ? {
         scope: `${preparedSource.source.name} · ${governedKpiReport.entityLabel} · ${governedKpiReport.periodLabel}`,
+        periodLabel: governedKpiReport.periodLabel,
+        forecastScenario: governedKpiReport.forecastScenario,
+        actualSourceLabel: governedKpiReport.actualSourceLabel,
+        forecastSourceLabel: governedKpiReport.forecastSourceLabel,
         metrics: governedKpiReport.metrics.map((metric) => ({
           label: metric.label,
           actual: metric.actual,
           forecast: metric.forecast,
           variance: metric.variance,
           variancePercent: metric.variancePercent,
+        })),
+        scopeBadges: governedKpiReport.scopeBadges.map((scope) => ({
+          id: scope.id,
+          code: scope.code,
+          label: scope.label,
+          entity: scope.entity,
+          metrics: scope.metrics.map((metric) => ({
+            label: metric.label,
+            actual: metric.actual,
+            forecast: metric.forecast,
+            variance: metric.variance,
+            variancePercent: metric.variancePercent,
+          })),
         })),
         warnings: governedKpiReport.warnings,
       } : {

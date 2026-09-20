@@ -21,6 +21,22 @@ const chartSchema = z.object({
   config: boundedRecord(z.string().max(200), 50).optional(),
 }).strict();
 
+const kpiMetricSchema = z.object({
+  label: z.string().max(200),
+  actual: z.number().finite().nullable(),
+  forecast: z.number().finite().nullable().optional(),
+  variance: z.number().finite().nullable().optional(),
+  variancePercent: z.number().finite().nullable().optional(),
+}).strict();
+
+const kpiScopeSchema = z.object({
+  id: z.string().max(100),
+  code: z.string().max(20),
+  label: z.string().max(200),
+  entity: z.string().max(200),
+  metrics: z.array(kpiMetricSchema).max(20),
+}).strict();
+
 export const boardAnalysisResultSchema = z.object({
   schemaVersion: z.literal(BOARD_RESULT_SCHEMA_VERSION).default(BOARD_RESULT_SCHEMA_VERSION),
   summary: z.string().max(4_000).default(""),
@@ -55,13 +71,12 @@ export const boardAnalysisResultSchema = z.object({
   }).strict().optional(),
   kpiReport: z.object({
     scope: z.string().max(500).optional(),
-    metrics: z.array(z.object({
-      label: z.string().max(200),
-      actual: z.number().finite().nullable(),
-      forecast: z.number().finite().nullable().optional(),
-      variance: z.number().finite().nullable().optional(),
-      variancePercent: z.number().finite().nullable().optional(),
-    }).strict()).max(100),
+    periodLabel: z.string().max(100).optional(),
+    forecastScenario: z.string().max(100).optional(),
+    actualSourceLabel: z.string().max(300).optional(),
+    forecastSourceLabel: z.string().max(300).optional(),
+    metrics: z.array(kpiMetricSchema).max(100),
+    scopeBadges: z.array(kpiScopeSchema).max(10).optional(),
     warnings: z.array(z.string().max(1_000)).max(100).default([]),
   }).strict().optional(),
 }).strict();
