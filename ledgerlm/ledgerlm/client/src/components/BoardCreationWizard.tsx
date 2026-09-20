@@ -111,7 +111,10 @@ export function BoardCreationWizard({
     if (extension === '.pptx') {
       try {
         const imported = await extractPptxReportTemplate(file);
-        update({ reportTemplate: imported.template });
+        update({
+          reportTemplate: imported.template,
+          reportTemplatePptxBase64: imported.bytesBase64,
+        });
         setTemplateSourceLabel(`PowerPoint template loaded · ${imported.slideCount} slides`);
       } catch (error) {
         setTemplateError(error instanceof Error ? error.message : 'The PowerPoint template could not be read.');
@@ -140,7 +143,7 @@ export function BoardCreationWizard({
         setTemplateImporting(false);
         return;
       }
-      update({ reportTemplate: content });
+      update({ reportTemplate: content, reportTemplatePptxBase64: undefined });
       setTemplateSourceLabel('Text template loaded');
       setTemplateImporting(false);
     };

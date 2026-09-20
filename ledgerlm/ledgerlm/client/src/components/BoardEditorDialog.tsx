@@ -92,6 +92,7 @@ export function BoardEditorDialog({
         forecastScenario: src?.boardFlow?.scope?.forecastScenario ?? 'YTD Forecast',
       },
       reportTemplate: src?.boardFlow?.reportTemplate ?? '',
+      reportTemplatePptxBase64: src?.boardFlow?.reportTemplatePptxBase64 ?? '',
       schedule: {
         enabled: false,
         frequency: 'monthly',
@@ -140,6 +141,7 @@ export function BoardEditorDialog({
             comparisonBasis: data.comparisonBasis,
             scope: data.scope,
             reportTemplate: data.reportTemplate || undefined,
+            reportTemplatePptxBase64: data.reportTemplatePptxBase64 || undefined,
           },
         },
       };

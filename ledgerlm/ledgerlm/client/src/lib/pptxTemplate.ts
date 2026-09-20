@@ -1,4 +1,4 @@
-const MAX_PPTX_BYTES = 10 * 1024 * 1024;
+const MAX_PPTX_BYTES = 5 * 1024 * 1024;
 const MAX_XML_BYTES = 1_000_000;
 const MAX_SLIDES = 20;
 const MAX_TEMPLATE_CHARS = 5_000;
@@ -123,6 +123,15 @@ function slideNumber(name: string) {
   return match ? Number(match[1]) : Number.MAX_SAFE_INTEGER;
 }
 
+function bytesToBase64(bytes: Uint8Array) {
+  let binary = '';
+  const chunkSize = 0x8000;
+  for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(offset, offset + chunkSize));
+  }
+  return btoa(binary);
+}
+
 export async function extractPptxReportTemplate(file: File) {
   if (file.size > MAX_PPTX_BYTES) {
     throw new Error('PowerPoint templates must be 10 MB or smaller.');
@@ -159,5 +168,6 @@ export async function extractPptxReportTemplate(file: File) {
   return {
     template,
     slideCount: entries.length,
+    bytesBase64: bytesToBase64(bytes),
   };
 }

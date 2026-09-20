@@ -118,6 +118,10 @@ export const boardSettingsSchema = z.object({
       forecastScenario: boardVersionName.optional(),
     }).strict().optional(),
     reportTemplate: boardReportTemplate.optional(),
+    reportTemplatePptxBase64: z.string()
+      .max(7_000_000, "PowerPoint template is too large")
+      .regex(/^[A-Za-z0-9+/=]+$/, "PowerPoint template data is invalid")
+      .optional(),
   }).strict().optional(),
 }).strict();
 
