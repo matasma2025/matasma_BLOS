@@ -310,8 +310,7 @@ async function runKpiMetricSnapshot(request: KpiReportRequest) {
             AND replace(trim(coalesce(cost_value, '')), ',', '') ~ '^-?(?:\\d+\\.?\\d*|\\.\\d+)$'
             THEN replace(trim(cost_value), ',', '')::numeric END)
         ) AS capacity_value,
-        COALESCE(
-          COALESCE(NULLIF(COUNT(*) FILTER (WHERE upper(trim(coalesce(plan_type, ''))) IN ('ACTUAL', 'ACTUALS')
+        COALESCE(NULLIF(COUNT(*) FILTER (WHERE upper(trim(coalesce(plan_type, ''))) IN ('ACTUAL', 'ACTUALS')
             AND upper(regexp_replace(trim(coalesce(page, '')), '\\s+', ' ', 'g')) = 'ENTITY VIEW'
             AND lower(trim(coalesce(particulars, ''))) = 'total capacity'
             AND lower(trim(coalesce(sub_category, ''))) = 'end'
