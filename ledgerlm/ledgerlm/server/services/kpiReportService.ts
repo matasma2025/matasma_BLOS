@@ -95,6 +95,12 @@ function forecastEntityPredicate(entity?: string) {
   return sql`upper(trim(coalesce(entity, ''))) NOT IN ('WORLD WIDE', 'WORLWIDE')`;
 }
 
+function forecastPagePredicate(entity?: string) {
+  return isWorldWideEntity(entity)
+    ? sql`upper(trim(coalesce(page, ''))) IN ('ENTITY', 'WORLD WIDE', 'WORLWIDE')`
+    : sql`upper(trim(coalesce(page, ''))) = 'ENTITY'`;
+}
+
 function forecastScenarioPredicate(scenario: string) {
   if (scenario === "YTD Forecast") {
     return sql`lower(trim(plan_type)) = 'ytd forecast'`;
@@ -180,6 +186,7 @@ async function runKpiMetricSnapshot(request: KpiReportRequest) {
   const actualEntity = actualEntityPredicate(request.entity);
   const actualBudgetInclude = actualBudgetIncludePredicate(request.entity);
   const forecastEntity = forecastEntityPredicate(request.entity);
+  const forecastPage = forecastPagePredicate(request.entity);
   const scenario = forecastScenarioPredicate(request.forecastScenario);
 
   const [actualResult, forecastResult] = await Promise.all([
@@ -246,7 +253,7 @@ async function runKpiMetricSnapshot(request: KpiReportRequest) {
         SUM(CASE
           WHEN ${scenario}
             AND ${forecastEntity}
-            AND upper(regexp_replace(trim(coalesce(page, '')), '\\s+', ' ', 'g')) = 'ENTITY'
+            AND ${forecastPage}
             AND lower(trim(coalesce(particulars, ''))) = 'BUDGET (MUSD)'
             AND lower(trim(coalesce(sub_category, ''))) = 'TOTAL'
           THEN CASE
@@ -258,7 +265,7 @@ async function runKpiMetricSnapshot(request: KpiReportRequest) {
         COUNT(*) FILTER (
           WHERE ${scenario}
             AND ${forecastEntity}
-            AND upper(regexp_replace(trim(coalesce(page, '')), '\\s+', ' ', 'g')) = 'ENTITY'
+            AND ${forecastPage}
             AND lower(trim(coalesce(particulars, ''))) = 'budget (musd)'
             AND lower(trim(coalesce(sub_category, ''))) = 'total'
             AND replace(trim(coalesce(cost_value, '')), ',', '') ~ '^-?(?:\\d+\\.?\\d*|\\.\\d+)$'
@@ -297,7 +304,7 @@ async function runKpiMetricSnapshot(request: KpiReportRequest) {
             AND replace(trim(coalesce(cost_value, '')), ',', '') ~ '^-?(?:\\d+\\.?\\d*|\\.\\d+)$'
             THEN replace(trim(cost_value), ',', '')::numeric END),
           SUM(CASE WHEN ${scenario} AND ${forecastEntity}
-            AND upper(regexp_replace(trim(coalesce(page, '')), '\\s+', ' ', 'g')) = 'ENTITY'
+            AND ${forecastPage}
             AND lower(trim(coalesce(particulars, ''))) = 'total capacity'
             AND lower(trim(coalesce(sub_category, ''))) = 'end'
             AND replace(trim(coalesce(cost_value, '')), ',', '') ~ '^-?(?:\\d+\\.?\\d*|\\.\\d+)$'
@@ -310,7 +317,7 @@ async function runKpiMetricSnapshot(request: KpiReportRequest) {
             AND lower(trim(coalesce(sub_category, ''))) = 'end'
             AND replace(trim(coalesce(cost_value, '')), ',', '') ~ '^-?(?:\\d+\\.?\\d*|\\.\\d+)$'),
           COUNT(*) FILTER (WHERE ${scenario} AND ${forecastEntity}
-            AND upper(regexp_replace(trim(coalesce(page, '')), '\\s+', ' ', 'g')) = 'ENTITY'
+            AND ${forecastPage}
             AND lower(trim(coalesce(particulars, ''))) = 'total capacity'
             AND lower(trim(coalesce(sub_category, ''))) = 'end'
             AND replace(trim(coalesce(cost_value, '')), ',', '') ~ '^-?(?:\\d+\\.?\\d*|\\.\\d+)$')
