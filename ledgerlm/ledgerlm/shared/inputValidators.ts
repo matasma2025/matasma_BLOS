@@ -41,6 +41,7 @@ export const safeDisplayText = (label: string, max: number, trim = false) =>
     .refine(isSafeDisplayText, `${label} contains unsafe characters or content`);
 
 const BOARD_PROMPT_PLACEHOLDER = /\{\{(?:#comparison|\/comparison|period|actuals_column|budget_column|forecast_column|variance_table|actuals_table|budget_table|total_actual|total_budget|total_variance|total_variance_pct|top_unfavorable|top_favorable|dimensions|data_rows_count|comparison_period|comparison_table|comparison_total_variance|yoy_change|extra_context)\}\}/g;
+const BOARD_REPORT_PLACEHOLDER = /\{\{[A-Za-z][A-Za-z0-9_.-]{0,127}\}\}/g;
 
 export const boardPromptTemplateSchema = z.string()
   .max(20_000, "Analysis prompt must be at most 20000 characters")
@@ -63,6 +64,15 @@ export const boardDescriptionSchema = safeDisplayText("Board description", 2000,
 
 const boardSettingText = safeDisplayText("Board setting", 5000);
 const boardVersionName = safeDisplayText("Board version", 255);
+const boardReportTemplate = z.string()
+  .max(5_000, "Report template must be at most 5000 characters")
+  .transform((value) => value.normalize("NFC"))
+  .refine((value) => {
+    const withoutNamedPlaceholders = value.replace(BOARD_REPORT_PLACEHOLDER, "");
+    return !withoutNamedPlaceholders.includes("{{")
+      && !withoutNamedPlaceholders.includes("}}")
+      && isSafeDisplayText(withoutNamedPlaceholders);
+  }, "Report template contains an unsupported placeholder or unsafe content");
 
 export const boardSettingsSchema = z.object({
   analysisPrompts: boardSettingText.optional(),
@@ -107,7 +117,7 @@ export const boardSettingsSchema = z.object({
       month: z.string().regex(/^(?:[1-9]|1[0-2])$/, "Scope month must be 1-12").optional(),
       forecastScenario: boardVersionName.optional(),
     }).strict().optional(),
-    reportTemplate: boardSettingText.optional(),
+    reportTemplate: boardReportTemplate.optional(),
   }).strict().optional(),
 }).strict();
 
