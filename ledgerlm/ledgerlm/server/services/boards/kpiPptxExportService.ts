@@ -85,20 +85,37 @@ function findMetric(scope: KpiScope, ...terms: string[]) {
   });
 }
 
-function templateMetricText(metric: KpiMetric | undefined) {
-  if (!metric) return { summary: "—", detail: "No value available" };
-  const detail = [
-    metric.forecast !== undefined && metric.forecast !== null
-      ? `Forecast: ${metricValue(metric, metric.forecast)}`
-      : "",
-    metric.variance !== undefined && metric.variance !== null
-      ? `Variance: ${metricValue(metric, metric.variance)}`
-      : "",
-  ].filter(Boolean).join(" | ");
-  return {
-    summary: metricValue(metric, metric.actual),
-    detail: detail || "No forecast or variance available",
+function templatePeriodLabel(period: string) {
+  const match = period.match(/^([A-Za-z]+)\s+(\d{4})$/);
+  if (!match) return period;
+  const month = new Date(`${match[1]} 1, ${match[2]}`).getMonth() + 1;
+  return `YTD ${String(month).padStart(2, "0")}.${match[2].slice(-2)}`;
+}
+
+function templateMetricText(metric: KpiMetric | undefined, period: string) {
+  if (!metric) return { summary: "", detail: `1) no governed Actual or Forecast value is available for ${period}.` };
+  const label = metric.label.toLowerCase();
+  const display = (value: number | null | undefined) => {
+    const formatted = metricValue(metric, value);
+    return label.includes("capacity") && formatted !== "—" ? `${formatted} HC` : formatted;
   };
+  const actual = metric.actual;
+  const forecast = metric.forecast;
+  const variance = metric.variance;
+  let detail: string;
+  if (actual !== null && actual !== undefined && forecast !== null && forecast !== undefined) {
+    const direction = variance !== null && variance !== undefined && variance >= 0 ? "higher" : "lower";
+    detail = `1) ${period} Actual ${display(actual)} is ${direction} by ${display(Math.abs(variance ?? 0))} compared with Forecast ${display(forecast)}.`;
+  } else if (label.includes("utilization") && actual !== null && actual !== undefined) {
+    detail = `1) ${period} Actual is ${display(actual)}; governed Forecast is unavailable.`;
+  } else if (actual !== null && actual !== undefined) {
+    detail = `1) ${period} Actual ${display(actual)}; governed Forecast is unavailable.`;
+  } else if (forecast !== null && forecast !== undefined) {
+    detail = `1) ${period} Forecast is ${display(forecast)}; governed Actual is unavailable.`;
+  } else {
+    detail = `1) no governed Actual or Forecast value is available for ${period}.`;
+  }
+  return { summary: "", detail };
 }
 
 function templateScopePrefix(scope: KpiScope, index: number) {
@@ -112,12 +129,12 @@ function templateScopePrefix(scope: KpiScope, index: number) {
 
 function replaceTemplateTokens(xml: string, report: BoardReportForExport, kpiReport: KpiReport, scope: KpiScope, index: number, total: number) {
   const prefix = templateScopePrefix(scope, index);
-  const budgetRevenue = templateMetricText(findMetric(scope, "budget", "revenue"));
-  const internalUtilization = templateMetricText(findMetric(scope, "internal utilization", "internal"));
-  const externalUtilization = templateMetricText(findMetric(scope, "external utilization", "external"));
-  const capacity = templateMetricText(findMetric(scope, "capacity"));
-  const source = report.sourceSnapshot?.name ?? "Governed enterprise source";
-  const period = kpiReport.periodLabel ?? report.periodLabel ?? "Selected period";
+  const budgetRevenue = templateMetricText(findMetric(scope, "budget", "revenue"), templatePeriodLabel(kpiReport.periodLabel ?? report.periodLabel ?? "Selected period"));
+  const internalUtilization = templateMetricText(findMetric(scope, "internal utilization", "internal"), templatePeriodLabel(kpiReport.periodLabel ?? report.periodLabel ?? "Selected period"));
+  const externalUtilization = templateMetricText(findMetric(scope, "external utilization", "external"), templatePeriodLabel(kpiReport.periodLabel ?? report.periodLabel ?? "Selected period"));
+  const capacity = templateMetricText(findMetric(scope, "capacity"), templatePeriodLabel(kpiReport.periodLabel ?? report.periodLabel ?? "Selected period"));
+  const source = "Governed green scope";
+  const period = templatePeriodLabel(kpiReport.periodLabel ?? report.periodLabel ?? "Selected period");
   const actualSource = kpiReport.actualSourceLabel ?? "Governed actuals";
   const forecastSource = kpiReport.forecastSourceLabel ?? "Configured forecast";
   const warningText = kpiReport.warnings?.join(" | ") || "None";
