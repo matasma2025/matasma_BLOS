@@ -3779,6 +3779,51 @@ ${intentDef.question}`;
     }
   });
 
+  // ── Governed KPI report routes ────────────────────────────────────────────
+  // KPI cubes are filtered by both the user's domain access and schema type.
+  // The browser receives report metadata and calculated results only; source
+  // rows remain server-side.
+  app.get("/api/kpi-reports/cubes", async (req, res) => {
+    try {
+      const userId = req.session?.userId ?? "";
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      const cubes = await getAccessibleKpiCubes(userId);
+      res.json(cubes.map((cube) => ({
+        id: cube.id,
+        name: cube.name,
+        description: cube.description,
+        sourceType: cube.sourceType,
+        schemaType: cube.schemaType,
+      })));
+    } catch (error: any) {
+      console.error("KPI cube scope error:", error);
+      res.status(500).json({ error: "Failed to load accessible KPI cubes" });
+    }
+  });
+
+  app.get("/api/kpi-reports/cubes/:cubeId/options", async (req, res) => {
+    try {
+      const userId = req.session?.userId ?? "";
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      await requireKpiCubeAccess(userId, req.params.cubeId);
+      res.json(await getKpiReportOptions(req.params.cubeId));
+    } catch (error: any) {
+      res.status(error?.status || 400).json({ error: error?.message || "Failed to load KPI options" });
+    }
+  });
+
+  app.post("/api/kpi-reports/run", async (req, res) => {
+    try {
+      const userId = req.session?.userId ?? "";
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      const request = validateKpiReportRequest(req.body);
+      await requireKpiCubeAccess(userId, request.cubeId);
+      res.json(await runKpiReport(request));
+    } catch (error: any) {
+      res.status(error?.status || 400).json({ error: error?.message || "Failed to run KPI report" });
+    }
+  });
+
   app.get(
     "/api/admin/companies/:companyId/documents",
     requireCompanyAdmin,
