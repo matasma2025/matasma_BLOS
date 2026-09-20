@@ -15,6 +15,7 @@ import { BoardEditorDialog } from '@/components/BoardEditorDialog';
 import { StandaloneBoardAnalysisDialog } from '@/components/StandaloneBoardAnalysisDialog';
 import { BoardReport } from '@/components/BoardReport';
 import { BoardSourceSelector } from '@/components/BoardSourceSelector';
+import { KpiTemplateReport, type KpiTemplateData } from '@/components/KpiTemplateReport';
 
 type TabId = 'reports' | 'threads';
 
@@ -30,18 +31,19 @@ interface GenericReport {
   id: string;
   title: string;
   periodLabel?: string | null;
-  result?: { summary?: string; insights?: string[]; tables?: Array<{ title?: string; columns: string[]; rows: unknown[][] }> };
+  result?: {
+    summary?: string;
+    insights?: string[];
+    tables?: Array<{ title?: string; columns: string[]; rows: unknown[][] }>;
+    kpiReport?: KpiTemplateData;
+  };
   sourceSnapshot?: { name?: string; sourceType?: string };
   deterministicMetrics?: {
     measures?: Array<{ measureId: string; actual: number; budget: number; variance: number; variancePct: number | null; favorable: boolean | null }>;
     contributors?: Array<{ key: string; measures: Array<{ measureId: string; actual: number; variance: number; contribution: number | null }> }>;
     evidence?: Array<{ sourceType: string; sourceId: string; period: string }>;
   };
-  kpiReport?: {
-    scope?: string;
-    metrics: Array<{ label: string; actual: number | null; forecast?: number | null; variance?: number | null; variancePercent?: number | null }>;
-    warnings?: string[];
-  };
+  kpiReport?: KpiTemplateData;
   createdAt: string | Date;
 }
 
@@ -417,19 +419,13 @@ export default function BoardDetail() {
                          <p className="text-[11px] text-muted-foreground">Calculated by the governed deterministic engine. AI narrative below is explanatory only.</p>
                        </div>
                      ) : null}
-                      {isStandaloneBoard && kpiReport?.metrics?.length ? (
-                       <div className="space-y-2" aria-label="Board metrics">
-                         <p className="text-xs font-semibold uppercase tracking-wide text-primary">Board metrics</p>
-                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                            {kpiReport.metrics.map((metric) => (
-                             <div key={metric.label} className="rounded-md border bg-muted/20 p-3">
-                               <p className="text-xs text-muted-foreground">{metric.label}</p>
-                               <p className="text-lg font-semibold">{metric.actual ?? '—'}</p>
-                               {metric.forecast !== undefined && <p className="text-xs text-muted-foreground">Forecast: {metric.forecast ?? '—'}</p>}
-                             </div>
-                           ))}
-                         </div>
-                       </div>
+                     {isStandaloneBoard && kpiReport?.metrics?.length ? (
+                       <KpiTemplateReport
+                         title={report.title}
+                         periodLabel={report.periodLabel}
+                         sourceName={report.sourceSnapshot?.name}
+                         kpiReport={kpiReport}
+                       />
                      ) : null}
                     {report.result?.summary && <p className="text-sm whitespace-pre-wrap">{report.result.summary}</p>}
                     {!!report.result?.insights?.length && (
