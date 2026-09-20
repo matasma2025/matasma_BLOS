@@ -6,3 +6,4 @@
 - [Boards Phase 2 compatibility boundary](boards-phase2-compatibility.md) — governed Enterprise runs preserve the legacy renderer; unsupported metric semantics must fail closed until Phase 3
 - [Standalone Board journey](standalone-board-journey.md) — new Boards do not require Actuals/Budget; retain legacy variance only for existing mapped boards
 - [Uploaded PPTX fidelity](pptx-template-fidelity.md) — preserve original template bytes; extracted slide text cannot reproduce uploaded layout, theme, or placeholders
+- [KPI source normalization](kpi-source-normalization.md) — Anaplan plan totals vary by page label and aggregate counts need zero-safe fallback handling
