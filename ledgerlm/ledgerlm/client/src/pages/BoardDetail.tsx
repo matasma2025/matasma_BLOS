@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { type Board, type Chat, type CubeBoardReport } from '@shared/schema';
 import { apiRequest, queryClient } from '@/lib/queryClient';
+import { fetchApiFile } from '@/lib/apiFiles';
 import { useToast } from '@/hooks/use-toast';
 import { BoardEditorDialog } from '@/components/BoardEditorDialog';
 import { StandaloneBoardAnalysisDialog } from '@/components/StandaloneBoardAnalysisDialog';
@@ -148,7 +149,19 @@ export default function BoardDetail() {
         format: input.format,
         ...(input.scopeCode ? { scopeCode: input.scopeCode } : {}),
       }) as Promise<{ downloadUrl: string }>,
-    onSuccess: ({ downloadUrl }) => { window.location.assign(downloadUrl); },
+    onSuccess: async ({ downloadUrl }, input) => {
+      try {
+        await fetchApiFile(downloadUrl, {
+          filename: `board-${board.id}${input.scopeCode ? `-${input.scopeCode}` : '-summary'}.${input.format}`,
+        });
+      } catch (error) {
+        toast({
+          title: 'Download unavailable',
+          description: error instanceof Error ? error.message : 'The exported file could not be downloaded.',
+          variant: 'destructive',
+        });
+      }
+    },
     onError: (error: Error) => toast({ title: 'Export unavailable', description: error.message, variant: 'destructive' }),
   });
 
