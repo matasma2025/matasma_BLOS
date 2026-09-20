@@ -255,7 +255,7 @@ export function BoardCreationWizard({
                     <div className="space-y-1.5">
                       <Label className="text-xs">Forecast scenario</Label>
                       <select value={formData.scope.forecastScenario} onChange={(event) => updateScope({ forecastScenario: event.target.value })} className="w-full h-9 rounded-md border bg-background px-3 text-sm">
-                        {['YTD Forecast', 'Budget', 'Latest Forecast', 'Actuals'].map((scenario) => <option key={scenario}>{scenario}</option>)}
+                        {['YTD Forecast', 'CF02', 'CF05', 'CF09', 'CF11'].map((scenario) => <option key={scenario}>{scenario}</option>)}
                       </select>
                     </div>
                   </div>
