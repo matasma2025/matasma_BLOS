@@ -183,7 +183,7 @@ export async function exportKpiReportPptx(report: BoardReportForExport, scopeCod
   pptx.company = "LedgerLM";
   pptx.subject = `${report.title} KPI report`;
   pptx.title = scopeCode ? `${report.title} - ${selectedScopes[0].label}` : report.title;
-  pptx.lang = "en-US";
   selectedScopes.forEach((scope, index) => addScopeSlide(pptx, report, kpiReport, scope, index, selectedScopes.length));
-  return Buffer.from(await pptx.write({ outputType: "nodebuffer" }));
+  const output = await pptx.write({ outputType: "nodebuffer" });
+  return Buffer.isBuffer(output) ? output : Buffer.from(output as Uint8Array);
 }
