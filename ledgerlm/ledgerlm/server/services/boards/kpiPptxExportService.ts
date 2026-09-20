@@ -136,7 +136,7 @@ function replaceTemplateTokens(xml: string, report: BoardReportForExport, kpiRep
     [`{{${prefix}_forecast_source_label}}`]: forecastSource,
     [`{{${prefix}_period_label}}`]: period,
     [`{{${prefix}_warnings}}`]: warningText,
-    "{{entity_label}}": scope.entity || scope.label,
+    [`{{${prefix}_entity_label}}`]: scope.entity || scope.label,
   };
   return Object.entries(replacements).reduce(
     (result, [token, value]) => result.split(token).join(escapeXml(value)),
