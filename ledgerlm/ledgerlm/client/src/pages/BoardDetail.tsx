@@ -54,6 +54,7 @@ export default function BoardDetail() {
   const [activeTab, setActiveTab] = useState<TabId>('reports');
   const [openReportId, setOpenReportId] = useState<string | null>(null);
   const [activeRunId, setActiveRunId] = useState<string | null>(null);
+  const [finishedRunId, setFinishedRunId] = useState<string | null>(null);
 
   const { data: recentRuns = [] } = useQuery<GenericRun[]>({
     queryKey: ['/api/boards', boardId, 'analysis-runs'],
@@ -63,11 +64,11 @@ export default function BoardDetail() {
   });
 
   useEffect(() => {
-    if (!activeRunId) {
+    if (!activeRunId && !finishedRunId) {
       const resumable = recentRuns.find((run) => ['queued', 'running', 'cancel_requested'].includes(run.status));
       if (resumable) setActiveRunId(resumable.id);
     }
-  }, [activeRunId, recentRuns]);
+  }, [activeRunId, finishedRunId, recentRuns]);
 
   const { data: board, isLoading: boardLoading } = useQuery<Board>({
     queryKey: ['/api/boards', boardId],
@@ -107,7 +108,9 @@ export default function BoardDetail() {
       } else if (activeRun.status === 'error') {
         toast({ title: 'Analysis failed', description: activeRun.errorMessage || 'The report could not be generated.', variant: 'destructive' });
       }
+      setFinishedRunId(activeRun.id);
       setActiveRunId(null);
+      queryClient.invalidateQueries({ queryKey: ['/api/boards', boardId, 'analysis-runs'] });
     }
   }, [activeRun, boardId, toast]);
 
@@ -124,7 +127,10 @@ export default function BoardDetail() {
         comparison: config.comparison ?? undefined,
       }) as Promise<GenericRun>;
     },
-    onSuccess: (run) => setActiveRunId(run.id),
+    onSuccess: (run) => {
+      setFinishedRunId(null);
+      setActiveRunId(run.id);
+    },
     onError: (error: Error) => toast({ title: 'Could not start analysis', description: error.message, variant: 'destructive' }),
   });
 
@@ -244,7 +250,7 @@ export default function BoardDetail() {
                 </div>
               </Card>
             )}
-            {activeRun && (
+            {activeRun && activeRunId && (
               <Card className="p-4 border-primary/30 bg-primary/5">
                 <div className="flex items-center justify-between text-sm">
                   <span className="font-medium">{activeRun.progressStage || 'Preparing analysis…'}</span>
@@ -369,7 +375,9 @@ export default function BoardDetail() {
             {/* Reports tab */}
             {activeTab === 'reports' && (
               <div className="space-y-4">
-                {genericReports.map((report) => (
+                {genericReports.map((report) => {
+                  const kpiReport = report.kpiReport ?? report.result?.kpiReport;
+                  return (
                   <Card key={report.id} className="p-5 space-y-3 border-primary/20" data-testid={`card-governed-report-${report.id}`}>
                     <div className="flex items-start justify-between gap-3">
                       <div>
@@ -409,11 +417,11 @@ export default function BoardDetail() {
                          <p className="text-[11px] text-muted-foreground">Calculated by the governed deterministic engine. AI narrative below is explanatory only.</p>
                        </div>
                      ) : null}
-                     {isStandaloneBoard && report.kpiReport?.metrics?.length ? (
+                      {isStandaloneBoard && kpiReport?.metrics?.length ? (
                        <div className="space-y-2" aria-label="Board metrics">
                          <p className="text-xs font-semibold uppercase tracking-wide text-primary">Board metrics</p>
                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                           {report.kpiReport.metrics.map((metric) => (
+                            {kpiReport.metrics.map((metric) => (
                              <div key={metric.label} className="rounded-md border bg-muted/20 p-3">
                                <p className="text-xs text-muted-foreground">{metric.label}</p>
                                <p className="text-lg font-semibold">{metric.actual ?? '—'}</p>
@@ -438,7 +446,8 @@ export default function BoardDetail() {
                       </div>
                     )}
                   </Card>
-                ))}
+                  );
+                })}
                 {genericReportsLoading && <div className="text-center py-4 text-muted-foreground">Loading governed reports…</div>}
                 {reportsLoading ? (
                   <div className="text-center py-10 text-muted-foreground">Loading reports…</div>
