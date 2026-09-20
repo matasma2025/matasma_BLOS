@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { CalendarDays, Check, ChevronLeft, ChevronRight, Database, Loader2, Upload } from 'lucide-react';
+import { extractPptxReportTemplate } from '@/lib/pptxTemplate';
 
 interface BoardCreationWizardProps {
   open: boolean;
@@ -53,6 +54,8 @@ export function BoardCreationWizard({
 }: BoardCreationWizardProps) {
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [templateError, setTemplateError] = useState<string | null>(null);
+  const [templateImporting, setTemplateImporting] = useState(false);
+  const [templateSourceLabel, setTemplateSourceLabel] = useState<string | null>(null);
   const isKpi = templateSlug === 'kpi-metrics';
   const isBalanceSheet = templateSlug === 'balance-sheet-tracker';
   const isEntityPnl = templateSlug === 'entity-pnl';
@@ -66,6 +69,8 @@ export function BoardCreationWizard({
     if (open) {
       setStep(1);
       setTemplateError(null);
+      setTemplateImporting(false);
+      setTemplateSourceLabel(null);
     }
   }, [open]);
 
@@ -90,36 +95,59 @@ export function BoardCreationWizard({
     saveMutation.mutate(formData);
   };
 
-  const loadTextTemplate = (event: ChangeEvent<HTMLInputElement>) => {
+  const loadTextTemplate = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
     const extension = file.name.toLowerCase().slice(file.name.lastIndexOf('.'));
-    const supportedExtensions = new Set(['.txt', '.md', '.csv']);
+    const supportedExtensions = new Set(['.txt', '.md', '.csv', '.pptx']);
     if (!supportedExtensions.has(extension)) {
-      setTemplateError('PowerPoint and other binary files are not supported here. Upload a .txt, .md, or .csv template.');
-      event.target.value = '';
-      return;
-    }
-    if (file.size > 20_000) {
-      setTemplateError('Template files must be 20 KB or smaller.');
+      setTemplateError('Upload a .pptx, .txt, .md, or .csv template.');
       event.target.value = '';
       return;
     }
     setTemplateError(null);
+    setTemplateSourceLabel(null);
+    setTemplateImporting(true);
+    if (extension === '.pptx') {
+      try {
+        const imported = await extractPptxReportTemplate(file);
+        update({ reportTemplate: imported.template });
+        setTemplateSourceLabel(`PowerPoint template loaded · ${imported.slideCount} slides`);
+      } catch (error) {
+        setTemplateError(error instanceof Error ? error.message : 'The PowerPoint template could not be read.');
+      } finally {
+        setTemplateImporting(false);
+        event.target.value = '';
+      }
+      return;
+    }
+    if (file.size > 20_000) {
+      setTemplateError('Text templates must be 20 KB or smaller.');
+      setTemplateImporting(false);
+      event.target.value = '';
+      return;
+    }
     const reader = new FileReader();
     reader.onload = () => {
       const content = String(reader.result ?? '');
       if (content.length > 5_000) {
         setTemplateError('Template content must be 5,000 characters or fewer.');
+        setTemplateImporting(false);
         return;
       }
       if (/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F]/.test(content)) {
         setTemplateError('This file contains binary data. Upload a plain text, Markdown, or CSV template.');
+        setTemplateImporting(false);
         return;
       }
       update({ reportTemplate: content });
+      setTemplateSourceLabel('Text template loaded');
+      setTemplateImporting(false);
     };
-    reader.onerror = () => setTemplateError('The template file could not be read. Try a plain text, Markdown, or CSV file.');
+    reader.onerror = () => {
+      setTemplateError('The template file could not be read. Try a PowerPoint, plain text, Markdown, or CSV file.');
+      setTemplateImporting(false);
+    };
     reader.readAsText(file);
   };
 
@@ -276,12 +304,12 @@ export function BoardCreationWizard({
                   <div className="flex items-center justify-between">
                     <Label htmlFor="wizard-report-template">Report template <span className="font-normal text-muted-foreground">optional</span></Label>
                     <label className="cursor-pointer inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs hover:bg-muted">
-                      <Upload className="w-3.5 h-3.5" /> Upload template file
-                      <input type="file" accept=".txt,.md,.csv" className="sr-only" onChange={loadTextTemplate} />
+                      <Upload className="w-3.5 h-3.5" /> {templateImporting ? 'Loading template…' : 'Upload template file'}
+                      <input type="file" accept=".pptx,.txt,.md,.csv" className="sr-only" onChange={loadTextTemplate} disabled={templateImporting} />
                     </label>
                   </div>
                    <Textarea id="wizard-report-template" rows={9} maxLength={5000} value={formData.reportTemplate || ''} onChange={(event) => update({ reportTemplate: event.target.value })} placeholder={'Define how the analysis should be captured — sections, tables, order, tone. e.g.\n\n1. Executive Summary (3 bullets)\n2. Variance Table: Period | Actual | Budget | Var | Var %\n3. Top 3 adverse variances with likely drivers\n4. Recommended actions'} className="font-mono text-xs" />
-                   {templateError ? <p className="text-xs text-destructive" role="alert" data-testid="text-board-template-error">{templateError}</p> : <p className="text-xs text-muted-foreground">The generated report follows this structure. Text and Markdown templates are supported in this flow.</p>}
+                    {templateError ? <p className="text-xs text-destructive" role="alert" data-testid="text-board-template-error">{templateError}</p> : templateSourceLabel ? <p className="text-xs text-primary" role="status">{templateSourceLabel}. Slide text and placeholders were imported; the original PowerPoint styling is not stored in this text template.</p> : <p className="text-xs text-muted-foreground">The generated report follows this structure. PowerPoint, text, Markdown, and CSV templates are supported in this flow.</p>}
                 </div>
                 <div className="rounded-lg border p-4 flex items-center justify-between">
                   <div className="flex items-center gap-3"><CalendarDays className="w-5 h-5 text-primary" /><div><p className="text-sm font-medium">Scheduled Run</p><p className="text-xs text-muted-foreground">Automatically run the analysis and file the report under Reports.</p></div></div>
