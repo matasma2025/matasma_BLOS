@@ -3266,6 +3266,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (format !== "csv" && format !== "xlsx" && format !== "pptx") return res.status(400).json({ error: "Supported exports are CSV, XLSX, and PPTX" });
       const report = (await db.select().from(boardReports).where(and(eq(boardReports.id, req.params.reportId), eq(boardReports.boardId, board.id))).limit(1))[0];
       if (!report) return res.status(404).json({ error: "Report not found" });
+      const boardSettings = (board.settings ?? {}) as {
+        boardFlow?: { reportTemplatePptxBase64?: string };
+      };
       const dir = path.resolve(process.cwd(), "data", "board-exports");
       await fs.mkdir(dir, { recursive: true });
       const id = randomUUID();
@@ -3273,7 +3276,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ? exportDeterministicCsv(report.deterministicMetrics)
         : format === "xlsx"
           ? await exportDeterministicXlsx(report.deterministicMetrics)
-          : await exportKpiReportPptx(report as any, typeof req.body?.scopeCode === "string" ? req.body.scopeCode : undefined);
+          : await exportKpiReportPptx(
+            report as any,
+            typeof req.body?.scopeCode === "string" ? req.body.scopeCode : undefined,
+            boardSettings.boardFlow?.reportTemplatePptxBase64,
+          );
       const storageKey = path.join(dir, `${id}.${format}`);
       await fs.writeFile(storageKey, bytes, { flag: "wx" });
        const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);

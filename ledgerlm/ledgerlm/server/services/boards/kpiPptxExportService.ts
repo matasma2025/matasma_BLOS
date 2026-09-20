@@ -1,4 +1,5 @@
 import PptxGenJS from "pptxgenjs";
+import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 
 interface KpiMetric {
   label: string;
@@ -34,6 +35,8 @@ interface BoardReportForExport {
   result?: { kpiReport?: KpiReport } | null;
 }
 
+type TemplateZip = Record<string, Uint8Array>;
+
 const SCOPE_COLORS = [
   { accent: "0F766E", soft: "CCFBF1", surface: "F0FDFA", text: "115E59" },
   { accent: "DB2777", soft: "FCE7F3", surface: "FDF2F8", text: "9D174D" },
@@ -64,6 +67,134 @@ function getScopes(kpiReport: KpiReport): KpiScope[] {
   return kpiReport.scopeBadges?.length
     ? kpiReport.scopeBadges
     : [{ id: "aggregate", code: "ALL", label: "All entities", entity: "", metrics: kpiReport.metrics }];
+}
+
+function escapeXml(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
+function findMetric(scope: KpiScope, ...terms: string[]) {
+  return scope.metrics.find((metric) => {
+    const label = metric.label.toLowerCase();
+    return terms.some((term) => label.includes(term));
+  });
+}
+
+function templateMetricText(metric: KpiMetric | undefined) {
+  if (!metric) return { summary: "—", detail: "No value available" };
+  const detail = [
+    metric.forecast !== undefined && metric.forecast !== null
+      ? `Forecast: ${metricValue(metric, metric.forecast)}`
+      : "",
+    metric.variance !== undefined && metric.variance !== null
+      ? `Variance: ${metricValue(metric, metric.variance)}`
+      : "",
+  ].filter(Boolean).join(" | ");
+  return {
+    summary: metricValue(metric, metric.actual),
+    detail: detail || "No forecast or variance available",
+  };
+}
+
+function templateScopePrefix(scope: KpiScope, index: number) {
+  const code = scope.code.toLowerCase();
+  if (code === "ww" || code === "worldwide" || code === "all") return "ww";
+  if (code === "in" || code === "india") return "in";
+  if (code === "vn" || code === "vietnam") return "vn";
+  if (code === "mx" || code === "mexico") return "mx";
+  return ["ww", "in", "vn", "mx"][index] ?? `scope${index + 1}`;
+}
+
+function replaceTemplateTokens(xml: string, report: BoardReportForExport, kpiReport: KpiReport, scope: KpiScope, index: number, total: number) {
+  const prefix = templateScopePrefix(scope, index);
+  const budgetRevenue = templateMetricText(findMetric(scope, "budget", "revenue"));
+  const internalUtilization = templateMetricText(findMetric(scope, "internal utilization", "internal"));
+  const externalUtilization = templateMetricText(findMetric(scope, "external utilization", "external"));
+  const capacity = templateMetricText(findMetric(scope, "capacity"));
+  const source = report.sourceSnapshot?.name ?? "Governed enterprise source";
+  const period = kpiReport.periodLabel ?? report.periodLabel ?? "Selected period";
+  const actualSource = kpiReport.actualSourceLabel ?? "Governed actuals";
+  const forecastSource = kpiReport.forecastSourceLabel ?? "Configured forecast";
+  const warningText = kpiReport.warnings?.join(" | ") || "None";
+  const replacements: Record<string, string> = {
+    "{{report_month}}": period,
+    [`{{${prefix}_budget_revenue_summary}}`]: budgetRevenue.summary,
+    [`{{${prefix}_budget_revenue_detail}}`]: budgetRevenue.detail,
+    [`{{${prefix}_internal_utilization_summary}}`]: internalUtilization.summary,
+    [`{{${prefix}_internal_utilization_detail}}`]: internalUtilization.detail,
+    [`{{${prefix}_external_utilization_summary}}`]: externalUtilization.summary,
+    [`{{${prefix}_external_utilization_detail}}`]: externalUtilization.detail,
+    [`{{${prefix}_capacity_summary}}`]: capacity.summary,
+    [`{{${prefix}_capacity_detail}}`]: capacity.detail,
+    [`{{${prefix}_source_note}}`]: source,
+    [`{{${prefix}_actual_source_label}}`]: actualSource,
+    [`{{${prefix}_forecast_source_label}}`]: forecastSource,
+    [`{{${prefix}_period_label}}`]: period,
+    [`{{${prefix}_warnings}}`]: warningText,
+    "{{entity_label}}": scope.entity || scope.label,
+  };
+  return Object.entries(replacements).reduce(
+    (result, [token, value]) => result.split(token).join(escapeXml(value)),
+    xml,
+  ).replace(/<p:sldIdLst>[\s\S]*?<\/p:sldIdLst>/, (slideList) => slideList);
+}
+
+function renderUploadedTemplate(
+  templateBytesBase64: string,
+  report: BoardReportForExport,
+  kpiReport: KpiReport,
+  scopes: KpiScope[],
+  selectedScopes: KpiScope[],
+) {
+  const templateBytes = Buffer.from(templateBytesBase64, "base64");
+  const files: TemplateZip = unzipSync(new Uint8Array(templateBytes));
+  const slideNames = Object.keys(files)
+    .filter((name) => /^ppt\/slides\/slide\d+\.xml$/i.test(name))
+    .sort((left, right) => Number(left.match(/slide(\d+)/i)?.[1]) - Number(right.match(/slide(\d+)/i)?.[1]));
+  if (!slideNames.length || slideNames.length < selectedScopes.length) {
+    throw new Error("The uploaded PowerPoint template does not contain enough slides for this KPI report");
+  }
+
+  const selectedIndexes = selectedScopes.map((scope) => {
+    const scopeIndex = scopes.indexOf(scope);
+    return scopeIndex >= 0 ? scopeIndex : selectedScopes.indexOf(scope);
+  });
+  const slidesToRender = selectedScopes.map((scope, selectedIndex) => {
+    const sourceIndex = selectedIndexes[selectedIndex];
+    const slideName = slideNames[sourceIndex];
+    if (!slideName) throw new Error("The uploaded PowerPoint template is missing a KPI section slide");
+    const xml = strFromU8(files[slideName]);
+    files[slideName] = strToU8(replaceTemplateTokens(xml, report, kpiReport, scope, sourceIndex, selectedScopes.length));
+    return sourceIndex;
+  });
+
+  if (slidesToRender.length !== slideNames.length) {
+    const presentationName = "ppt/presentation.xml";
+    const presentationXml = files[presentationName] ? strFromU8(files[presentationName]) : "";
+    if (presentationXml) {
+      const slideListMatch = presentationXml.match(/<p:sldIdLst>[\s\S]*?<\/p:sldIdLst>/);
+      const ids = slideListMatch?.[0].match(/<p:sldId\b[^>]*\/>/g) ?? [];
+      const selectedIds = slidesToRender.map((index) => ids[index]).filter(Boolean);
+      if (slideListMatch && selectedIds.length === slidesToRender.length) {
+        files[presentationName] = strToU8(
+          presentationXml.replace(slideListMatch[0], `<p:sldIdLst>${selectedIds.join("")}</p:sldIdLst>`),
+        );
+      }
+    }
+    const appName = "docProps/app.xml";
+    if (files[appName]) {
+      files[appName] = strToU8(
+        strFromU8(files[appName]).replace(/<Slides>\d+<\/Slides>/, `<Slides>${slidesToRender.length}</Slides>`),
+      );
+    }
+  }
+
+  return Buffer.from(zipSync(files));
 }
 
 // The development loader exposes the CommonJS package as the default class,
@@ -173,13 +304,20 @@ function addScopeSlide(
   });
 }
 
-export async function exportKpiReportPptx(report: BoardReportForExport, scopeCode?: string): Promise<Buffer> {
+export async function exportKpiReportPptx(
+  report: BoardReportForExport,
+  scopeCode?: string,
+  templateBytesBase64?: string,
+): Promise<Buffer> {
   const kpiReport = getKpiReport(report);
   const scopes = getScopes(kpiReport);
   const selectedScopes = scopeCode
     ? scopes.filter((scope) => scope.code.toLowerCase() === scopeCode.toLowerCase())
     : scopes;
   if (!selectedScopes.length) throw new Error("Requested KPI section was not found");
+  if (templateBytesBase64) {
+    return renderUploadedTemplate(templateBytesBase64, report, kpiReport, scopes, selectedScopes);
+  }
 
   const pptx = new PptxConstructor();
   pptx.layout = "LAYOUT_WIDE";
