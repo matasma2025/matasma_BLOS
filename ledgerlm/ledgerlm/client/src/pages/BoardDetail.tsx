@@ -485,12 +485,12 @@ export default function BoardDetail() {
 
             {/* Reports tab */}
             {activeTab === 'reports' && (
-              <div className="space-y-4">
+              <div className="flex flex-col gap-4">
                 {activeGenericReport && (() => {
                   const report = activeGenericReport;
                   const kpiReport = reportKpiData(report);
                   return (
-                    <section className="space-y-2" aria-labelledby="active-report-heading">
+                    <section className="order-2 space-y-2" aria-labelledby="active-report-heading">
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Active report</p>
@@ -572,7 +572,7 @@ export default function BoardDetail() {
                 })()}
 
                 {genericReports.length > 1 && (
-                  <Card className="overflow-hidden" data-testid="section-report-history">
+                  <Card className="order-1 overflow-hidden" data-testid="section-report-history">
                     <div className="border-b bg-muted/20 px-4 py-3">
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div className="flex items-center gap-2">
@@ -659,13 +659,13 @@ export default function BoardDetail() {
                 {(genericReportsLoading || (!isStandaloneBoard && reportsLoading))
                   && genericReports.length === 0
                   && (isStandaloneBoard || reports.length === 0) && (
-                  <div className="text-center py-10 text-muted-foreground">Loading reports…</div>
+                  <div className="order-3 text-center py-10 text-muted-foreground">Loading reports…</div>
                 )}
                 {!genericReportsLoading
                   && (isStandaloneBoard || !reportsLoading)
                   && genericReports.length === 0
                   && (isStandaloneBoard || reports.length === 0) && (
-                  <Card className="p-12 text-center border-dashed">
+                  <Card className="order-3 p-12 text-center border-dashed">
                     <div className="w-16 h-16 rounded-full bg-muted mx-auto mb-4 flex items-center justify-center">
                       <FileText className="w-8 h-8 text-muted-foreground" />
                     </div>
