@@ -21,11 +21,17 @@ const chartSchema = z.object({
   config: boundedRecord(z.string().max(200), 50).optional(),
 }).strict();
 
+const kpiComparisonsSchema = z.object({
+  priorYearActual: z.number().finite().nullable(),
+  previousMonthActual: z.number().finite().nullable(),
+}).strict();
+
 const kpiMetricBreakdownSchema = z.object({
   label: z.string().max(100),
   actual: z.number().finite().nullable(),
   forecast: z.number().finite().nullable().optional(),
   variance: z.number().finite().nullable().optional(),
+  comparisons: kpiComparisonsSchema.optional(),
 }).strict();
 
 const kpiMetricSchema = z.object({
@@ -34,6 +40,7 @@ const kpiMetricSchema = z.object({
   forecast: z.number().finite().nullable().optional(),
   variance: z.number().finite().nullable().optional(),
   variancePercent: z.number().finite().nullable().optional(),
+  comparisons: kpiComparisonsSchema.optional(),
   breakdowns: z.array(kpiMetricBreakdownSchema).max(10).optional(),
 }).strict();
 

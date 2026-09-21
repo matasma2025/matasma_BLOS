@@ -876,16 +876,45 @@ export async function runKpiReport(request: KpiReportRequest) {
 
   const scopeBadges = await Promise.all(BUSINESS_METRICS_SCOPES.map(async (scope) => {
     const scopedRequest = { ...request, entity: scope.entity };
-    const [snapshot, breakdownSnapshot] = await Promise.all([
+    const [
+      snapshot,
+      breakdownSnapshot,
+      priorYearSnapshot,
+      priorYearBreakdownSnapshot,
+      previousMonthSnapshot,
+      previousMonthBreakdownSnapshot,
+    ] = await Promise.all([
       runKpiMetricSnapshot(scopedRequest),
       runKpiBreakdownSnapshot(scopedRequest),
+      runKpiMetricSnapshot({ ...scopedRequest, year: request.year - 1 }),
+      runKpiBreakdownSnapshot({ ...scopedRequest, year: request.year - 1 }),
+      runKpiMetricSnapshot({ ...scopedRequest, ...priorMonth }),
+      runKpiBreakdownSnapshot({ ...scopedRequest, ...priorMonth }),
     ]);
     return {
       ...scope,
-      metrics: snapshot.metrics.map((metric) => ({
-        ...metric,
-        breakdowns: breakdownSnapshot.find((item) => item.metricId === metric.id)?.breakdowns ?? [],
-      })),
+      metrics: snapshot.metrics.map((metric) => {
+        const breakdowns = breakdownSnapshot.find((item) => item.metricId === metric.id)?.breakdowns ?? [];
+        if (!metric.id.includes("utilization")) return { ...metric, breakdowns };
+        const priorYearMetric = priorYearSnapshot.metrics.find((item) => item.id === metric.id);
+        const previousMonthMetric = previousMonthSnapshot.metrics.find((item) => item.id === metric.id);
+        const priorYearBreakdowns = priorYearBreakdownSnapshot.find((item) => item.metricId === metric.id)?.breakdowns ?? [];
+        const previousMonthBreakdowns = previousMonthBreakdownSnapshot.find((item) => item.metricId === metric.id)?.breakdowns ?? [];
+        return {
+          ...metric,
+          comparisons: {
+            priorYearActual: priorYearMetric?.actual ?? null,
+            previousMonthActual: previousMonthMetric?.actual ?? null,
+          },
+          breakdowns: breakdowns.map((breakdown) => ({
+            ...breakdown,
+            comparisons: {
+              priorYearActual: priorYearBreakdowns.find((item) => item.label === breakdown.label)?.actual ?? null,
+              previousMonthActual: previousMonthBreakdowns.find((item) => item.label === breakdown.label)?.actual ?? null,
+            },
+          })),
+        };
+      }),
     };
   }));
 

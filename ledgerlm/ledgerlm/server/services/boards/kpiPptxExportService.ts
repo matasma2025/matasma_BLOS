@@ -7,11 +7,19 @@ interface KpiMetric {
   forecast?: number | null;
   variance?: number | null;
   variancePercent?: number | null;
+  comparisons?: {
+    priorYearActual: number | null;
+    previousMonthActual: number | null;
+  };
   breakdowns?: Array<{
     label: string;
     actual: number | null;
     forecast?: number | null;
     variance?: number | null;
+    comparisons?: {
+      priorYearActual: number | null;
+      previousMonthActual: number | null;
+    };
   }>;
 }
 
@@ -129,6 +137,18 @@ function templatePeriodLabel(period: string) {
   return `YTD ${String(month).padStart(2, "0")}.${match[2].slice(-2)}`;
 }
 
+function utilizationComparisonPeriods(period: string) {
+  const match = period.match(/^YTD\s+(\d{2})\.(\d{2})$/);
+  if (!match) return { priorYear: "Prior-year YTD", previousMonth: "Previous-month YTD" };
+  const month = Number(match[1]);
+  const year = 2000 + Number(match[2]);
+  const previousMonth = month === 1 ? { month: 12, year: year - 1 } : { month: month - 1, year };
+  return {
+    priorYear: `YTD ${String(month).padStart(2, "0")}.${String(year - 1).slice(-2)}`,
+    previousMonth: `YTD ${String(previousMonth.month).padStart(2, "0")}.${String(previousMonth.year).slice(-2)}`,
+  };
+}
+
 function templateMetricText(
   metric: KpiMetric | undefined,
   period: string,
@@ -141,6 +161,21 @@ function templateMetricText(
     const formatted = metricValue(metric, value);
     return label.includes("capacity") && formatted !== "—" ? `${formatted} HC` : formatted;
   };
+  if (label.includes("utilization")) {
+    const comparisonPeriods = utilizationComparisonPeriods(period);
+    const comparisonLine = (
+      prefix: string,
+      actual: number | null | undefined,
+      comparisons: KpiMetric["comparisons"] | undefined,
+    ) => `${prefix}${period} is ${display(actual)}; ${comparisonPeriods.priorYear}: ${display(comparisons?.priorYearActual)}; ${comparisonPeriods.previousMonth} is ${display(comparisons?.previousMonthActual)}`;
+    const lines = [
+      comparisonLine("1) ", metric.actual, metric.comparisons),
+      ...(metric.breakdowns ?? [])
+        .filter((breakdown) => allowedBreakdowns.includes(breakdown.label))
+        .map((breakdown) => comparisonLine(`${breakdown.label}: `, breakdown.actual, breakdown.comparisons)),
+    ];
+    return { summary: "", detail: lines.join("\n") };
+  }
   const comparisonLine = (
     prefix: string,
     actual: number | null | undefined,

@@ -347,7 +347,8 @@ export async function executeBoardAnalysis(runId: string) {
           forecast: metric.forecast,
           variance: metric.variance,
           variancePercent: metric.variancePercent,
-           breakdowns: [],
+          comparisons: metric.comparisons,
+          breakdowns: [],
         })),
         scopeBadges: governedKpiReport.scopeBadges.map((scope) => ({
           id: scope.id,
@@ -360,6 +361,7 @@ export async function executeBoardAnalysis(runId: string) {
             forecast: metric.forecast,
             variance: metric.variance,
             variancePercent: metric.variancePercent,
+             comparisons: metric.comparisons,
              breakdowns: metric.breakdowns,
           })),
         })),

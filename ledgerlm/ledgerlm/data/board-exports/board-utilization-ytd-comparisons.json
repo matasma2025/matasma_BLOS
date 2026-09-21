@@ -1,0 +1,978 @@
+{
+  "scope": "Fresh governed comparison report",
+  "periodLabel": "Jul 2026",
+  "forecastScenario": "YTD Forecast",
+  "actualSourceLabel": "Anaplan actuals · unversioned actual export rows",
+  "forecastSourceLabel": "MBR workbook · YTD Forecast",
+  "metrics": [
+    {
+      "id": "revenue",
+      "label": "Budget / Revenue",
+      "unit": "mUSD",
+      "actual": 948.47061365905,
+      "forecast": 862.5734096129017,
+      "variance": 85.8972040461482,
+      "variancePercent": 0.09958248548920191,
+      "actualSourceRows": 31313,
+      "forecastSourceRows": 3
+    },
+    {
+      "id": "internal_utilization",
+      "label": "Internal Utilization",
+      "unit": "percent",
+      "actual": 0.8509469014401972,
+      "forecast": null,
+      "variance": null,
+      "variancePercent": null,
+      "actualSourceRows": 34059,
+      "forecastSourceRows": 0,
+      "comparisons": {
+        "priorYearActual": null,
+        "previousMonthActual": null
+      }
+    },
+    {
+      "id": "external_utilization",
+      "label": "External Utilization",
+      "unit": "percent",
+      "actual": 0.7705728774165145,
+      "forecast": null,
+      "variance": null,
+      "variancePercent": null,
+      "actualSourceRows": 4327,
+      "forecastSourceRows": 0,
+      "comparisons": {
+        "priorYearActual": null,
+        "previousMonthActual": null
+      }
+    },
+    {
+      "id": "capacity",
+      "label": "Capacity",
+      "unit": "capacity",
+      "actual": 32576.5,
+      "forecast": 31198.76628644604,
+      "variance": 1377.7337135539601,
+      "variancePercent": 0.044159878019038895,
+      "actualSourceRows": 36431,
+      "forecastSourceRows": 3
+    }
+  ],
+  "scopeBadges": [
+    {
+      "id": "world-wide",
+      "code": "WW",
+      "label": "World Wide",
+      "entity": "World Wide",
+      "metrics": [
+        {
+          "id": "revenue",
+          "label": "Budget / Revenue",
+          "unit": "mUSD",
+          "actual": 915.895123866427,
+          "forecast": 892.30319466901,
+          "variance": 23.591929197416903,
+          "variancePercent": 0.02643936426358763,
+          "actualSourceRows": 30489,
+          "forecastSourceRows": 1,
+          "breakdowns": [
+            {
+              "label": "MS",
+              "actual": 612.275477412429,
+              "forecast": 605.4404183232583,
+              "variance": 6.835059089170727
+            },
+            {
+              "label": "MM",
+              "actual": 56.10387023871081,
+              "forecast": 54.35195133073598,
+              "variance": 1.751918907974833
+            },
+            {
+              "label": "SDS",
+              "actual": 58.934040995626816,
+              "forecast": 54.69151734719923,
+              "variance": 4.242523648427586
+            },
+            {
+              "label": "MS-External",
+              "actual": 19.08286244,
+              "forecast": 19.900788982997497,
+              "variance": -0.8179265429974976
+            },
+            {
+              "label": "Integrated Service",
+              "actual": 166.6745764596603,
+              "forecast": 154.52631868481913,
+              "variance": 12.14825777484117
+            }
+          ]
+        },
+        {
+          "id": "internal_utilization",
+          "label": "Internal Utilization",
+          "unit": "percent",
+          "actual": 0.9465222468372879,
+          "forecast": null,
+          "variance": null,
+          "variancePercent": null,
+          "actualSourceRows": 26430,
+          "forecastSourceRows": 0,
+          "comparisons": {
+            "priorYearActual": null,
+            "previousMonthActual": null
+          },
+          "breakdowns": [
+            {
+              "label": "MS",
+              "actual": 0.946952716181852,
+              "forecast": null,
+              "variance": null,
+              "comparisons": {
+                "priorYearActual": null,
+                "previousMonthActual": null
+              }
+            },
+            {
+              "label": "MM",
+              "actual": 0.9416493616211349,
+              "forecast": null,
+              "variance": null,
+              "comparisons": {
+                "priorYearActual": null,
+                "previousMonthActual": null
+              }
+            },
+            {
+              "label": "SDS",
+              "actual": null,
+              "forecast": null,
+              "variance": null,
+              "comparisons": {
+                "priorYearActual": null,
+                "previousMonthActual": null
+              }
+            },
+            {
+              "label": "MS-External",
+              "actual": null,
+              "forecast": null,
+              "variance": null,
+              "comparisons": {
+                "priorYearActual": null,
+                "previousMonthActual": null
+              }
+            },
+            {
+              "label": "Integrated Service",
+              "actual": null,
+              "forecast": null,
+              "variance": null,
+              "comparisons": {
+                "priorYearActual": null,
+                "previousMonthActual": null
+              }
+            }
+          ]
+        },
+        {
+          "id": "external_utilization",
+          "label": "External Utilization",
+          "unit": "percent",
+          "actual": 1.0080497605143393,
+          "forecast": null,
+          "variance": null,
+          "variancePercent": null,
+          "actualSourceRows": 4354,
+          "forecastSourceRows": 0,
+          "comparisons": {
+            "priorYearActual": null,
+            "previousMonthActual": null
+          },
+          "breakdowns": [
+            {
+              "label": "MS",
+              "actual": 1.006388753085889,
+              "forecast": null,
+              "variance": null,
+              "comparisons": {
+                "priorYearActual": null,
+                "previousMonthActual": null
+              }
+            },
+            {
+              "label": "MM",
+              "actual": 1.0229500229730097,
+              "forecast": null,
+              "variance": null,
+              "comparisons": {
+                "priorYearActual": null,
+                "previousMonthActual": null
+              }
+            },
+            {
+              "label": "SDS",
+              "actual": null,
+              "forecast": null,
+              "variance": null,
+              "comparisons": {
+                "priorYearActual": null,
+                "previousMonthActual": null
+              }
+            },
+            {
+              "label": "MS-External",
+              "actual": null,
+              "forecast": null,
+              "variance": null,
+              "comparisons": {
+                "priorYearActual": null,
+                "previousMonthActual": null
+              }
+            },
+            {
+              "label": "Integrated Service",
+              "actual": null,
+              "forecast": null,
+              "variance": null,
+              "comparisons": {
+                "priorYearActual": null,
+                "previousMonthActual": null
+              }
+            }
+          ]
+        },
+        {
+          "id": "capacity",
+          "label": "Capacity",
+          "unit": "capacity",
+          "actual": 31530.622564102563,
+          "forecast": 31440.766286446044,
+          "variance": 89.85627765651952,
+          "variancePercent": 0.002857954441627465,
+          "actualSourceRows": 35292,
+          "forecastSourceRows": 1,
+          "breakdowns": [
+            {
+              "label": "MS",
+              "actual": 20090.24823977824,
+              "forecast": 20200.88962032416,
+              "variance": -110.64138054591967
+            },
+            {
+              "label": "MM",
+              "actual": 1913.5443243243244,
+              "forecast": 1843.106666666666,
+              "variance": 70.43765765765852
+            },
+            {
+              "label": "SDS",
+              "actual": 2102.51,
+              "forecast": 2070.9999994680284,
+              "variance": 31.510000531971855
+            },
+            {
+              "label": "MS-External",
+              "actual": null,
+              "forecast": 221.66999999910587,
+              "variance": null
+            },
+            {
+              "label": "Integrated Service",
+              "actual": 7093.5,
+              "forecast": 7030.099999988079,
+              "variance": 63.40000001192129
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "india",
+      "code": "IN",
+      "label": "India",
+      "entity": "BGSW",
+      "metrics": [
+        {
+          "id": "revenue",
+          "label": "Budget / Revenue",
+          "unit": "mUSD",
+          "actual": 742.50977489,
+          "forecast": 721.8717164560161,
+          "variance": 20.63805843398393,
+          "variancePercent": 0.028589648220746455,
+          "actualSourceRows": 26055,
+          "forecastSourceRows": 1,
+          "breakdowns": [
+            {
+              "label": "MS",
+              "actual": 506.99649849,
+              "forecast": 499.26723144377837,
+              "variance": 7.729267046221651
+            },
+            {
+              "label": "MM",
+              "actual": 42.32502318,
+              "forecast": 40.85940695696667,
+              "variance": 1.4656162230333294
+            },
+            {
+              "label": "SDS",
+              "actual": 37.74635365,
+              "forecast": 36.46153411256572,
+              "variance": 1.2848195374342808
+            },
+            {
+              "label": "MS-External",
+              "actual": 14.38249641,
+              "forecast": 14.772455649664156,
+              "variance": -0.38995923966415624
+            },
+            {
+              "label": "Integrated Service",
+              "actual": 138.23510684,
+              "forecast": 126.90688829304098,
+              "variance": 11.328218546959008
+            }
+          ]
+        },
+        {
+          "id": "internal_utilization",
+          "label": "Internal Utilization",
+          "unit": "percent",
+          "actual": 0.9457624208684181,
+          "forecast": null,
+          "variance": null,
+          "variancePercent": null,
+          "actualSourceRows": 22834,
+          "forecastSourceRows": 0,
+          "comparisons": {
+            "priorYearActual": null,
+            "previousMonthActual": null
+          },
+          "breakdowns": [
+            {
+              "label": "MS",
+              "actual": 0.9464289949174,
+              "forecast": null,
+              "variance": null,
+              "comparisons": {
+                "priorYearActual": null,
+                "previousMonthActual": null
+              }
+            },
+            {
+              "label": "MM",
+              "actual": 0.9377704164337463,
+              "forecast": null,
+              "variance": null,
+              "comparisons": {
+                "priorYearActual": null,
+                "previousMonthActual": null
+              }
+            },
+            {
+              "label": "SDS",
+              "actual": null,
+              "forecast": null,
+              "variance": null,
+              "comparisons": {
+                "priorYearActual": null,
+                "previousMonthActual": null
+              }
+            },
+            {
+              "label": "MS-External",
+              "actual": null,
+              "forecast": null,
+              "variance": null,
+              "comparisons": {
+                "priorYearActual": null,
+                "previousMonthActual": null
+              }
+            },
+            {
+              "label": "Integrated Service",
+              "actual": null,
+              "forecast": null,
+              "variance": null,
+              "comparisons": {
+                "priorYearActual": null,
+                "previousMonthActual": null
+              }
+            }
+          ]
+        },
+        {
+          "id": "external_utilization",
+          "label": "External Utilization",
+          "unit": "percent",
+          "actual": 1.0023483061438574,
+          "forecast": null,
+          "variance": null,
+          "variancePercent": null,
+          "actualSourceRows": 3820,
+          "forecastSourceRows": 0,
+          "comparisons": {
+            "priorYearActual": null,
+            "previousMonthActual": null
+          },
+          "breakdowns": [
+            {
+              "label": "MS",
+              "actual": 1.0012351196685383,
+              "forecast": null,
+              "variance": null,
+              "comparisons": {
+                "priorYearActual": null,
+                "previousMonthActual": null
+              }
+            },
+            {
+              "label": "MM",
+              "actual": 1.0140256319034695,
+              "forecast": null,
+              "variance": null,
+              "comparisons": {
+                "priorYearActual": null,
+                "previousMonthActual": null
+              }
+            },
+            {
+              "label": "SDS",
+              "actual": null,
+              "forecast": null,
+              "variance": null,
+              "comparisons": {
+                "priorYearActual": null,
+                "previousMonthActual": null
+              }
+            },
+            {
+              "label": "MS-External",
+              "actual": null,
+              "forecast": null,
+              "variance": null,
+              "comparisons": {
+                "priorYearActual": null,
+                "previousMonthActual": null
+              }
+            },
+            {
+              "label": "Integrated Service",
+              "actual": null,
+              "forecast": null,
+              "variance": null,
+              "comparisons": {
+                "priorYearActual": null,
+                "previousMonthActual": null
+              }
+            }
+          ]
+        },
+        {
+          "id": "capacity",
+          "label": "Capacity",
+          "unit": "capacity",
+          "actual": 26643.578031430934,
+          "forecast": 26445.327953086482,
+          "variance": 198.25007834445205,
+          "variancePercent": 0.007496601240723654,
+          "actualSourceRows": 29803,
+          "forecastSourceRows": 1,
+          "breakdowns": [
+            {
+              "label": "MS",
+              "actual": 16948.913384525964,
+              "forecast": 17091.607953609808,
+              "variance": -142.69456908384382
+            },
+            {
+              "label": "MM",
+              "actual": 1503.3188404533566,
+              "forecast": 1407.8099999999993,
+              "variance": 95.50884045335738
+            },
+            {
+              "label": "SDS",
+              "actual": 1947.8,
+              "forecast": 1850.7399994775653,
+              "variance": 97.06000052243462
+            },
+            {
+              "label": "MS-External",
+              "actual": null,
+              "forecast": 219.66999999910587,
+              "variance": null
+            },
+            {
+              "label": "Integrated Service",
+              "actual": 5912.725806451613,
+              "forecast": 5801.5,
+              "variance": 111.2258064516127
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "vietnam",
+      "code": "VN",
+      "label": "Vietnam",
+      "entity": "BGSV",
+      "metrics": [
+        {
+          "id": "revenue",
+          "label": "Budget / Revenue",
+          "unit": "mUSD",
+          "actual": 112.44842249552451,
+          "forecast": 111.87030025172302,
+          "variance": 0.5781222438014879,
+          "variancePercent": 0.005167790222254129,
+          "actualSourceRows": 3407,
+          "forecastSourceRows": 1,
+          "breakdowns": [
+            {
+              "label": "MS",
+              "actual": 74.76443905212682,
+              "forecast": 74.88971096992009,
+              "variance": -0.1252719177932704
+            },
+            {
+              "label": "MM",
+              "actual": 6.745471431309931,
+              "forecast": 6.881271731309931,
+              "variance": -0.13580029999999965
+            },
+            {
+              "label": "SDS",
+              "actual": 2.323328812020597,
+              "forecast": 2.4798871587148636,
+              "variance": -0.1565583466942666
+            },
+            {
+              "label": "MS-External",
+              "actual": null,
+              "forecast": 0,
+              "variance": null
+            },
+            {
+              "label": "Integrated Service",
+              "actual": 28.615183200067168,
+              "forecast": 27.61943039177813,
+              "variance": 0.995752808289037
+            }
+          ]
+        },
+        {
+          "id": "internal_utilization",
+          "label": "Internal Utilization",
+          "unit": "percent",
+          "actual": 0.9575422946839565,
+          "forecast": null,
+          "variance": null,
+          "variancePercent": null,
+          "actualSourceRows": 2629,
+          "forecastSourceRows": 0,
+          "comparisons": {
+            "priorYearActual": null,
+            "previousMonthActual": null
+          },
+          "breakdowns": [
+            {
+              "label": "MS",
+              "actual": 0.9565505909651957,
+              "forecast": null,
+              "variance": null,
+              "comparisons": {
+                "priorYearActual": null,
+                "previousMonthActual": null
+              }
+            },
+            {
+              "label": "MM",
+              "actual": 0.9694852688819909,
+              "forecast": null,
+              "variance": null,
+              "comparisons": {
+                "priorYearActual": null,
+                "previousMonthActual": null
+              }
+            },
+            {
+              "label": "SDS",
+              "actual": null,
+              "forecast": null,
+              "variance": null,
+              "comparisons": {
+                "priorYearActual": null,
+                "previousMonthActual": null
+              }
+            },
+            {
+              "label": "MS-External",
+              "actual": null,
+              "forecast": null,
+              "variance": null,
+              "comparisons": {
+                "priorYearActual": null,
+                "previousMonthActual": null
+              }
+            },
+            {
+              "label": "Integrated Service",
+              "actual": null,
+              "forecast": null,
+              "variance": null,
+              "comparisons": {
+                "priorYearActual": null,
+                "previousMonthActual": null
+              }
+            }
+          ]
+        },
+        {
+          "id": "external_utilization",
+          "label": "External Utilization",
+          "unit": "percent",
+          "actual": 1.0370439959976845,
+          "forecast": null,
+          "variance": null,
+          "variancePercent": null,
+          "actualSourceRows": 528,
+          "forecastSourceRows": 0,
+          "comparisons": {
+            "priorYearActual": null,
+            "previousMonthActual": null
+          },
+          "breakdowns": [
+            {
+              "label": "MS",
+              "actual": 1.0380354715537568,
+              "forecast": null,
+              "variance": null,
+              "comparisons": {
+                "priorYearActual": null,
+                "previousMonthActual": null
+              }
+            },
+            {
+              "label": "MM",
+              "actual": 1.0323366519170771,
+              "forecast": null,
+              "variance": null,
+              "comparisons": {
+                "priorYearActual": null,
+                "previousMonthActual": null
+              }
+            },
+            {
+              "label": "SDS",
+              "actual": null,
+              "forecast": null,
+              "variance": null,
+              "comparisons": {
+                "priorYearActual": null,
+                "previousMonthActual": null
+              }
+            },
+            {
+              "label": "MS-External",
+              "actual": null,
+              "forecast": null,
+              "variance": null,
+              "comparisons": {
+                "priorYearActual": null,
+                "previousMonthActual": null
+              }
+            },
+            {
+              "label": "Integrated Service",
+              "actual": null,
+              "forecast": null,
+              "variance": null,
+              "comparisons": {
+                "priorYearActual": null,
+                "previousMonthActual": null
+              }
+            }
+          ]
+        },
+        {
+          "id": "capacity",
+          "label": "Capacity",
+          "unit": "capacity",
+          "actual": 4033.907435897436,
+          "forecast": 4126.438333359559,
+          "variance": -92.530897462123,
+          "variancePercent": -0.02242391379366344,
+          "actualSourceRows": 4551,
+          "forecastSourceRows": 1,
+          "breakdowns": [
+            {
+              "label": "MS",
+              "actual": 2504.167435897436,
+              "forecast": 2536.2816667143497,
+              "variance": -32.11423081691373
+            },
+            {
+              "label": "MM",
+              "actual": 243.81,
+              "forecast": 273.2966666666666,
+              "variance": -29.486666666666622
+            },
+            {
+              "label": "SDS",
+              "actual": 110.93,
+              "forecast": 88.25999999046326,
+              "variance": 22.67000000953675
+            },
+            {
+              "label": "MS-External",
+              "actual": null,
+              "forecast": 0,
+              "variance": null
+            },
+            {
+              "label": "Integrated Service",
+              "actual": 1175,
+              "forecast": 1228.5999999880792,
+              "variance": -53.59999998807916
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mexico",
+      "code": "MX",
+      "label": "Mexico",
+      "entity": "NE-MX",
+      "metrics": [
+        {
+          "id": "revenue",
+          "label": "Budget / Revenue",
+          "unit": "mUSD",
+          "actual": 29.89181187,
+          "forecast": 28.831392905162673,
+          "variance": 1.0604189648373286,
+          "variancePercent": 0.03678001157715295,
+          "actualSourceRows": 849,
+          "forecastSourceRows": 1,
+          "breakdowns": [
+            {
+              "label": "MS",
+              "actual": 21.70161758,
+              "forecast": 21.88353027143265,
+              "variance": -0.18191269143265032
+            },
+            {
+              "label": "MM",
+              "actual": 7.48682166,
+              "forecast": 5.941272642459384,
+              "variance": 1.5455490175406164
+            },
+            {
+              "label": "SDS",
+              "actual": 0.70337263,
+              "forecast": 1.006589991270634,
+              "variance": -0.3032173612706339
+            },
+            {
+              "label": "MS-External",
+              "actual": null,
+              "forecast": 0,
+              "variance": null
+            },
+            {
+              "label": "Integrated Service",
+              "actual": null,
+              "forecast": 0,
+              "variance": null
+            }
+          ]
+        },
+        {
+          "id": "internal_utilization",
+          "label": "Internal Utilization",
+          "unit": "percent",
+          "actual": 0.9224569892473118,
+          "forecast": null,
+          "variance": null,
+          "variancePercent": null,
+          "actualSourceRows": 967,
+          "forecastSourceRows": 0,
+          "comparisons": {
+            "priorYearActual": null,
+            "previousMonthActual": null
+          },
+          "breakdowns": [
+            {
+              "label": "MS",
+              "actual": 0.917742340407961,
+              "forecast": null,
+              "variance": null,
+              "comparisons": {
+                "priorYearActual": null,
+                "previousMonthActual": null
+              }
+            },
+            {
+              "label": "MM",
+              "actual": 0.9395707735180806,
+              "forecast": null,
+              "variance": null,
+              "comparisons": {
+                "priorYearActual": null,
+                "previousMonthActual": null
+              }
+            },
+            {
+              "label": "SDS",
+              "actual": null,
+              "forecast": null,
+              "variance": null,
+              "comparisons": {
+                "priorYearActual": null,
+                "previousMonthActual": null
+              }
+            },
+            {
+              "label": "MS-External",
+              "actual": null,
+              "forecast": null,
+              "variance": null,
+              "comparisons": {
+                "priorYearActual": null,
+                "previousMonthActual": null
+              }
+            },
+            {
+              "label": "Integrated Service",
+              "actual": null,
+              "forecast": null,
+              "variance": null,
+              "comparisons": {
+                "priorYearActual": null,
+                "previousMonthActual": null
+              }
+            }
+          ]
+        },
+        {
+          "id": "external_utilization",
+          "label": "External Utilization",
+          "unit": "percent",
+          "actual": null,
+          "forecast": null,
+          "variance": null,
+          "variancePercent": null,
+          "actualSourceRows": 6,
+          "forecastSourceRows": 0,
+          "comparisons": {
+            "priorYearActual": null,
+            "previousMonthActual": null
+          },
+          "breakdowns": [
+            {
+              "label": "MS",
+              "actual": null,
+              "forecast": null,
+              "variance": null,
+              "comparisons": {
+                "priorYearActual": null,
+                "previousMonthActual": null
+              }
+            },
+            {
+              "label": "MM",
+              "actual": null,
+              "forecast": null,
+              "variance": null,
+              "comparisons": {
+                "priorYearActual": null,
+                "previousMonthActual": null
+              }
+            },
+            {
+              "label": "SDS",
+              "actual": null,
+              "forecast": null,
+              "variance": null,
+              "comparisons": {
+                "priorYearActual": null,
+                "previousMonthActual": null
+              }
+            },
+            {
+              "label": "MS-External",
+              "actual": null,
+              "forecast": null,
+              "variance": null,
+              "comparisons": {
+                "priorYearActual": null,
+                "previousMonthActual": null
+              }
+            },
+            {
+              "label": "Integrated Service",
+              "actual": null,
+              "forecast": null,
+              "variance": null,
+              "comparisons": {
+                "priorYearActual": null,
+                "previousMonthActual": null
+              }
+            }
+          ]
+        },
+        {
+          "id": "capacity",
+          "label": "Capacity",
+          "unit": "capacity",
+          "actual": 634.75,
+          "forecast": 627,
+          "variance": 7.75,
+          "variancePercent": 0.012360446570972886,
+          "actualSourceRows": 798,
+          "forecastSourceRows": 1,
+          "breakdowns": [
+            {
+              "label": "MS",
+              "actual": 456.49,
+              "forecast": 464,
+              "variance": -7.509999999999991
+            },
+            {
+              "label": "MM",
+              "actual": 156.48,
+              "forecast": 136,
+              "variance": 20.47999999999999
+            },
+            {
+              "label": "SDS",
+              "actual": 21.78,
+              "forecast": 27,
+              "variance": -5.219999999999999
+            },
+            {
+              "label": "MS-External",
+              "actual": null,
+              "forecast": 0,
+              "variance": null
+            },
+            {
+              "label": "Integrated Service",
+              "actual": null,
+              "forecast": 0,
+              "variance": null
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "warnings": [
+    "Mexico: External Utilization has no actual source rows."
+  ]
+}
