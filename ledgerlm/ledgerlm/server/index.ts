@@ -454,8 +454,14 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   await addSessionRevocationTimestamp();
   await createDeviceProofTables();
 
-  await seedDatabase();
-  await fixAzureBlobConnectorSchedules();
+  const completeStartupData = async () => {
+    await seedDatabase();
+    await fixAzureBlobConnectorSchedules();
+  };
+  const deferStartupData = app.get("env") === "development";
+  if (!deferStartupData) {
+    await completeStartupData();
+  }
   
   const server = await registerRoutes(app);
 
@@ -555,6 +561,12 @@ app.use((req: Request, res: Response, next: NextFunction) => {
     reusePort: true,
   }, () => {
     log(`serving on port ${port}`);
+
+    if (deferStartupData) {
+      completeStartupData().catch((error) => {
+        logger.error({ error }, "Deferred development seed failed");
+      });
+    }
     
     // Start Python backend for document processing and RAG
     // In Docker (Supervisor manages Python), skip starting it here

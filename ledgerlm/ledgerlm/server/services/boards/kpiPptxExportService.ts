@@ -7,6 +7,12 @@ interface KpiMetric {
   forecast?: number | null;
   variance?: number | null;
   variancePercent?: number | null;
+  breakdowns?: Array<{
+    label: string;
+    actual: number | null;
+    forecast?: number | null;
+    variance?: number | null;
+  }>;
 }
 
 interface KpiScope {
@@ -99,23 +105,33 @@ function templateMetricText(metric: KpiMetric | undefined, period: string) {
     const formatted = metricValue(metric, value);
     return label.includes("capacity") && formatted !== "—" ? `${formatted} HC` : formatted;
   };
-  const actual = metric.actual;
-  const forecast = metric.forecast;
-  const variance = metric.variance;
-  let detail: string;
-  if (actual !== null && actual !== undefined && forecast !== null && forecast !== undefined) {
-    const direction = variance !== null && variance !== undefined && variance >= 0 ? "higher" : "lower";
-    detail = `1) ${period} Actual ${display(actual)} is ${direction} by ${display(Math.abs(variance ?? 0))} compared with Forecast ${display(forecast)}.`;
-  } else if (label.includes("utilization") && actual !== null && actual !== undefined) {
-    detail = `1) ${period} Actual is ${display(actual)}; governed Forecast is unavailable.`;
-  } else if (actual !== null && actual !== undefined) {
-    detail = `1) ${period} Actual ${display(actual)}; governed Forecast is unavailable.`;
-  } else if (forecast !== null && forecast !== undefined) {
-    detail = `1) ${period} Forecast is ${display(forecast)}; governed Actual is unavailable.`;
-  } else {
-    detail = `1) no governed Actual or Forecast value is available for ${period}.`;
-  }
-  return { summary: "", detail };
+  const comparisonLine = (
+    prefix: string,
+    actual: number | null | undefined,
+    forecast: number | null | undefined,
+    variance: number | null | undefined,
+  ) => {
+    if (actual !== null && actual !== undefined && forecast !== null && forecast !== undefined) {
+      const direction = variance !== null && variance !== undefined && variance >= 0 ? "higher" : "lower";
+      return `${prefix}${period} Actual ${display(actual)} is ${direction} by ${display(Math.abs(variance ?? 0))} compared with Forecast ${display(forecast)}.`;
+    }
+    if (label.includes("utilization") && actual !== null && actual !== undefined) {
+      return `${prefix}${period} Actual is ${display(actual)}; governed Forecast is unavailable.`;
+    }
+    if (actual !== null && actual !== undefined) {
+      return `${prefix}${period} Actual ${display(actual)}; governed Forecast is unavailable.`;
+    }
+    if (forecast !== null && forecast !== undefined) {
+      return `${prefix}${period} Forecast is ${display(forecast)}; governed Actual is unavailable.`;
+    }
+    return `${prefix}no governed Actual or Forecast value is available for ${period}.`;
+  };
+  const lines = [
+    comparisonLine("1) ", metric.actual, metric.forecast, metric.variance),
+    ...(metric.breakdowns ?? []).map((breakdown) =>
+      comparisonLine(`${breakdown.label}: `, breakdown.actual, breakdown.forecast, breakdown.variance)),
+  ];
+  return { summary: "", detail: lines.join("\n") };
 }
 
 function templateScopePrefix(scope: KpiScope, index: number) {

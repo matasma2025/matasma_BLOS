@@ -8,6 +8,12 @@ interface KpiMetric {
   forecast?: number | null;
   variance?: number | null;
   variancePercent?: number | null;
+  breakdowns?: Array<{
+    label: string;
+    actual: number | null;
+    forecast?: number | null;
+    variance?: number | null;
+  }>;
 }
 
 interface KpiScope {
