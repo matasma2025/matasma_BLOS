@@ -45,6 +45,10 @@ const UTILIZATION_PAGE_PREDICATE = sql`
   upper(regexp_replace(trim(coalesce(page, '')), '\\s+', ' ', 'g'))
     IN ('', 'BLANK')
 `;
+const numericText = (column: "cost_value" | "value_percent") => sql.raw(
+  `CASE WHEN replace(trim(coalesce(${column}, '')), ',', '') ~ '^-?(?:\\d+\\.?\\d*|\\.\\d+)$'
+    THEN replace(trim(${column}), ',', '')::numeric END`,
+);
 
 function rowsOf(result: unknown): any[] {
   return (result as { rows?: any[] }).rows ?? [];
@@ -70,10 +74,19 @@ function isWorldWideEntity(entity?: string) {
   return value === "WORLD WIDE" || value === "WORLDWIDE" || value === "WORLWIDE";
 }
 
+function usesDetailedActualWorkbook(entity?: string): boolean {
+  const selected = normalizedEntity(entity);
+  return isWorldWideEntity(entity)
+    || selected === "BGSW"
+    || selected === "BGSV"
+    || selected === "NE-MX"
+    || selected === "MEXICO";
+}
+
 function actualEntityPredicate(entity?: string) {
   const selected = normalizedEntity(entity);
   if (isWorldWideEntity(entity)) {
-    return sql`upper(trim(coalesce(region_entity, ''))) IN ('BGSW', 'BGSV', 'BGSW/NE-MX')`;
+    return sql`upper(trim(coalesce(region_entity, ''))) NOT IN ('WORLD WIDE', 'WORLWIDE')`;
   }
   if (selected === "NE-MX" || selected === "MEXICO") {
     return sql`upper(trim(coalesce(region_entity, ''))) IN ('NE-MX', 'BGSW/NE-MX')`;
@@ -90,21 +103,50 @@ function actualBudgetIncludePredicate(entity?: string) {
     : sql`TRUE`;
 }
 
+function actualRevenueHardwarePredicate(entity?: string) {
+  if (usesDetailedActualWorkbook(entity)) return sql`TRUE`;
+  return sql`
+    lower(trim(coalesce(sub_cost_category, ''))) <> 'revenue hardware'
+    AND lower(trim(coalesce(cost_category_class, ''))) <> 'revenue hardware'
+  `;
+}
+
+function actualPlanEntityPredicate(entity?: string) {
+  const selected = normalizedEntity(entity);
+  if (!selected) return sql`FALSE`;
+  if (isWorldWideEntity(entity)) {
+    return sql`upper(trim(coalesce(entity, ''))) IN ('WORLD WIDE', 'WORLDWIDE', 'WORLWIDE')`;
+  }
+  if (selected === "NE-MX" || selected === "MEXICO") {
+    return sql`upper(trim(coalesce(entity, ''))) = 'NE-MX'`;
+  }
+  return sql`upper(trim(coalesce(entity, ''))) = ${selected}`;
+}
+
 function forecastEntityPredicate(entity?: string) {
   const selected = normalizedEntity(entity);
   if (isWorldWideEntity(entity)) {
-    return sql`upper(trim(coalesce(entity, ''))) IN ('WORLD WIDE', 'WORLWIDE')`;
+    return sql`upper(trim(coalesce(entity, ''))) IN ('WORLD WIDE', 'WORLDWIDE', 'WORLWIDE')`;
+  }
+  if (selected === "NE-MX" || selected === "MEXICO" || selected === "MEXICO/NE-MX") {
+    return sql`upper(trim(coalesce(entity, ''))) = 'NE-MX'`;
   }
   if (selected) {
     return sql`upper(trim(coalesce(entity, ''))) = ${selected}`;
   }
-  return sql`upper(trim(coalesce(entity, ''))) NOT IN ('WORLD WIDE', 'WORLWIDE')`;
+  return sql`upper(trim(coalesce(entity, ''))) NOT IN ('WORLD WIDE', 'WORLDWIDE', 'WORLWIDE')`;
 }
 
-function forecastPagePredicate(entity?: string) {
+function forecastRevenuePagePredicate(entity?: string) {
   return isWorldWideEntity(entity)
-    ? sql`upper(trim(coalesce(page, ''))) IN ('ENTITY', 'WORLD WIDE', 'WORLWIDE')`
-    : sql`upper(trim(coalesce(page, ''))) = 'ENTITY'`;
+    ? sql`upper(regexp_replace(trim(coalesce(page, '')), '\\s+', ' ', 'g')) = 'WORLD WIDE'`
+    : sql`upper(regexp_replace(trim(coalesce(page, '')), '\\s+', ' ', 'g')) = 'ENTITY'`;
+}
+
+function forecastCapacityPagePredicate(entity?: string) {
+  return isWorldWideEntity(entity)
+    ? sql`upper(regexp_replace(trim(coalesce(page, '')), '\\s+', ' ', 'g')) = 'WORLD WIDE'`
+    : sql`upper(regexp_replace(trim(coalesce(page, '')), '\\s+', ' ', 'g')) = 'ENTITY VIEW'`;
 }
 
 function forecastScenarioPredicate(scenario: string) {
@@ -189,152 +231,218 @@ export async function getKpiReportOptions(cubeId: string) {
 }
 
 async function runKpiMetricSnapshot(request: KpiReportRequest) {
+  const worldWide = isWorldWideEntity(request.entity);
+  const workbookActuals = usesDetailedActualWorkbook(request.entity);
   const actualEntity = actualEntityPredicate(request.entity);
   const actualBudgetInclude = actualBudgetIncludePredicate(request.entity);
+  const actualRevenueHardware = actualRevenueHardwarePredicate(request.entity);
+  const actualPlanEntity = actualPlanEntityPredicate(request.entity);
   const forecastEntity = forecastEntityPredicate(request.entity);
-  const forecastPage = forecastPagePredicate(request.entity);
+  const forecastRevenuePage = forecastRevenuePagePredicate(request.entity);
+  const forecastCapacityPage = forecastCapacityPagePredicate(request.entity);
   const scenario = forecastScenarioPredicate(request.forecastScenario);
+  const actualPeriod = sql`month = ${request.month}`;
+  const internalActualFilter = workbookActuals
+    ? sql`
+        lower(trim(coalesce(cost_category, ''))) = 'billing utilization summary'
+        AND upper(trim(coalesce(new_service_area, ''))) IN ('MS', 'SX')
+        AND upper(trim(coalesce(project_type, ''))) <> 'FIXEDPRICE'
+        AND lower(trim(coalesce(resource_type, ''))) = 'internal'
+      `
+    : sql`
+        cost_category = 'Billing Utilization'
+        AND lower(trim(coalesce(resource_type, ''))) = 'internal'
+      `;
+  const externalActualFilter = workbookActuals
+    ? sql`
+        lower(trim(coalesce(cost_category, ''))) = 'billing utilization summary'
+        AND upper(trim(coalesce(new_service_area, ''))) IN ('MS', 'SX')
+        AND upper(trim(coalesce(project_type, ''))) <> 'FIXEDPRICE'
+        AND lower(trim(coalesce(resource_type, ''))) = 'external'
+      `
+    : sql`
+        cost_category = 'Billing Utilization'
+        AND lower(trim(coalesce(resource_type, ''))) = 'external'
+      `;
+  const internalActualValue = workbookActuals
+    ? sql`
+        SUM(billed_capacity) FILTER (WHERE ${internalActualFilter})
+        / NULLIF(
+          SUM(allocated_capacity) FILTER (WHERE ${internalActualFilter})
+          + SUM(not_allocated_capacity) FILTER (WHERE ${internalActualFilter})
+          + SUM(ms_capacity) FILTER (WHERE ${internalActualFilter})
+          + SUM(vkm_capacity) FILTER (WHERE ${internalActualFilter})
+          - SUM(non_linear_capacity) FILTER (WHERE ${internalActualFilter}),
+          0
+        )
+      `
+    : sql`
+        SUM(billed_capacity) FILTER (WHERE ${internalActualFilter})
+        / NULLIF(SUM(allocated_capacity) FILTER (WHERE ${internalActualFilter}), 0)
+      `;
+  const externalActualValue = workbookActuals
+    ? sql`
+        SUM(billed_capacity) FILTER (WHERE ${externalActualFilter})
+        / NULLIF(
+          SUM(payable_allocated_cap) FILTER (WHERE ${externalActualFilter})
+          + SUM(payable_not_allocated_cap) FILTER (WHERE ${externalActualFilter})
+          + SUM(payable_ms_cap) FILTER (WHERE ${externalActualFilter})
+          + SUM(payable_vkm_cap) FILTER (WHERE ${externalActualFilter})
+          - SUM(payable_non_linear_cap) FILTER (WHERE ${externalActualFilter}),
+          0
+        )
+      `
+    : sql`
+        SUM(billed_capacity) FILTER (WHERE ${externalActualFilter})
+        / NULLIF(SUM(allocated_capacity) FILTER (WHERE ${externalActualFilter}), 0)
+      `;
+  const actualCapacityFilter = workbookActuals
+    ? sql`
+        lower(trim(coalesce(cost_category, ''))) = 'gb wise end capacity'
+        AND upper(trim(coalesce(service_area, ''))) NOT IN (
+          'CORPORATE', 'RBEI_CORPORATE', 'SDS_CORPORATE'
+        )
+        AND lower(trim(coalesce(resource_type, ''))) IN ('internal', 'external')
+        AND ${
+          worldWide
+            ? sql`upper(trim(coalesce(onsite_offshore, ''))) IN ('OFFSHORE', 'ONSITE')`
+            : sql`upper(trim(coalesce(onsite_offshore, ''))) = 'OFFSHORE'`
+        }
+        AND month = ${request.month}
+      `
+    : sql`
+        cost_category = 'GB Wise END Capacity'
+        AND month = ${request.month}
+        AND upper(trim(coalesce(sector, ''))) <> 'INDIRECT'
+      `;
 
-  const [actualResult, forecastResult] = await Promise.all([
+  const [actualResult, actualCapacityPlanResult, forecastResult] = await Promise.all([
     db.execute(sql`
       SELECT
         SUM(CASE
-          WHEN cost_category = 'Revenue Summary'
+          WHEN lower(trim(coalesce(cost_category, ''))) = 'revenue summary'
             AND ${actualBudgetInclude}
-            AND lower(trim(coalesce(sub_cost_category, ''))) <> 'revenue hardware'
-            AND lower(trim(coalesce(cost_category_class, ''))) <> 'revenue hardware'
+            AND ${actualRevenueHardware}
           THEN amount_usd
         END) / 1000000.0 AS revenue_value,
         COUNT(*) FILTER (
-          WHERE cost_category = 'Revenue Summary'
+          WHERE lower(trim(coalesce(cost_category, ''))) = 'revenue summary'
             AND ${actualBudgetInclude}
-            AND lower(trim(coalesce(sub_cost_category, ''))) <> 'revenue hardware'
-            AND lower(trim(coalesce(cost_category_class, ''))) <> 'revenue hardware'
+            AND ${actualRevenueHardware}
             AND amount_usd IS NOT NULL
         ) AS revenue_rows,
-        SUM(billed_capacity) FILTER (
-          WHERE cost_category = 'Billing Utilization'
-            AND lower(trim(coalesce(resource_type, ''))) = 'internal'
-        ) / NULLIF(SUM(allocated_capacity) FILTER (
-          WHERE cost_category = 'Billing Utilization'
-            AND lower(trim(coalesce(resource_type, ''))) = 'internal'
-        ), 0) AS internal_value,
+        ${internalActualValue} AS internal_value,
         COUNT(*) FILTER (
-          WHERE cost_category = 'Billing Utilization'
-            AND lower(trim(coalesce(resource_type, ''))) = 'internal'
+          WHERE ${internalActualFilter}
             AND allocated_capacity IS NOT NULL
         ) AS internal_rows,
-        SUM(billed_capacity) FILTER (
-          WHERE cost_category = 'Billing Utilization'
-            AND lower(trim(coalesce(resource_type, ''))) = 'external'
-        ) / NULLIF(SUM(allocated_capacity) FILTER (
-          WHERE cost_category = 'Billing Utilization'
-            AND lower(trim(coalesce(resource_type, ''))) = 'external'
-        ), 0) AS external_value,
+        ${externalActualValue} AS external_value,
         COUNT(*) FILTER (
-          WHERE cost_category = 'Billing Utilization'
-            AND lower(trim(coalesce(resource_type, ''))) = 'external'
+          WHERE ${externalActualFilter}
             AND allocated_capacity IS NOT NULL
         ) AS external_rows,
-        SUM(capacity) FILTER (
-          WHERE cost_category = 'GB Wise END Capacity'
-            AND month = ${request.month}
-            AND upper(trim(coalesce(sector, ''))) <> 'INDIRECT'
-        ) AS capacity_value,
+        SUM(capacity) FILTER (WHERE ${actualCapacityFilter}) AS capacity_value,
         COUNT(*) FILTER (
-          WHERE cost_category = 'GB Wise END Capacity'
-            AND month = ${request.month}
-            AND upper(trim(coalesce(sector, ''))) <> 'INDIRECT'
+          WHERE ${actualCapacityFilter}
             AND capacity IS NOT NULL
         ) AS capacity_rows
       FROM cube_fact_data
       WHERE cube_id = ${request.cubeId}
         AND year = ${request.year}
-        AND month BETWEEN 1 AND ${request.month}
+        AND ${actualPeriod}
         AND ${ACTUAL_VERSION_PREDICATE}
         AND ${actualEntity}
     `),
+    workbookActuals
+      ? db.execute(sql`
+          SELECT
+            SUM(${numericText("cost_value")}) AS capacity_value,
+            COUNT(*) FILTER (WHERE ${numericText("cost_value")} IS NOT NULL) AS capacity_rows
+          FROM cube_plan_data
+          WHERE cube_id = ${request.cubeId}
+            AND year = ${request.year}
+            AND month = ${request.month}
+            AND upper(trim(coalesce(plan_type, ''))) IN ('ACTUAL', 'ACTUALS')
+            AND ${actualPlanEntity}
+            AND upper(regexp_replace(trim(coalesce(page, '')), '\\s+', ' ', 'g')) = ${
+              worldWide ? "WORLD WIDE" : "ENTITY VIEW"
+            }
+            AND lower(trim(coalesce(particulars, ''))) = 'total capacity'
+            AND lower(trim(coalesce(sub_category, ''))) = 'end'
+        `)
+      : db.execute(sql`
+          SELECT NULL::numeric AS capacity_value, 0 AS capacity_rows
+          WHERE FALSE
+        `),
     db.execute(sql`
       SELECT
-        SUM(CASE
-          WHEN ${scenario}
-            AND ${forecastEntity}
-            AND ${forecastPage}
+        SUM(${numericText("cost_value")}) FILTER (
+          WHERE ${scenario}
+            AND ${forecastRevenuePage}
             AND lower(trim(coalesce(particulars, ''))) = 'budget (musd)'
             AND lower(trim(coalesce(sub_category, ''))) = 'total'
-          THEN CASE
-            WHEN replace(trim(coalesce(cost_value, '')), ',', '') ~ '^-?(?:\\d+\\.?\\d*|\\.\\d+)$'
-            THEN replace(trim(cost_value), ',', '')::numeric
-          END
-          ELSE NULL
-        END) AS revenue_value,
+        ) AS revenue_value,
         COUNT(*) FILTER (
           WHERE ${scenario}
-            AND ${forecastEntity}
-            AND ${forecastPage}
+            AND ${forecastRevenuePage}
             AND lower(trim(coalesce(particulars, ''))) = 'budget (musd)'
             AND lower(trim(coalesce(sub_category, ''))) = 'total'
-            AND replace(trim(coalesce(cost_value, '')), ',', '') ~ '^-?(?:\\d+\\.?\\d*|\\.\\d+)$'
+            AND ${numericText("cost_value")} IS NOT NULL
         ) AS revenue_rows,
-        SUM(CASE WHEN ${scenario} AND ${forecastEntity}
-          AND ${UTILIZATION_PAGE_PREDICATE}
-          AND lower(trim(coalesce(particulars, ''))) = 'internal utilization (%)'
-          AND lower(trim(coalesce(sub_category, ''))) = 'blank'
-          AND replace(trim(coalesce(value_percent, '')), ',', '') ~ '^-?(?:\\d+\\.?\\d*|\\.\\d+)$'
-          THEN replace(trim(value_percent), ',', '')::numeric END) AS internal_value,
-        COUNT(*) FILTER (
-          WHERE ${scenario} AND ${forecastEntity}
-            AND ${UTILIZATION_PAGE_PREDICATE}
-            AND lower(trim(coalesce(particulars, ''))) = 'internal utilization (%)'
-            AND lower(trim(coalesce(sub_category, ''))) = 'blank'
-            AND replace(trim(coalesce(value_percent, '')), ',', '') ~ '^-?(?:\\d+\\.?\\d*|\\.\\d+)$'
-        ) AS internal_rows,
-        SUM(CASE WHEN ${scenario} AND ${forecastEntity}
-          AND ${UTILIZATION_PAGE_PREDICATE}
-          AND lower(trim(coalesce(particulars, ''))) = 'outsourcing utilization (%)'
-          AND lower(trim(coalesce(sub_category, ''))) = 'blank'
-          AND replace(trim(coalesce(value_percent, '')), ',', '') ~ '^-?(?:\\d+\\.?\\d*|\\.\\d+)$'
-          THEN replace(trim(value_percent), ',', '')::numeric END) AS external_value,
-        COUNT(*) FILTER (
-          WHERE ${scenario} AND ${forecastEntity}
-            AND ${UTILIZATION_PAGE_PREDICATE}
-            AND lower(trim(coalesce(particulars, ''))) = 'outsourcing utilization (%)'
-            AND lower(trim(coalesce(sub_category, ''))) = 'blank'
-            AND replace(trim(coalesce(value_percent, '')), ',', '') ~ '^-?(?:\\d+\\.?\\d*|\\.\\d+)$'
-        ) AS external_rows,
+        NULL::numeric AS internal_value,
+        0 AS internal_rows,
+        NULL::numeric AS external_value,
+        0 AS external_rows,
         COALESCE(
-          SUM(CASE WHEN upper(trim(coalesce(plan_type, ''))) IN ('ACTUAL', 'ACTUALS')
-            AND upper(regexp_replace(trim(coalesce(page, '')), '\\s+', ' ', 'g')) = 'ENTITY VIEW'
-            AND lower(trim(coalesce(particulars, ''))) = 'total capacity'
-            AND lower(trim(coalesce(sub_category, ''))) = 'end'
-            AND replace(trim(coalesce(cost_value, '')), ',', '') ~ '^-?(?:\\d+\\.?\\d*|\\.\\d+)$'
-            THEN replace(trim(cost_value), ',', '')::numeric END),
-          SUM(CASE WHEN ${scenario} AND ${forecastEntity}
-            AND ${forecastPage}
-            AND lower(trim(coalesce(particulars, ''))) = 'total capacity'
-            AND lower(trim(coalesce(sub_category, ''))) = 'end'
-            AND replace(trim(coalesce(cost_value, '')), ',', '') ~ '^-?(?:\\d+\\.?\\d*|\\.\\d+)$'
-            THEN replace(trim(cost_value), ',', '')::numeric END)
+          SUM(${numericText("cost_value")}) FILTER (
+            WHERE upper(trim(coalesce(plan_type, ''))) IN ('ACTUAL', 'ACTUALS')
+              AND ${forecastCapacityPage}
+              AND lower(trim(coalesce(particulars, ''))) = 'total capacity'
+              AND lower(trim(coalesce(sub_category, ''))) = 'end'
+          ),
+          SUM(${numericText("cost_value")}) FILTER (
+            WHERE ${scenario}
+              AND ${forecastRevenuePage}
+              AND lower(trim(coalesce(particulars, ''))) = 'total capacity'
+              AND lower(trim(coalesce(sub_category, ''))) = 'end'
+          )
         ) AS capacity_value,
-        COALESCE(NULLIF(COUNT(*) FILTER (WHERE upper(trim(coalesce(plan_type, ''))) IN ('ACTUAL', 'ACTUALS')
-            AND upper(regexp_replace(trim(coalesce(page, '')), '\\s+', ' ', 'g')) = 'ENTITY VIEW'
-            AND lower(trim(coalesce(particulars, ''))) = 'total capacity'
-            AND lower(trim(coalesce(sub_category, ''))) = 'end'
-            AND replace(trim(coalesce(cost_value, '')), ',', '') ~ '^-?(?:\\d+\\.?\\d*|\\.\\d+)$'), 0),
-          COUNT(*) FILTER (WHERE ${scenario} AND ${forecastEntity}
-            AND ${forecastPage}
-            AND lower(trim(coalesce(particulars, ''))) = 'total capacity'
-            AND lower(trim(coalesce(sub_category, ''))) = 'end'
-            AND replace(trim(coalesce(cost_value, '')), ',', '') ~ '^-?(?:\\d+\\.?\\d*|\\.\\d+)$')
+        COALESCE(
+          NULLIF(COUNT(*) FILTER (
+            WHERE upper(trim(coalesce(plan_type, ''))) IN ('ACTUAL', 'ACTUALS')
+              AND ${forecastCapacityPage}
+              AND lower(trim(coalesce(particulars, ''))) = 'total capacity'
+              AND lower(trim(coalesce(sub_category, ''))) = 'end'
+              AND ${numericText("cost_value")} IS NOT NULL
+          ), 0),
+          COUNT(*) FILTER (
+            WHERE ${scenario}
+              AND ${forecastRevenuePage}
+              AND lower(trim(coalesce(particulars, ''))) = 'total capacity'
+              AND lower(trim(coalesce(sub_category, ''))) = 'end'
+              AND ${numericText("cost_value")} IS NOT NULL
+          )
         ) AS capacity_rows
       FROM cube_plan_data
       WHERE cube_id = ${request.cubeId}
         AND year = ${request.year}
         AND month = ${request.month}
+        AND ${forecastEntity}
     `),
   ]);
 
-  const actual = (rowsOf(actualResult)[0] ?? {}) as AggregateRow;
+  const actual = { ...((rowsOf(actualResult)[0] ?? {}) as AggregateRow) };
+  if (workbookActuals) {
+    const planCapacity = (rowsOf(actualCapacityPlanResult)[0] ?? {}) as AggregateRow;
+    const factCapacity = numeric(actual.capacity_value);
+    const planCapacityValue = numeric(planCapacity.capacity_value);
+    const factCapacityRows = numeric(actual.capacity_rows) ?? 0;
+    const planCapacityRows = numeric(planCapacity.capacity_rows) ?? 0;
+    actual.capacity_value = factCapacity !== null || planCapacityValue !== null
+      ? (factCapacity ?? 0) + (planCapacityValue ?? 0)
+      : null;
+    actual.capacity_rows = factCapacityRows + planCapacityRows;
+  }
   const forecast = (rowsOf(forecastResult)[0] ?? {}) as AggregateRow;
   const warnings: string[] = [];
   const metricValue = (row: AggregateRow, field: keyof AggregateRow) => numeric(row[field]);
@@ -349,9 +457,9 @@ async function runKpiMetricSnapshot(request: KpiReportRequest) {
           ? "external"
           : "capacity";
     const actualRows = metricRows(actual, `${field}_rows` as keyof AggregateRow);
-    const forecastRows = metricRows(forecast, `${field}_rows` as keyof AggregateRow);
-    const actualValue = valueOrNull(metricValue(actual, `${field}_value` as keyof AggregateRow), actualRows);
     const isUtilization = definition.id.includes("utilization");
+    const forecastRows = isUtilization ? 0 : metricRows(forecast, `${field}_rows` as keyof AggregateRow);
+    const actualValue = valueOrNull(metricValue(actual, `${field}_value` as keyof AggregateRow), actualRows);
     const forecastValue = isUtilization
       ? null
       : valueOrNull(metricValue(forecast, `${field}_value` as keyof AggregateRow), forecastRows);
@@ -379,85 +487,242 @@ async function runKpiMetricSnapshot(request: KpiReportRequest) {
 }
 
 async function runKpiBreakdownSnapshot(request: KpiReportRequest) {
+  const worldWide = isWorldWideEntity(request.entity);
   const actualEntity = actualEntityPredicate(request.entity);
   const actualBudgetInclude = actualBudgetIncludePredicate(request.entity);
+  const actualPlanEntity = actualPlanEntityPredicate(request.entity);
   const forecastEntity = forecastEntityPredicate(request.entity);
   const scenario = forecastScenarioPredicate(request.forecastScenario);
 
-  const [actualResult, forecastResult] = await Promise.all([
+  const [actualResult, actualCapacityPlanResult, forecastResult] = await Promise.all([
     db.execute(sql`
       WITH mapped AS (
         SELECT *,
-          CASE upper(trim(coalesce(new_service_area, '')))
-            WHEN 'MS' THEN 'MS'
-            WHEN 'SX' THEN 'MM'
-            WHEN 'SDS' THEN 'SDS'
-            WHEN 'MOBILITY SOLUTIONS EXTERNAL' THEN 'MS-External'
-            WHEN 'RBEI_BD' THEN 'Integrated Service'
-            WHEN 'RBEI_GS' THEN 'Integrated Service'
-            WHEN 'RBEI_SO' THEN 'Integrated Service'
-            WHEN 'EIGROW' THEN 'Integrated Service'
+          CASE
+            WHEN upper(trim(coalesce(split_itrams_sds, ''))) = 'SDS'
+              OR upper(trim(coalesce(new_service_area, ''))) = 'SDS'
+              THEN 'SDS'
+            WHEN upper(trim(coalesce(split_itrams_sds, ''))) IN (
+              'CONNECTED MOBILITY SOLUTIONS', 'MOBILITY SOLUTIONS EXTERNAL', 'ITRAMS'
+            ) THEN 'MS-External'
+            WHEN upper(trim(coalesce(project_gb, ''))) IN ('BD', 'GS', 'SO')
+              THEN 'Integrated Service'
+            WHEN upper(trim(coalesce(new_service_area, ''))) = 'SX'
+              THEN 'MM'
+            WHEN upper(trim(coalesce(new_service_area, ''))) = 'MS'
+              THEN 'MS'
           END AS breakdown
         FROM cube_fact_data
         WHERE cube_id = ${request.cubeId}
           AND year = ${request.year}
-          AND month BETWEEN 1 AND ${request.month}
+          AND month = ${request.month}
           AND ${ACTUAL_VERSION_PREDICATE}
           AND ${actualEntity}
       )
       SELECT
         breakdown,
         SUM(amount_usd) FILTER (
-          WHERE cost_category = 'Revenue Summary'
+          WHERE lower(trim(coalesce(cost_category, ''))) = 'revenue summary'
             AND ${actualBudgetInclude}
-            AND lower(trim(coalesce(sub_cost_category, ''))) <> 'revenue hardware'
-            AND lower(trim(coalesce(cost_category_class, ''))) <> 'revenue hardware'
+            AND (
+              (breakdown = 'MS'
+                AND upper(trim(coalesce(new_service_area, ''))) = 'MS'
+                AND upper(trim(coalesce(project_type, ''))) <> 'FIXEDPRICE')
+              OR (breakdown = 'MM'
+                AND upper(trim(coalesce(new_service_area, ''))) = 'SX'
+                AND upper(trim(coalesce(project_type, ''))) <> 'FIXEDPRICE'
+                AND upper(trim(coalesce(proj_dept, ''))) NOT IN ('CR/RAL-IN', 'CR/RDT-IN', 'CR/RTC-IN'))
+              OR (breakdown = 'SDS'
+                AND upper(trim(coalesce(split_itrams_sds, ''))) = 'SDS')
+              OR (breakdown = 'MS-External'
+                AND upper(trim(coalesce(split_itrams_sds, ''))) IN (
+                  'CONNECTED MOBILITY SOLUTIONS', 'MOBILITY SOLUTIONS EXTERNAL', 'ITRAMS'
+                ))
+              OR (breakdown = 'Integrated Service'
+                AND upper(trim(coalesce(project_gb, ''))) IN ('BD', 'GS', 'SO'))
+            )
         ) / 1000000.0 AS revenue_value,
         COUNT(*) FILTER (
-          WHERE cost_category = 'Revenue Summary'
+          WHERE lower(trim(coalesce(cost_category, ''))) = 'revenue summary'
             AND ${actualBudgetInclude}
-            AND lower(trim(coalesce(sub_cost_category, ''))) <> 'revenue hardware'
-            AND lower(trim(coalesce(cost_category_class, ''))) <> 'revenue hardware'
+            AND (
+              (breakdown = 'MS'
+                AND upper(trim(coalesce(new_service_area, ''))) = 'MS'
+                AND upper(trim(coalesce(project_type, ''))) <> 'FIXEDPRICE')
+              OR (breakdown = 'MM'
+                AND upper(trim(coalesce(new_service_area, ''))) = 'SX'
+                AND upper(trim(coalesce(project_type, ''))) <> 'FIXEDPRICE'
+                AND upper(trim(coalesce(proj_dept, ''))) NOT IN ('CR/RAL-IN', 'CR/RDT-IN', 'CR/RTC-IN'))
+              OR (breakdown = 'SDS'
+                AND upper(trim(coalesce(split_itrams_sds, ''))) = 'SDS')
+              OR (breakdown = 'MS-External'
+                AND upper(trim(coalesce(split_itrams_sds, ''))) IN (
+                  'CONNECTED MOBILITY SOLUTIONS', 'MOBILITY SOLUTIONS EXTERNAL', 'ITRAMS'
+                ))
+              OR (breakdown = 'Integrated Service'
+                AND upper(trim(coalesce(project_gb, ''))) IN ('BD', 'GS', 'SO'))
+            )
             AND amount_usd IS NOT NULL
         ) AS revenue_rows,
         SUM(billed_capacity) FILTER (
-          WHERE cost_category = 'Billing Utilization'
+          WHERE lower(trim(coalesce(cost_category, ''))) = 'billing utilization summary'
+            AND upper(trim(coalesce(project_type, ''))) <> 'FIXEDPRICE'
             AND lower(trim(coalesce(resource_type, ''))) = 'internal'
-        ) / NULLIF(SUM(allocated_capacity) FILTER (
-          WHERE cost_category = 'Billing Utilization'
-            AND lower(trim(coalesce(resource_type, ''))) = 'internal'
-        ), 0) AS internal_value,
+            AND breakdown IN ('MS', 'MM')
+        ) / NULLIF(
+          SUM(allocated_capacity) FILTER (
+            WHERE lower(trim(coalesce(cost_category, ''))) = 'billing utilization summary'
+              AND upper(trim(coalesce(project_type, ''))) <> 'FIXEDPRICE'
+              AND lower(trim(coalesce(resource_type, ''))) = 'internal'
+              AND breakdown IN ('MS', 'MM'))
+          + SUM(not_allocated_capacity) FILTER (
+            WHERE lower(trim(coalesce(cost_category, ''))) = 'billing utilization summary'
+              AND upper(trim(coalesce(project_type, ''))) <> 'FIXEDPRICE'
+              AND lower(trim(coalesce(resource_type, ''))) = 'internal'
+              AND breakdown IN ('MS', 'MM'))
+          + SUM(ms_capacity) FILTER (
+            WHERE lower(trim(coalesce(cost_category, ''))) = 'billing utilization summary'
+              AND upper(trim(coalesce(project_type, ''))) <> 'FIXEDPRICE'
+              AND lower(trim(coalesce(resource_type, ''))) = 'internal'
+              AND breakdown IN ('MS', 'MM'))
+          + SUM(vkm_capacity) FILTER (
+            WHERE lower(trim(coalesce(cost_category, ''))) = 'billing utilization summary'
+              AND upper(trim(coalesce(project_type, ''))) <> 'FIXEDPRICE'
+              AND lower(trim(coalesce(resource_type, ''))) = 'internal'
+              AND breakdown IN ('MS', 'MM'))
+          - SUM(non_linear_capacity) FILTER (
+            WHERE lower(trim(coalesce(cost_category, ''))) = 'billing utilization summary'
+              AND upper(trim(coalesce(project_type, ''))) <> 'FIXEDPRICE'
+              AND lower(trim(coalesce(resource_type, ''))) = 'internal'
+              AND breakdown IN ('MS', 'MM')),
+          0
+        ) AS internal_value,
         COUNT(*) FILTER (
-          WHERE cost_category = 'Billing Utilization'
+          WHERE lower(trim(coalesce(cost_category, ''))) = 'billing utilization summary'
+            AND upper(trim(coalesce(project_type, ''))) <> 'FIXEDPRICE'
             AND lower(trim(coalesce(resource_type, ''))) = 'internal'
+            AND breakdown IN ('MS', 'MM')
             AND allocated_capacity IS NOT NULL
         ) AS internal_rows,
         SUM(billed_capacity) FILTER (
-          WHERE cost_category = 'Billing Utilization'
+          WHERE lower(trim(coalesce(cost_category, ''))) = 'billing utilization summary'
+            AND upper(trim(coalesce(project_type, ''))) <> 'FIXEDPRICE'
             AND lower(trim(coalesce(resource_type, ''))) = 'external'
-        ) / NULLIF(SUM(allocated_capacity) FILTER (
-          WHERE cost_category = 'Billing Utilization'
-            AND lower(trim(coalesce(resource_type, ''))) = 'external'
-        ), 0) AS external_value,
+            AND breakdown IN ('MS', 'MM')
+        ) / NULLIF(
+          SUM(payable_allocated_cap) FILTER (
+            WHERE lower(trim(coalesce(cost_category, ''))) = 'billing utilization summary'
+              AND upper(trim(coalesce(project_type, ''))) <> 'FIXEDPRICE'
+              AND lower(trim(coalesce(resource_type, ''))) = 'external'
+              AND breakdown IN ('MS', 'MM'))
+          + SUM(payable_not_allocated_cap) FILTER (
+            WHERE lower(trim(coalesce(cost_category, ''))) = 'billing utilization summary'
+              AND upper(trim(coalesce(project_type, ''))) <> 'FIXEDPRICE'
+              AND lower(trim(coalesce(resource_type, ''))) = 'external'
+              AND breakdown IN ('MS', 'MM'))
+          + SUM(payable_ms_cap) FILTER (
+            WHERE lower(trim(coalesce(cost_category, ''))) = 'billing utilization summary'
+              AND upper(trim(coalesce(project_type, ''))) <> 'FIXEDPRICE'
+              AND lower(trim(coalesce(resource_type, ''))) = 'external'
+              AND breakdown IN ('MS', 'MM'))
+          + SUM(payable_vkm_cap) FILTER (
+            WHERE lower(trim(coalesce(cost_category, ''))) = 'billing utilization summary'
+              AND upper(trim(coalesce(project_type, ''))) <> 'FIXEDPRICE'
+              AND lower(trim(coalesce(resource_type, ''))) = 'external'
+              AND breakdown IN ('MS', 'MM'))
+          - SUM(payable_non_linear_cap) FILTER (
+            WHERE lower(trim(coalesce(cost_category, ''))) = 'billing utilization summary'
+              AND upper(trim(coalesce(project_type, ''))) <> 'FIXEDPRICE'
+              AND lower(trim(coalesce(resource_type, ''))) = 'external'
+              AND breakdown IN ('MS', 'MM')),
+          0
+        ) AS external_value,
         COUNT(*) FILTER (
-          WHERE cost_category = 'Billing Utilization'
+          WHERE lower(trim(coalesce(cost_category, ''))) = 'billing utilization summary'
+            AND upper(trim(coalesce(project_type, ''))) <> 'FIXEDPRICE'
             AND lower(trim(coalesce(resource_type, ''))) = 'external'
+            AND breakdown IN ('MS', 'MM')
             AND allocated_capacity IS NOT NULL
         ) AS external_rows,
         SUM(capacity) FILTER (
-          WHERE cost_category = 'GB Wise END Capacity'
+          WHERE lower(trim(coalesce(cost_category, ''))) = 'gb wise end capacity'
             AND month = ${request.month}
-            AND upper(trim(coalesce(sector, ''))) <> 'INDIRECT'
+            AND upper(trim(coalesce(service_area, ''))) NOT IN (
+              'CORPORATE', 'RBEI_CORPORATE', 'SDS_CORPORATE'
+            )
+            AND lower(trim(coalesce(resource_type, ''))) IN ('internal', 'external')
+            AND ${
+              worldWide
+                ? sql`upper(trim(coalesce(onsite_offshore, ''))) IN ('OFFSHORE', 'ONSITE')`
+                : sql`upper(trim(coalesce(onsite_offshore, ''))) = 'OFFSHORE'`
+            }
+            AND (
+              (breakdown = 'MS'
+                AND upper(trim(coalesce(new_service_area, ''))) = 'MS'
+                AND upper(trim(coalesce(project_type, ''))) <> 'FIXEDPRICE')
+              OR (breakdown = 'MM'
+                AND upper(trim(coalesce(new_service_area, ''))) = 'SX'
+                AND upper(trim(coalesce(project_type, ''))) <> 'FIXEDPRICE'
+                AND upper(trim(coalesce(proj_dept, ''))) NOT IN ('CR/RAL-IN', 'CR/RDT-IN', 'CR/RTC-IN'))
+              OR (breakdown = 'SDS'
+                AND upper(trim(coalesce(new_service_area, ''))) = 'SDS')
+              OR (breakdown = 'Integrated Service'
+                AND upper(trim(coalesce(project_gb, ''))) IN ('BD', 'GS', 'SO'))
+            )
         ) AS capacity_value,
         COUNT(*) FILTER (
-          WHERE cost_category = 'GB Wise END Capacity'
+          WHERE lower(trim(coalesce(cost_category, ''))) = 'gb wise end capacity'
             AND month = ${request.month}
-            AND upper(trim(coalesce(sector, ''))) <> 'INDIRECT'
+            AND upper(trim(coalesce(service_area, ''))) NOT IN (
+              'CORPORATE', 'RBEI_CORPORATE', 'SDS_CORPORATE'
+            )
+            AND lower(trim(coalesce(resource_type, ''))) IN ('internal', 'external')
+            AND ${
+              worldWide
+                ? sql`upper(trim(coalesce(onsite_offshore, ''))) IN ('OFFSHORE', 'ONSITE')`
+                : sql`upper(trim(coalesce(onsite_offshore, ''))) = 'OFFSHORE'`
+            }
+            AND breakdown IN ('MS', 'MM', 'SDS', 'Integrated Service')
             AND capacity IS NOT NULL
         ) AS capacity_rows
       FROM mapped
       WHERE breakdown IS NOT NULL
       GROUP BY breakdown
+    `),
+    db.execute(sql`
+      SELECT
+        CASE
+          WHEN upper(regexp_replace(trim(coalesce(page, '')), '\\s+', ' ', 'g')) = 'MS VIEW'
+            THEN 'MS'
+          WHEN upper(regexp_replace(trim(coalesce(page, '')), '\\s+', ' ', 'g')) IN ('SX VIEW', 'NE-MM')
+            THEN 'MM'
+          WHEN upper(trim(coalesce(gb, ''))) = 'SDS'
+            THEN 'SDS'
+          WHEN upper(trim(coalesce(gb, ''))) IN ('BD', 'GS', 'SO')
+            THEN 'Integrated Service'
+        END AS breakdown,
+        SUM(${numericText("cost_value")}) AS capacity_value,
+        COUNT(*) FILTER (WHERE ${numericText("cost_value")} IS NOT NULL) AS capacity_rows
+      FROM cube_plan_data
+      WHERE cube_id = ${request.cubeId}
+        AND year = ${request.year}
+        AND month = ${request.month}
+        AND upper(trim(coalesce(plan_type, ''))) IN ('ACTUAL', 'ACTUALS')
+        AND ${actualPlanEntity}
+        AND lower(trim(coalesce(particulars, ''))) = 'total capacity'
+        AND lower(trim(coalesce(sub_category, ''))) = 'end'
+        AND (
+          upper(regexp_replace(trim(coalesce(page, '')), '\\s+', ' ', 'g')) IN ('MS VIEW', 'SX VIEW', 'NE-MM')
+          OR (
+            ${
+              worldWide
+                ? sql`upper(regexp_replace(trim(coalesce(page, '')), '\\s+', ' ', 'g')) = 'WORLD WIDE'`
+                : sql`TRUE`
+            }
+            AND upper(trim(coalesce(gb, ''))) IN ('SDS', 'BD', 'GS', 'SO')
+          )
+        )
+      GROUP BY 1
     `),
     db.execute(sql`
       WITH mapped AS (
@@ -535,6 +800,20 @@ async function runKpiBreakdownSnapshot(request: KpiReportRequest) {
   ]);
 
   const actualRows = new Map(rowsOf(actualResult).map((row) => [String(row.breakdown), row as BreakdownRow]));
+  for (const planRow of rowsOf(actualCapacityPlanResult) as BreakdownRow[]) {
+    const key = String(planRow.breakdown);
+    const actualRow = actualRows.get(key);
+    if (!actualRow) {
+      actualRows.set(key, planRow);
+      continue;
+    }
+    const factCapacity = numeric(actualRow.capacity_value);
+    const planCapacity = numeric(planRow.capacity_value);
+    actualRow.capacity_value = factCapacity !== null || planCapacity !== null
+      ? (factCapacity ?? 0) + (planCapacity ?? 0)
+      : null;
+    actualRow.capacity_rows = (numeric(actualRow.capacity_rows) ?? 0) + (numeric(planRow.capacity_rows) ?? 0);
+  }
   const forecastRows = new Map(rowsOf(forecastResult).map((row) => [String(row.breakdown), row as BreakdownRow]));
 
   return KPI_METRICS.map((definition) => {

@@ -42,6 +42,37 @@ interface BoardReportForExport {
 }
 
 type TemplateZip = Record<string, Uint8Array>;
+type MetricViewKey = "budget" | "internal" | "external" | "capacity";
+type ScopeViewPolicy = Record<MetricViewKey, readonly string[] | null>;
+
+const STANDARD_UTILIZATION_VIEWS = ["MS", "MM"] as const;
+const STANDARD_CAPACITY_VIEWS = ["MS", "MM", "SDS", "Integrated Service"] as const;
+const SCOPE_VIEW_POLICIES: Record<string, ScopeViewPolicy> = {
+  ww: {
+    budget: ["MS", "MM", "SDS", "MS-External", "Integrated Service"],
+    internal: STANDARD_UTILIZATION_VIEWS,
+    external: STANDARD_UTILIZATION_VIEWS,
+    capacity: STANDARD_CAPACITY_VIEWS,
+  },
+  in: {
+    budget: ["MS", "MM", "SDS", "MS-External", "Integrated Service"],
+    internal: STANDARD_UTILIZATION_VIEWS,
+    external: STANDARD_UTILIZATION_VIEWS,
+    capacity: STANDARD_CAPACITY_VIEWS,
+  },
+  vn: {
+    budget: ["MS", "MM", "SDS", "Integrated Service"],
+    internal: STANDARD_UTILIZATION_VIEWS,
+    external: STANDARD_UTILIZATION_VIEWS,
+    capacity: STANDARD_CAPACITY_VIEWS,
+  },
+  mx: {
+    budget: ["MS", "MM", "SDS"],
+    internal: STANDARD_UTILIZATION_VIEWS,
+    external: null,
+    capacity: ["MS", "MM", "SDS"],
+  },
+};
 
 const SCOPE_COLORS = [
   { accent: "0F766E", soft: "CCFBF1", surface: "F0FDFA", text: "115E59" },
@@ -98,7 +129,12 @@ function templatePeriodLabel(period: string) {
   return `YTD ${String(month).padStart(2, "0")}.${match[2].slice(-2)}`;
 }
 
-function templateMetricText(metric: KpiMetric | undefined, period: string) {
+function templateMetricText(
+  metric: KpiMetric | undefined,
+  period: string,
+  allowedBreakdowns: readonly string[] | null,
+) {
+  if (allowedBreakdowns === null) return { summary: "", detail: "" };
   if (!metric) return { summary: "", detail: `1) no governed Actual or Forecast value is available for ${period}.` };
   const label = metric.label.toLowerCase();
   const display = (value: number | null | undefined) => {
@@ -128,7 +164,9 @@ function templateMetricText(metric: KpiMetric | undefined, period: string) {
   };
   const lines = [
     comparisonLine("1) ", metric.actual, metric.forecast, metric.variance),
-    ...(metric.breakdowns ?? []).map((breakdown) =>
+    ...(metric.breakdowns ?? [])
+      .filter((breakdown) => allowedBreakdowns.includes(breakdown.label))
+      .map((breakdown) =>
       comparisonLine(`${breakdown.label}: `, breakdown.actual, breakdown.forecast, breakdown.variance)),
   ];
   return { summary: "", detail: lines.join("\n") };
@@ -145,12 +183,14 @@ function templateScopePrefix(scope: KpiScope, index: number) {
 
 function replaceTemplateTokens(xml: string, report: BoardReportForExport, kpiReport: KpiReport, scope: KpiScope, index: number, total: number) {
   const prefix = templateScopePrefix(scope, index);
-  const budgetRevenue = templateMetricText(findMetric(scope, "budget", "revenue"), templatePeriodLabel(kpiReport.periodLabel ?? report.periodLabel ?? "Selected period"));
-  const internalUtilization = templateMetricText(findMetric(scope, "internal utilization", "internal"), templatePeriodLabel(kpiReport.periodLabel ?? report.periodLabel ?? "Selected period"));
-  const externalUtilization = templateMetricText(findMetric(scope, "external utilization", "external"), templatePeriodLabel(kpiReport.periodLabel ?? report.periodLabel ?? "Selected period"));
-  const capacity = templateMetricText(findMetric(scope, "capacity"), templatePeriodLabel(kpiReport.periodLabel ?? report.periodLabel ?? "Selected period"));
+  const policy = SCOPE_VIEW_POLICIES[prefix] ?? SCOPE_VIEW_POLICIES.ww;
+  const displayPeriod = templatePeriodLabel(kpiReport.periodLabel ?? report.periodLabel ?? "Selected period");
+  const budgetRevenue = templateMetricText(findMetric(scope, "budget", "revenue"), displayPeriod, policy.budget);
+  const internalUtilization = templateMetricText(findMetric(scope, "internal utilization", "internal"), displayPeriod, policy.internal);
+  const externalUtilization = templateMetricText(findMetric(scope, "external utilization", "external"), displayPeriod, policy.external);
+  const capacity = templateMetricText(findMetric(scope, "capacity"), displayPeriod, policy.capacity);
   const source = "Governed green scope";
-  const period = templatePeriodLabel(kpiReport.periodLabel ?? report.periodLabel ?? "Selected period");
+  const period = displayPeriod;
   const actualSource = kpiReport.actualSourceLabel ?? "Governed actuals";
   const forecastSource = kpiReport.forecastSourceLabel ?? "Configured forecast";
   const warningText = kpiReport.warnings?.join(" | ") || "None";
@@ -171,10 +211,21 @@ function replaceTemplateTokens(xml: string, report: BoardReportForExport, kpiRep
     [`{{${prefix}_warnings}}`]: warningText,
     [`{{${prefix}_entity_label}}`]: scope.entity || scope.label,
   };
-  return Object.entries(replacements).reduce(
+  const replaced = Object.entries(replacements).reduce(
     (result, [token, value]) => result.split(token).join(escapeXml(value)),
     xml,
   );
+  return policy.external === null
+    ? replaced.replace(/<a:t>External Utilization:<\/a:t>/g, "<a:t></a:t>")
+    : replaced;
+}
+
+function metricViewKey(metric: KpiMetric): MetricViewKey {
+  const label = metric.label.toLowerCase();
+  if (label.includes("internal utilization")) return "internal";
+  if (label.includes("external utilization")) return "external";
+  if (label.includes("capacity")) return "capacity";
+  return "budget";
 }
 
 function renderUploadedTemplate(
@@ -321,7 +372,11 @@ function addScopeSlide(
     color: "64748B", align: "right", margin: 0, breakLine: false,
   });
 
-  const metrics = scope.metrics.slice(0, 8);
+  const prefix = templateScopePrefix(scope, index);
+  const policy = SCOPE_VIEW_POLICIES[prefix] ?? SCOPE_VIEW_POLICIES.ww;
+  const metrics = scope.metrics
+    .filter((metric) => policy[metricViewKey(metric)] !== null)
+    .slice(0, 8);
   const columns = metrics.length <= 2 ? 2 : metrics.length <= 4 ? 2 : 4;
   const cardWidth = columns === 4 ? 2.88 : 5.85;
   const cardHeight = metrics.length <= columns ? 2.0 : 1.68;

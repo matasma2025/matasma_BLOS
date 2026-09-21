@@ -6,21 +6,54 @@ id = "ur-t1Vxxxbluoh2tB2uko"
 uri = "file://ledgerlm_test_questions.txt"
 type = "text"
 title = "LedgerLM – 100 Test Questions for Bosch"
+logical_id = "3cbd6fd5-f02b-43da-a867-073d1d6d1a97"
 
 [[outputs]]
 id = "T17ZCXDBDFciqONDjDgA7"
 uri = "file://ledgerlm_bosch_all_scenarios.md"
 type = "text"
 title = "LedgerLM – All Scenarios Test Questions (338 queries)"
+logical_id = "c6316cce-1ddc-4974-b74a-6009d0c3b354"
 
 [[outputs]]
 id = "SwqIGXdablOoUCqI-r54X"
 uri = "file://ledgerlm_security_scan_report.html"
-type = "unspecified"
+type = "html"
 title = "LedgerLM Security Scanning Report"
+logical_id = "112a6fb4-9108-4275-949f-65b69057e6b6"
+content_type = "text/html"
 
 [[outputs]]
 id = "2oRwxNWZcXW-TVnCIYWsB"
 uri = "file://ledgerlm_sbom_cyclonedx.json"
 type = "unspecified"
 title = "LedgerLM SBOM (CycloneDX 1.4)"
+logical_id = "4d857eff-a9c0-4d00-b700-5711cec11557"
+
+[[outputs]]
+id = "LQJcJVvCRjBvU0_lmR1Qy"
+uri = "file://ledgerlm/ledgerlm/data/board-exports/board-corrected-reference-values.pptx"
+type = "slides"
+title = "Corrected KPI Board PowerPoint"
+description = "Fresh four-slide Board export using the governed source filters that reproduce the reference screenshots."
+logical_id = "274c24d9-ba97-4881-8979-91867e1dd83f"
+content_hash = "sha256:af5339f5dc87e64e33051960736f7e7b6f4c293304680b78f81e3b06c1cd4f97"
+size = 33158
+mtime_ms = 1789977898859
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:027ac7ba-e96f-4c01-8f27-5aa658c0d710/274c24d9-ba97-4881-8979-91867e1dd83f/01ffc5cf-d97a-4b94-a270-0f4c9c346ed4"
+storage_version_token = "1789978056274665"
+content_type = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+
+[[outputs]]
+id = "4gZbbA2HPFULozDsYA1e0"
+uri = "file://ledgerlm/ledgerlm/data/board-exports/board-approved-entity-metric-views.pptx"
+type = "slides"
+title = "KPI Board — Approved Entity Metric Views"
+description = "Four-slide export containing only the approved YTD and breakdown lines for WW, BGSW, BGSV, and NE-MX."
+logical_id = "9f22de05-1f2b-4163-9b7d-442c45579191"
+content_hash = "sha256:a18b7f671e534c5442d94a5f8935f2e9db21f8a2395da411973971172b84b83d"
+size = 32884
+mtime_ms = 1789981399957
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:027ac7ba-e96f-4c01-8f27-5aa658c0d710/9f22de05-1f2b-4163-9b7d-442c45579191/dfbfaff1-f7dc-474f-b07b-55f5af4d3597"
+storage_version_token = "1789981520332019"
+content_type = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
