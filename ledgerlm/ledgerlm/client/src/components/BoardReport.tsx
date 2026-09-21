@@ -115,15 +115,22 @@ function printReport(title: string, sourceElement: HTMLElement | null) {
 interface BoardReportProps {
   report: CubeBoardReport;
   boardId: string;
+  expanded?: boolean;
+  onExpandedChange?: (expanded: boolean) => void;
 }
 
-export function BoardReport({ report, boardId }: BoardReportProps) {
+export function BoardReport({ report, boardId, expanded: controlledExpanded, onExpandedChange }: BoardReportProps) {
   const { toast }    = useToast();
   const [, navigate] = useLocation();
-  const [expanded, setExpanded]     = useState(true);
+  const [internalExpanded, setInternalExpanded] = useState(true);
   const [showPrompt, setShowPrompt] = useState(false);
   const [pendingIntent, setPendingIntent] = useState<string | null>(null);
   const reportContentRef = useRef<HTMLDivElement>(null);
+  const expanded = controlledExpanded ?? internalExpanded;
+  const setExpanded = (next: boolean) => {
+    if (controlledExpanded === undefined) setInternalExpanded(next);
+    onExpandedChange?.(next);
+  };
 
   const mapping    = report.columnMapping as any ?? {};
   const varData    = report.varianceData  as VRow[] | null;
@@ -202,11 +209,22 @@ export function BoardReport({ report, boardId }: BoardReportProps) {
           </div>
         </div>
         <div className="flex items-center gap-1 flex-shrink-0">
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setExpanded((v) => !v)}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => setExpanded(!expanded)}
+            aria-label={expanded ? 'Collapse report' : 'Expand report'}
+            aria-expanded={expanded}
+            aria-controls={`report-content-${report.id}`}
+            data-testid={`button-toggle-report-${report.id}`}
+          >
             {expanded ? <ChevronUp className="w-4 h-4"/> : <ChevronDown className="w-4 h-4"/>}
           </Button>
           <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive"
-            onClick={() => deleteMutation.mutate()} disabled={deleteMutation.isPending}>
+            onClick={() => deleteMutation.mutate()} disabled={deleteMutation.isPending}
+            aria-label="Delete report"
+            data-testid={`button-delete-report-${report.id}`}>
             <Trash2 className="w-4 h-4"/>
           </Button>
         </div>
@@ -214,7 +232,7 @@ export function BoardReport({ report, boardId }: BoardReportProps) {
 
       {/* Body */}
       {expanded && (
-        <div className="px-5 py-4 space-y-4">
+        <div id={`report-content-${report.id}`} className="px-5 py-4 space-y-4">
 
           {/* Markdown analysis */}
           {report.rawAnalysis ? (
@@ -260,8 +278,14 @@ export function BoardReport({ report, boardId }: BoardReportProps) {
                 <FileSpreadsheet className="w-3.5 h-3.5"/>Export CSV
               </Button>
             </div>
-            <button onClick={() => setShowPrompt((v) => !v)}
-              className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setShowPrompt((v) => !v)}
+              className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
+              aria-expanded={showPrompt}
+              aria-controls={`report-prompt-${report.id}`}
+              data-testid={`button-toggle-report-prompt-${report.id}`}
+            >
               {showPrompt ? <ChevronUp className="w-3 h-3"/> : <ChevronDown className="w-3 h-3"/>}
               {showPrompt ? 'Hide' : 'Show'} resolved prompt
             </button>
@@ -269,7 +293,7 @@ export function BoardReport({ report, boardId }: BoardReportProps) {
 
           {/* Resolved prompt (collapsible) */}
           {showPrompt && report.userPromptFinal && (
-            <pre className="p-3 bg-muted rounded text-xs font-mono whitespace-pre-wrap overflow-auto max-h-60">
+            <pre id={`report-prompt-${report.id}`} className="p-3 bg-muted rounded text-xs font-mono whitespace-pre-wrap overflow-auto max-h-60">
               {report.userPromptFinal}
             </pre>
           )}

@@ -1,12 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams, useLocation } from 'wouter';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   ArrowLeft, Loader2, MessageSquare, FolderPlus, ShieldCheck,
-  Sparkles, Database, BarChart3, FileText,
+  Sparkles, Database, BarChart3, FileText, ChevronRight, Clock3, History, SlidersHorizontal,
 } from 'lucide-react';
 import { type Board, type Chat, type CubeBoardReport } from '@shared/schema';
 import { apiRequest, queryClient } from '@/lib/queryClient';
@@ -46,6 +47,18 @@ interface GenericReport {
   };
   kpiReport?: KpiTemplateData;
   createdAt: string | Date;
+  status?: string;
+}
+
+const REPORT_HISTORY_PAGE_SIZE = 5;
+
+function reportKpiData(report: GenericReport) {
+  return report.kpiReport ?? report.result?.kpiReport;
+}
+
+function reportEntity(report: GenericReport) {
+  const scopes = reportKpiData(report)?.scopeBadges ?? [];
+  return scopes.length === 1 ? scopes[0].label : scopes.length > 1 ? 'Multiple entities' : 'All entities';
 }
 
 export default function BoardDetail() {
@@ -56,6 +69,13 @@ export default function BoardDetail() {
   const [isAnalysisEditorOpen, setIsAnalysisEditorOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<TabId>('reports');
   const [openReportId, setOpenReportId] = useState<string | null>(null);
+  const [legacyReportsInitialized, setLegacyReportsInitialized] = useState(false);
+  const [activeGenericReportId, setActiveGenericReportId] = useState<string | null>(null);
+  const [historyLimit, setHistoryLimit] = useState(REPORT_HISTORY_PAGE_SIZE);
+  const [periodFilter, setPeriodFilter] = useState('all');
+  const [scenarioFilter, setScenarioFilter] = useState('all');
+  const [entityFilter, setEntityFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
   const [activeRunId, setActiveRunId] = useState<string | null>(null);
   const [finishedRunId, setFinishedRunId] = useState<string | null>(null);
 
@@ -89,11 +109,77 @@ export default function BoardDetail() {
     queryFn: () => apiRequest('GET', `/api/boards/${boardId}/reports`) as Promise<CubeBoardReport[]>,
   });
 
-  const { data: genericReports = [], isLoading: genericReportsLoading } = useQuery<GenericReport[]>({
+  const {
+    data: genericReports = [],
+    isLoading: genericReportsLoading,
+    refetch: refetchGenericReports,
+  } = useQuery<GenericReport[]>({
     queryKey: ['/api/boards', boardId, 'reports', 'search'],
     queryFn: () => apiRequest('GET', `/api/boards/${boardId}/reports/search`) as Promise<GenericReport[]>,
     enabled: !!boardId,
   });
+
+  useEffect(() => {
+    if (!genericReports.length) {
+      setActiveGenericReportId(null);
+      return;
+    }
+    if (!activeGenericReportId || !genericReports.some((report) => report.id === activeGenericReportId)) {
+      setActiveGenericReportId(genericReports[0].id);
+    }
+  }, [activeGenericReportId, genericReports]);
+
+  useEffect(() => {
+    if (!reports.length) {
+      setOpenReportId(null);
+      setLegacyReportsInitialized(false);
+      return;
+    }
+    if (!legacyReportsInitialized) {
+      setOpenReportId(reports[0].id);
+      setLegacyReportsInitialized(true);
+      return;
+    }
+    if (openReportId && !reports.some((report) => report.id === openReportId)) {
+      setOpenReportId(reports[0].id);
+    }
+  }, [legacyReportsInitialized, openReportId, reports]);
+
+  useEffect(() => {
+    setHistoryLimit(REPORT_HISTORY_PAGE_SIZE);
+  }, [periodFilter, scenarioFilter, entityFilter, statusFilter]);
+
+  const activeGenericReport = useMemo(
+    () => genericReports.find((report) => report.id === activeGenericReportId) ?? genericReports[0],
+    [activeGenericReportId, genericReports],
+  );
+  const periodOptions = useMemo(
+    () => Array.from(new Set(genericReports.map((report) => report.periodLabel).filter((value): value is string => !!value))),
+    [genericReports],
+  );
+  const scenarioOptions = useMemo(
+    () => Array.from(new Set(genericReports.map((report) => reportKpiData(report)?.forecastScenario).filter((value): value is string => !!value))),
+    [genericReports],
+  );
+  const entityOptions = useMemo(
+    () => Array.from(new Set(genericReports.map(reportEntity))),
+    [genericReports],
+  );
+  const statusOptions = useMemo(
+    () => Array.from(new Set(genericReports.map((report) => report.status ?? 'complete'))),
+    [genericReports],
+  );
+  const filteredHistory = useMemo(
+    () => genericReports.filter((report) => {
+      if (report.id === activeGenericReport?.id) return false;
+      const kpiReport = reportKpiData(report);
+      return (periodFilter === 'all' || report.periodLabel === periodFilter)
+        && (scenarioFilter === 'all' || kpiReport?.forecastScenario === scenarioFilter)
+        && (entityFilter === 'all' || reportEntity(report) === entityFilter)
+        && (statusFilter === 'all' || (report.status ?? 'complete') === statusFilter);
+    }),
+    [activeGenericReport?.id, entityFilter, genericReports, periodFilter, scenarioFilter, statusFilter],
+  );
 
   const { data: activeRun } = useQuery<GenericRun>({
     queryKey: ['/api/boards', boardId, 'analysis-runs', activeRunId],
@@ -107,6 +193,9 @@ export default function BoardDetail() {
     if (['complete', 'error', 'cancelled'].includes(activeRun.status)) {
       if (activeRun.status === 'complete') {
         queryClient.invalidateQueries({ queryKey: ['/api/boards', boardId, 'reports', 'search'] });
+        void refetchGenericReports().then(({ data }) => {
+          if (data?.[0]) setActiveGenericReportId(data[0].id);
+        });
         toast({ title: 'Governed report ready', description: activeRun.progressStage || 'Analysis complete.' });
       } else if (activeRun.status === 'error') {
         toast({ title: 'Analysis failed', description: activeRun.errorMessage || 'The report could not be generated.', variant: 'destructive' });
@@ -115,7 +204,7 @@ export default function BoardDetail() {
       setActiveRunId(null);
       queryClient.invalidateQueries({ queryKey: ['/api/boards', boardId, 'analysis-runs'] });
     }
-  }, [activeRun, boardId, toast]);
+  }, [activeRun, boardId, refetchGenericReports, toast]);
 
   const governedRunMutation = useMutation({
     mutationFn: () => {
@@ -397,80 +486,185 @@ export default function BoardDetail() {
             {/* Reports tab */}
             {activeTab === 'reports' && (
               <div className="space-y-4">
-                {genericReports.map((report) => {
-                  const kpiReport = report.kpiReport ?? report.result?.kpiReport;
+                {activeGenericReport && (() => {
+                  const report = activeGenericReport;
+                  const kpiReport = reportKpiData(report);
                   return (
-                  <Card key={report.id} className="p-5 space-y-3 border-primary/20" data-testid={`card-governed-report-${report.id}`}>
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <h3 className="font-semibold">{report.title}</h3>
-                        <p className="text-xs text-muted-foreground">
-                          {report.sourceSnapshot?.sourceType === 'enterprise' ? 'Enterprise Data' : 'Vault'}
-                          {report.sourceSnapshot?.name ? ` · ${report.sourceSnapshot.name}` : ''}
-                          {report.periodLabel ? ` · ${report.periodLabel}` : ''}
-                        </p>
+                    <section className="space-y-2" aria-labelledby="active-report-heading">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Active report</p>
+                          <h2 id="active-report-heading" className="sr-only">Active report</h2>
+                        </div>
+                        <Badge variant="outline" className="gap-1 text-xs">
+                          <Clock3 className="h-3 w-3" />
+                          {new Date(report.createdAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
+                        </Badge>
                       </div>
-                      <Badge variant="secondary">Governed</Badge>
-                    </div>
-                     {!isStandaloneBoard && report.deterministicMetrics?.measures?.length ? (
-                       <div className="space-y-2" aria-label="Verified deterministic metrics">
-                         <div className="flex items-center justify-between gap-2">
-                           <p className="text-xs font-semibold uppercase tracking-wide text-primary">Verified metrics</p>
-                           <div className="flex gap-1">
-                             <Button variant="outline" size="sm" onClick={() => exportMutation.mutate({ reportId: report.id, format: 'csv' })} disabled={exportMutation.isPending}>CSV</Button>
-                             <Button variant="outline" size="sm" onClick={() => exportMutation.mutate({ reportId: report.id, format: 'xlsx' })} disabled={exportMutation.isPending}>XLSX</Button>
+                      <Card className="p-5 space-y-3 border-primary/20 shadow-sm" data-testid={`card-governed-report-${report.id}`}>
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <h3 className="font-semibold">{report.title}</h3>
+                            <p className="text-xs text-muted-foreground">
+                              {report.sourceSnapshot?.sourceType === 'enterprise' ? 'Enterprise Data' : 'Vault'}
+                              {report.sourceSnapshot?.name ? ` · ${report.sourceSnapshot.name}` : ''}
+                              {report.periodLabel ? ` · ${report.periodLabel}` : ''}
+                              {kpiReport?.forecastScenario ? ` · ${kpiReport.forecastScenario}` : ''}
+                            </p>
+                          </div>
+                          <Badge variant="secondary">Governed</Badge>
+                        </div>
+                        {!isStandaloneBoard && report.deterministicMetrics?.measures?.length ? (
+                          <div className="space-y-2" aria-label="Verified deterministic metrics">
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="text-xs font-semibold uppercase tracking-wide text-primary">Verified metrics</p>
+                              <div className="flex gap-1">
+                                <Button variant="outline" size="sm" onClick={() => exportMutation.mutate({ reportId: report.id, format: 'csv' })} disabled={exportMutation.isPending}>CSV</Button>
+                                <Button variant="outline" size="sm" onClick={() => exportMutation.mutate({ reportId: report.id, format: 'xlsx' })} disabled={exportMutation.isPending}>XLSX</Button>
+                              </div>
                            </div>
+                            <div className="overflow-x-auto">
+                              <table className="w-full text-xs border-collapse">
+                                <thead><tr>{['Measure', 'Actual', 'Budget', 'Variance', 'Variance %', 'Favorability'].map((column) => <th key={column} className="border px-2 py-1 text-left bg-muted">{column}</th>)}</tr></thead>
+                                <tbody>{report.deterministicMetrics.measures.map((measure) => (
+                                  <tr key={measure.measureId}>
+                                    <td className="border px-2 py-1 font-medium">{measure.measureId}</td>
+                                    <td className="border px-2 py-1">{measure.actual}</td>
+                                    <td className="border px-2 py-1">{measure.budget}</td>
+                                    <td className="border px-2 py-1">{measure.variance}</td>
+                                    <td className="border px-2 py-1">{measure.variancePct ?? '—'}</td>
+                                    <td className="border px-2 py-1">{measure.favorable === null ? 'Neutral' : measure.favorable ? 'Favorable' : 'Unfavorable'}</td>
+                                  </tr>
+                                ))}</tbody>
+                              </table>
+                            </div>
+                            <p className="text-[11px] text-muted-foreground">Calculated by the governed deterministic engine. AI narrative below is explanatory only.</p>
                          </div>
-                         <div className="overflow-x-auto">
-                           <table className="w-full text-xs border-collapse">
-                             <thead><tr>{['Measure', 'Actual', 'Budget', 'Variance', 'Variance %', 'Favorability'].map((column) => <th key={column} className="border px-2 py-1 text-left bg-muted">{column}</th>)}</tr></thead>
-                             <tbody>{report.deterministicMetrics.measures.map((measure) => (
-                               <tr key={measure.measureId}>
-                                 <td className="border px-2 py-1 font-medium">{measure.measureId}</td>
-                                 <td className="border px-2 py-1">{measure.actual}</td>
-                                 <td className="border px-2 py-1">{measure.budget}</td>
-                                 <td className="border px-2 py-1">{measure.variance}</td>
-                                 <td className="border px-2 py-1">{measure.variancePct ?? '—'}</td>
-                                 <td className="border px-2 py-1">{measure.favorable === null ? 'Neutral' : measure.favorable ? 'Favorable' : 'Unfavorable'}</td>
-                               </tr>
-                             ))}</tbody>
-                           </table>
-                         </div>
-                         <p className="text-[11px] text-muted-foreground">Calculated by the governed deterministic engine. AI narrative below is explanatory only.</p>
-                       </div>
-                     ) : null}
-                     {isStandaloneBoard && kpiReport?.metrics?.length ? (
-                       <KpiTemplateReport
-                         title={report.title}
-                         periodLabel={report.periodLabel}
-                         sourceName={report.sourceSnapshot?.name}
-                         templateSource={templateSource}
-                         kpiReport={kpiReport}
-                          onExport={(scopeCode) => exportMutation.mutate({ reportId: report.id, format: 'pptx', scopeCode })}
-                          isExporting={exportMutation.isPending}
-                       />
-                     ) : null}
-                    {report.result?.summary && <p className="text-sm whitespace-pre-wrap">{report.result.summary}</p>}
-                    {!!report.result?.insights?.length && (
-                      <ul className="list-disc pl-5 text-sm text-muted-foreground space-y-1">
-                        {report.result.insights.slice(0, 5).map((insight) => <li key={insight}>{insight}</li>)}
-                      </ul>
-                    )}
-                    {report.result?.tables?.[0] && (
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-xs border-collapse">
-                          <thead><tr>{report.result.tables[0].columns.map((column) => <th key={column} className="border px-2 py-1 text-left bg-muted">{column}</th>)}</tr></thead>
-                          <tbody>{report.result.tables[0].rows.slice(0, 10).map((row, index) => <tr key={index}>{row.map((value, cellIndex) => <td key={cellIndex} className="border px-2 py-1">{String(value ?? '')}</td>)}</tr>)}</tbody>
-                        </table>
+                        ) : null}
+                        {isStandaloneBoard && kpiReport?.metrics?.length ? (
+                          <KpiTemplateReport
+                            title={report.title}
+                            periodLabel={report.periodLabel}
+                            sourceName={report.sourceSnapshot?.name}
+                            templateSource={templateSource}
+                            kpiReport={kpiReport}
+                            onExport={(scopeCode) => exportMutation.mutate({ reportId: report.id, format: 'pptx', scopeCode })}
+                            isExporting={exportMutation.isPending}
+                          />
+                        ) : null}
+                        {report.result?.summary && <p className="text-sm whitespace-pre-wrap">{report.result.summary}</p>}
+                        {!!report.result?.insights?.length && (
+                          <ul className="list-disc pl-5 text-sm text-muted-foreground space-y-1">
+                            {report.result.insights.slice(0, 5).map((insight) => <li key={insight}>{insight}</li>)}
+                          </ul>
+                        )}
+                        {report.result?.tables?.[0] && (
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-xs border-collapse">
+                              <thead><tr>{report.result.tables[0].columns.map((column) => <th key={column} className="border px-2 py-1 text-left bg-muted">{column}</th>)}</tr></thead>
+                              <tbody>{report.result.tables[0].rows.slice(0, 10).map((row, index) => <tr key={index}>{row.map((value, cellIndex) => <td key={cellIndex} className="border px-2 py-1">{String(value ?? '')}</td>)}</tr>)}</tbody>
+                            </table>
+                          </div>
+                        )}
+                      </Card>
+                    </section>
+                  );
+                })()}
+
+                {genericReports.length > 1 && (
+                  <Card className="overflow-hidden" data-testid="section-report-history">
+                    <div className="border-b bg-muted/20 px-4 py-3">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                          <History className="h-4 w-4 text-primary" />
+                          <div>
+                            <h3 className="text-sm font-semibold">Report history</h3>
+                            <p className="text-xs text-muted-foreground">{filteredHistory.length} matching report{filteredHistory.length === 1 ? '' : 's'}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <SlidersHorizontal className="h-3.5 w-3.5" />
+                          Filter history
+                        </div>
+                      </div>
+                      <div className="mt-3 grid grid-cols-2 gap-2 lg:grid-cols-4">
+                        <Select value={periodFilter} onValueChange={setPeriodFilter}>
+                          <SelectTrigger className="h-8 text-xs" data-testid="select-report-period"><SelectValue placeholder="All periods" /></SelectTrigger>
+                          <SelectContent><SelectItem value="all">All periods</SelectItem>{periodOptions.map((period) => <SelectItem key={period} value={period}>{period}</SelectItem>)}</SelectContent>
+                        </Select>
+                        <Select value={scenarioFilter} onValueChange={setScenarioFilter}>
+                          <SelectTrigger className="h-8 text-xs" data-testid="select-report-scenario"><SelectValue placeholder="All scenarios" /></SelectTrigger>
+                          <SelectContent><SelectItem value="all">All scenarios</SelectItem>{scenarioOptions.map((scenario) => <SelectItem key={scenario} value={scenario}>{scenario}</SelectItem>)}</SelectContent>
+                        </Select>
+                        <Select value={entityFilter} onValueChange={setEntityFilter}>
+                          <SelectTrigger className="h-8 text-xs" data-testid="select-report-entity"><SelectValue placeholder="All entities" /></SelectTrigger>
+                          <SelectContent><SelectItem value="all">All entities</SelectItem>{entityOptions.map((entity) => <SelectItem key={entity} value={entity}>{entity}</SelectItem>)}</SelectContent>
+                        </Select>
+                        <Select value={statusFilter} onValueChange={setStatusFilter}>
+                          <SelectTrigger className="h-8 text-xs" data-testid="select-report-status"><SelectValue placeholder="All statuses" /></SelectTrigger>
+                          <SelectContent><SelectItem value="all">All statuses</SelectItem>{statusOptions.map((status) => <SelectItem key={status} value={status}>{status[0].toUpperCase() + status.slice(1)}</SelectItem>)}</SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="divide-y">
+                      {filteredHistory.slice(0, historyLimit).map((report) => {
+                        const kpiReport = reportKpiData(report);
+                        return (
+                          <button
+                            key={report.id}
+                            type="button"
+                            className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset"
+                            onClick={() => setActiveGenericReportId(report.id)}
+                            data-testid={`button-view-report-${report.id}`}
+                          >
+                            <div className="min-w-0 flex-1">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="truncate text-sm font-medium">{report.title}</span>
+                                <Badge variant="outline" className="h-5 text-[10px]">{report.status ?? 'complete'}</Badge>
+                              </div>
+                              <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                                {report.periodLabel || 'No period'}
+                                {kpiReport?.forecastScenario ? ` · ${kpiReport.forecastScenario}` : ''}
+                                {` · ${reportEntity(report)}`}
+                                {` · ${new Date(report.createdAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}`}
+                              </p>
+                            </div>
+                            <span className="text-xs font-medium text-primary">View</span>
+                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                          </button>
+                        );
+                      })}
+                      {!filteredHistory.length && (
+                        <div className="px-4 py-8 text-center text-sm text-muted-foreground" data-testid="text-empty-report-history">
+                          No reports match these filters.
+                        </div>
+                      )}
+                    </div>
+
+                    {historyLimit < filteredHistory.length && (
+                      <div className="border-t bg-muted/10 p-3 text-center">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setHistoryLimit((limit) => limit + REPORT_HISTORY_PAGE_SIZE)}
+                          data-testid="button-load-more-reports"
+                        >
+                          Load more
+                        </Button>
                       </div>
                     )}
                   </Card>
-                  );
-                })}
-                {genericReportsLoading && <div className="text-center py-4 text-muted-foreground">Loading governed reports…</div>}
-                {reportsLoading ? (
+                )}
+                {(genericReportsLoading || (!isStandaloneBoard && reportsLoading))
+                  && genericReports.length === 0
+                  && (isStandaloneBoard || reports.length === 0) && (
                   <div className="text-center py-10 text-muted-foreground">Loading reports…</div>
-                 ) : (isStandaloneBoard ? genericReports.length === 0 : reports.length === 0) ? (
+                )}
+                {!genericReportsLoading
+                  && (isStandaloneBoard || !reportsLoading)
+                  && genericReports.length === 0
+                  && (isStandaloneBoard || reports.length === 0) && (
                   <Card className="p-12 text-center border-dashed">
                     <div className="w-16 h-16 rounded-full bg-muted mx-auto mb-4 flex items-center justify-center">
                       <FileText className="w-8 h-8 text-muted-foreground" />
@@ -495,17 +689,16 @@ export default function BoardDetail() {
                       </Button>
                     )}
                   </Card>
-                ) : (
+                )}
+                {!isStandaloneBoard && reports.length > 0 && (
                   <div className="space-y-4">
                      {reports.map((report) => (
-                      <div
-                        key={report.id}
-                        onClick={() => setOpenReportId(openReportId === report.id ? null : report.id)}
-                        className="cursor-pointer"
-                      >
+                       <div key={report.id}>
                         <BoardReport
                           report={{ ...report, id: report.id } as CubeBoardReport}
                           boardId={boardId!}
+                           expanded={openReportId === report.id}
+                           onExpandedChange={(expanded) => setOpenReportId(expanded ? report.id : null)}
                         />
                       </div>
                     ))}
