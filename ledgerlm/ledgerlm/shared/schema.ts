@@ -1527,7 +1527,6 @@ export const cubeBalanceSheetData = pgTable("cube_balance_sheet_data", {
 }));
 
 export const insertCubeBalanceSheetDataSchema = createInsertSchema(cubeBalanceSheetData).omit({
-  id: true,
   ingestedAt: true,
 });
 export type InsertCubeBalanceSheetData = z.infer<typeof insertCubeBalanceSheetDataSchema>;

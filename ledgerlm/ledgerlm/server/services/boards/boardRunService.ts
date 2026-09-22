@@ -240,8 +240,8 @@ export async function executeBoardAnalysis(runId: string) {
         }
         governedBalanceSheetReport = await runBalanceSheetReport({
           cubeId: sourceSelection.cubeId,
-          year: normalizedRequest.year,
-          months: normalizedRequest.months,
+          year: normalizedRequest.year ?? new Date().getFullYear(),
+          months: normalizedRequest.months ?? [new Date().getMonth() + 1],
           entity: settings.boardFlow?.scope?.entity,
           currency: settings.boardFlow?.scope?.currency,
           tolerance: Number(settings.boardFlow?.scope?.tolerance ?? 0.01),
@@ -281,7 +281,7 @@ export async function executeBoardAnalysis(runId: string) {
         governedKpiReport = await runKpiReport(validateKpiReportRequest({
           cubeId: sourceSelection.cubeId,
           year: normalizedRequest.year,
-          month: normalizedRequest.months[0],
+          month: (normalizedRequest.months ?? [new Date().getMonth() + 1])[0],
           entity: scope.entity,
           forecastScenario: scope.forecastScenario ?? "YTD Forecast",
         }));

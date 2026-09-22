@@ -253,9 +253,10 @@ export async function runBalanceSheetReport(request: BalanceSheetReportRequest):
       ? `Current ratio is ${reportRatios(totals).currentRatio?.toFixed(2) ?? "not available"}.`
       : "Current asset and current liability categories were not fully mapped.",
   ];
+  const ratios = reportRatios(totals);
   const risks = [
-    ...(reportRatios(totals).currentRatio !== null && reportRatios(totals).currentRatio < 1 ? ["Current liabilities exceed current assets."] : []),
-    ...(reportRatios(totals).debtToEquity !== null && reportRatios(totals).debtToEquity > 2 ? ["Debt-to-equity exceeds 2.0x."] : []),
+    ...(ratios.currentRatio !== null && ratios.currentRatio < 1 ? ["Current liabilities exceed current assets."] : []),
+    ...(ratios.debtToEquity !== null && ratios.debtToEquity > 2 ? ["Debt-to-equity exceeds 2.0x."] : []),
     ...(!balanced ? ["Investigate account completeness or classification before relying on liquidity ratios."] : []),
   ];
 
@@ -267,7 +268,7 @@ export async function runBalanceSheetReport(request: BalanceSheetReportRequest):
     unitLabel: currency,
     periodLabel: periodLabel(request.year, currentMonth, currentRows[0]?.periodLabel),
     totals,
-    ratios: reportRatios(totals),
+    ratios,
     periods,
     lineItems,
     movements,
