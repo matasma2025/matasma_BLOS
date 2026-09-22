@@ -360,8 +360,8 @@ async function runKpiMetricSnapshot(request: KpiReportRequest) {
     workbookActuals
       ? db.execute(sql`
           SELECT
-            SUM(${numericText("cost_value")}) AS capacity_value,
-            COUNT(*) FILTER (WHERE ${numericText("cost_value")} IS NOT NULL) AS capacity_rows
+            SUM(${numericCapacityPlanValue()}) AS capacity_value,
+            COUNT(*) FILTER (WHERE ${numericCapacityPlanValue()} IS NOT NULL) AS capacity_rows
           FROM cube_plan_data
           WHERE cube_id = ${request.cubeId}
             AND year = ${request.year}
