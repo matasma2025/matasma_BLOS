@@ -18,6 +18,8 @@ import { StandaloneBoardAnalysisDialog } from '@/components/StandaloneBoardAnaly
 import { BoardReport } from '@/components/BoardReport';
 import { BoardSourceSelector } from '@/components/BoardSourceSelector';
 import { KpiTemplateReport, type KpiTemplateData } from '@/components/KpiTemplateReport';
+import { BalanceSheetTemplateReport } from '@/components/BalanceSheetTemplateReport';
+import type { BalanceSheetReport } from '@shared/boards/balanceSheet';
 
 type TabId = 'reports' | 'threads';
 
@@ -38,6 +40,7 @@ interface GenericReport {
     insights?: string[];
     tables?: Array<{ title?: string; columns: string[]; rows: unknown[][] }>;
     kpiReport?: KpiTemplateData;
+    balanceSheet?: BalanceSheetReport;
   };
   sourceSnapshot?: { name?: string; sourceType?: string };
   deterministicMetrics?: {
@@ -549,6 +552,14 @@ export default function BoardDetail() {
                             templateSource={templateSource}
                             kpiReport={kpiReport}
                             onExport={(scopeCode) => exportMutation.mutate({ reportId: report.id, format: 'pptx', scopeCode })}
+                            isExporting={exportMutation.isPending}
+                          />
+                        ) : null}
+                        {isStandaloneBoard && report.result?.balanceSheet ? (
+                          <BalanceSheetTemplateReport
+                            title={report.title}
+                            report={report.result.balanceSheet}
+                            onExport={() => exportMutation.mutate({ reportId: report.id, format: 'pptx' })}
                             isExporting={exportMutation.isPending}
                           />
                         ) : null}

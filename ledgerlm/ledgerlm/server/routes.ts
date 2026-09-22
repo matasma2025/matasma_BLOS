@@ -118,6 +118,7 @@ import {
   computeNextBoardScheduleRun,
 } from "./services/boards/phase4Service";
 import { exportKpiReportPptx } from "./services/boards/kpiPptxExportService";
+import { exportBalanceSheetPptx } from "./services/boards/balanceSheetPptxExportService";
 import { ingestBalanceSheetRows } from "./services/balanceSheetService";
 import { boardExports, boardSchedules, boardReports } from "@shared/schema";
 import { boardScheduleConfigurationSchema } from "@shared/boards/boardSchedule";
@@ -3277,11 +3278,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ? exportDeterministicCsv(report.deterministicMetrics)
         : format === "xlsx"
           ? await exportDeterministicXlsx(report.deterministicMetrics)
-          : await exportKpiReportPptx(
-            report as any,
-            typeof req.body?.scopeCode === "string" ? req.body.scopeCode : undefined,
-            boardSettings.boardFlow?.reportTemplatePptxBase64,
-          );
+         : String(report.templateKey) === "balance-sheet-tracker"
+           ? await exportBalanceSheetPptx(report as any, boardSettings.boardFlow?.reportTemplatePptxBase64)
+           : await exportKpiReportPptx(
+               report as any,
+               typeof req.body?.scopeCode === "string" ? req.body.scopeCode : undefined,
+               boardSettings.boardFlow?.reportTemplatePptxBase64,
+             );
       const storageKey = path.join(dir, `${id}.${format}`);
       await fs.writeFile(storageKey, bytes, { flag: "wx" });
        const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
