@@ -681,7 +681,7 @@ export const cubes = pgTable("cubes", {
   name: text("name").notNull(), // e.g., 'KPI Metrics', 'P&L', 'Budget'
   description: text("description"),
   sourceType: varchar("source_type", { length: 20 }).notNull().default('manual'), // 'anaplan', 'azure_blob', 'manual', 'all'
-  schemaType: varchar("schema_type", { length: 50 }).notNull().default('kpi'), // 'kpi' | 'investment_capex_pmo'
+  schemaType: varchar("schema_type", { length: 50 }).notNull().default('kpi'), // 'kpi' | 'investment_capex_pmo' | 'balance_sheet'
   connectorId: varchar("connector_id"), // Link to domain_api_connectors.id (FK enforced at DB level)
   ingestionConfig: text("ingestion_config"), // JSON config for source-specific settings (schedule, filters, etc.)
   createdBy: varchar("created_by").notNull().references(() => users.id, { onDelete: 'cascade' }),
@@ -1495,6 +1495,44 @@ export const insertCubePlanDataSchema = createInsertSchema(cubePlanData).omit({
   ingestedAt: true,
 });
 
+// ── Balance Sheet fact table ─────────────────────────────────────────────────
+// Deliberately separate from cube_plan_data. Balance Sheet values are
+// point-in-time account balances, not planning versions or KPI overrides.
+export const cubeBalanceSheetData = pgTable("cube_balance_sheet_data", {
+  id: bigint("id", { mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
+  cubeId: varchar("cube_id", { length: 255 }).notNull().references(() => cubes.id, { onDelete: "cascade" }),
+  fiscalYear: integer("fiscal_year").notNull(),
+  month: integer("month").notNull(),
+  periodLabel: varchar("period_label", { length: 100 }),
+  entity: varchar("entity", { length: 255 }),
+  companyId: varchar("company_id", { length: 255 }),
+  subsidiary: varchar("subsidiary", { length: 255 }),
+  location: varchar("location", { length: 255 }),
+  accountCode: varchar("account_code", { length: 100 }),
+  accountName: varchar("account_name", { length: 500 }).notNull(),
+  section: varchar("section", { length: 30 }).notNull(), // assets | liabilities | equity
+  category: varchar("category", { length: 255 }).notNull(),
+  amountLocal: numeric("amount_local"),
+  amountReporting: numeric("amount_reporting").notNull(),
+  currency: varchar("currency", { length: 20 }).notNull().default("USD"),
+  sourceFile: varchar("source_file", { length: 255 }),
+  sourceRowNumber: integer("source_row_number"),
+  ingestedAt: timestamp("ingested_at").defaultNow(),
+}, (table) => ({
+  cubeIdIdx: index("cube_bs_cube_id_idx").on(table.cubeId),
+  periodIdx: index("cube_bs_period_idx").on(table.cubeId, table.fiscalYear, table.month),
+  accountIdx: index("cube_bs_account_idx").on(table.cubeId, table.accountCode),
+  sectionIdx: index("cube_bs_section_idx").on(table.cubeId, table.section),
+  entityIdx: index("cube_bs_entity_idx").on(table.cubeId, table.entity),
+}));
+
+export const insertCubeBalanceSheetDataSchema = createInsertSchema(cubeBalanceSheetData).omit({
+  id: true,
+  ingestedAt: true,
+});
+export type InsertCubeBalanceSheetData = z.infer<typeof insertCubeBalanceSheetDataSchema>;
+export type CubeBalanceSheetData = typeof cubeBalanceSheetData.$inferSelect;
+
 export const insertCubeFactDataSchema = createInsertSchema(cubeFactData).omit({
   ingestedAt: true,
 });
@@ -1644,6 +1682,8 @@ export type InsertCubeMetadata = z.infer<typeof insertCubeMetadataSchema>;
 export type CubeMetadata = typeof cubeMetadata.$inferSelect;
 export type InsertCubePlanData = z.infer<typeof insertCubePlanDataSchema>;
 export type CubePlanData = typeof cubePlanData.$inferSelect;
+export type InsertCubeBalanceSheetData = z.infer<typeof insertCubeBalanceSheetDataSchema>;
+export type CubeBalanceSheetData = typeof cubeBalanceSheetData.$inferSelect;
 export type InsertCubeFactData = z.infer<typeof insertCubeFactDataSchema>;
 export type CubeFactData = typeof cubeFactData.$inferSelect;
 export type InsertCubeColumnMapping = z.infer<typeof insertCubeColumnMappingSchema>;

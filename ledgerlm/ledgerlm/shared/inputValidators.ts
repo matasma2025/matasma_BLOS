@@ -222,7 +222,7 @@ export const createCubeDtoSchema = z.object({
   ...cubeMutableFields,
   name: cubeNameSchema,
   domainId: z.string().max(255).optional(),
-  schemaType: z.enum(["kpi", "investment_capex_pmo"]).optional().default("kpi"),
+  schemaType: z.enum(["kpi", "investment_capex_pmo", "balance_sheet"]).optional().default("kpi"),
   ingestionConfig: z.record(z.unknown()).nullable().optional(),
 }).strict();
 
