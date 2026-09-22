@@ -19,6 +19,7 @@ import { createLegacyBoardAnalysisRequest } from "./legacyBoardAnalysisAdapter";
 import { executeEnterpriseDeterministicAnalysis } from "./sources/enterpriseDeterministicExecutor";
 import { deterministicAnalysisResultSchema } from "@shared/boards/deterministicAnalysis";
 import { runKpiReport, validateKpiReportRequest } from "../kpiReportService";
+import { runBalanceSheetReport } from "../balanceSheetService";
 
 export interface BoardAnalysisRequest {
   year?: number;
@@ -225,6 +226,7 @@ export async function executeBoardAnalysis(runId: string) {
     let preparedSource: any;
     let deterministic;
     let governedKpiReport: Awaited<ReturnType<typeof runKpiReport>> | undefined;
+    let governedBalanceSheetReport: Awaited<ReturnType<typeof runBalanceSheetReport>> | undefined;
     if (sourceSelection.sourceType === "vault") {
       const { loadVaultBoardDataset, runVaultDeterministicAnalysis, assertVaultIdentity } = await import("./phase4Service");
       const dataset = await loadVaultBoardDataset(run.requestedBy, sourceSelection.documentId);
@@ -232,7 +234,49 @@ export async function executeBoardAnalysis(runId: string) {
       deterministic = runVaultDeterministicAnalysis(dataset, { request: normalizedRequest, settings });
       preparedSource = { source: { id: dataset.documentId, name: dataset.name, sourceType: "vault" }, plan: { year: normalizedRequest.year, measures: (normalizedRequest.keyColumns ?? []).map((key) => ({ column: key.column, label: key.label, aggregation: key.aggregation ?? "sum", valueType: key.valueType ?? "number", filters: [] })) } };
     } else {
-      if (run.templateKey === "kpi-metrics") {
+      if (run.templateKey === "balance-sheet-tracker") {
+        if (sourceSelection.sourceType !== "enterprise") {
+          throw new Error("Balance Sheet Analysis requires a dedicated Enterprise Balance Sheet cube.");
+        }
+        governedBalanceSheetReport = await runBalanceSheetReport({
+          cubeId: sourceSelection.cubeId,
+          year: normalizedRequest.year,
+          months: normalizedRequest.months,
+          entity: settings.boardFlow?.scope?.entity,
+          currency: settings.boardFlow?.scope?.currency,
+          tolerance: Number(settings.boardFlow?.scope?.tolerance ?? 0.01),
+        });
+        preparedSource = {
+          source: {
+            id: sourceSelection.cubeId,
+            name: selection.name ?? sourceSelection.cubeId,
+            sourceType: "enterprise",
+          },
+          plan: {
+            year: normalizedRequest.year,
+            measures: [
+              { column: "balance_sheet_assets", label: "Assets", aggregation: "sum", valueType: "currency", filters: [] },
+              { column: "balance_sheet_liabilities", label: "Liabilities", aggregation: "sum", valueType: "currency", filters: [] },
+              { column: "balance_sheet_equity", label: "Equity", aggregation: "sum", valueType: "currency", filters: [] },
+            ],
+          },
+        };
+        deterministic = {
+          measures: [
+            { measureId: "assets", actual: governedBalanceSheetReport.totals.assets, budget: governedBalanceSheetReport.totals.assets, variance: 0, variancePct: 0, favorable: null, contribution: null },
+            { measureId: "liabilities", actual: governedBalanceSheetReport.totals.liabilities, budget: governedBalanceSheetReport.totals.liabilities, variance: 0, variancePct: 0, favorable: null, contribution: null },
+            { measureId: "equity", actual: governedBalanceSheetReport.totals.equity, budget: governedBalanceSheetReport.totals.equity, variance: 0, variancePct: 0, favorable: null, contribution: null },
+          ],
+          contributors: [],
+          evidence: [{
+            sourceId: sourceSelection.cubeId,
+            sourceType: "enterprise",
+            queryFingerprint: "governed-balance-sheet-v1",
+            period: governedBalanceSheetReport.periodLabel,
+            rowCount: governedBalanceSheetReport.lineItems.length,
+          }],
+        };
+      } else if (run.templateKey === "kpi-metrics") {
         const scope = settings.boardFlow?.scope ?? {};
         governedKpiReport = await runKpiReport(validateKpiReportRequest({
           cubeId: sourceSelection.cubeId,
@@ -366,7 +410,7 @@ export async function executeBoardAnalysis(runId: string) {
           })),
         })),
         warnings: governedKpiReport.warnings,
-      } : {
+      } : governedBalanceSheetReport ? undefined : {
         scope: `${preparedSource.source.name} · ${standaloneVersion ?? "available source data"} · ${preparedSource.plan.year}`,
         metrics: deterministic.measures.map((measure) => ({
           label: measure.measureId,
@@ -377,6 +421,7 @@ export async function executeBoardAnalysis(runId: string) {
         })),
         warnings: standaloneVersion ? [] : ["No explicit data version was selected; the first available source version was used."],
       },
+      balanceSheet: governedBalanceSheetReport,
     } : {
       summary: legacyReport?.rawAnalysis?.slice(0, 4_000)
         || `Deterministic analysis for ${preparedSource.plan.measures.map((measure: { label: string }) => measure.label).join(", ")}.`,
