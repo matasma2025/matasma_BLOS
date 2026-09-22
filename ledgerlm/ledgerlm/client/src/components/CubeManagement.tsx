@@ -25,7 +25,7 @@ interface Cube {
   name: string;
   description: string | null;
   sourceType: string;
-  schemaType: 'kpi' | 'investment_capex_pmo';
+  schemaType: 'kpi' | 'investment_capex_pmo' | 'balance_sheet';
   connectorId: string | null;
   ingestionConfig: string | null;
   createdAt: string;
@@ -149,7 +149,7 @@ export function CubeManagement({ domainId, domainName, isSuperAdmin }: CubeManag
   // Form state for create
   const [newCubeName, setNewCubeName] = useState('');
   const [newCubeDescription, setNewCubeDescription] = useState('');
-  const [newCubeSchemaType, setNewCubeSchemaType] = useState<'kpi' | 'investment_capex_pmo'>('kpi');
+  const [newCubeSchemaType, setNewCubeSchemaType] = useState<'kpi' | 'investment_capex_pmo' | 'balance_sheet'>('kpi');
   const [newCubeSourceType, setNewCubeSourceType] = useState('manual');
   const [newCubeConnectorId, setNewCubeConnectorId] = useState<string | null>(null);
   const [newCubeScheduleEnabled, setNewCubeScheduleEnabled] = useState(false);
@@ -1030,8 +1030,8 @@ export function CubeManagement({ domainId, domainName, isSuperAdmin }: CubeManag
                 </Label>
                 <RadioGroup
                   value={newCubeSchemaType}
-                  onValueChange={(v) => setNewCubeSchemaType(v as 'kpi' | 'investment_capex_pmo')}
-                  className="grid grid-cols-2 gap-3"
+                   onValueChange={(v) => setNewCubeSchemaType(v as 'kpi' | 'investment_capex_pmo' | 'balance_sheet')}
+                   className="grid grid-cols-1 md:grid-cols-3 gap-3"
                   data-testid="radio-schema-type"
                 >
                   {/* KPI card */}
@@ -1076,6 +1076,30 @@ export function CubeManagement({ domainId, domainName, isSuperAdmin }: CubeManag
                       <p className="text-xs text-muted-foreground mt-1 leading-snug">Project budgets, CAPEX tracking &amp; PMO approved vs actual</p>
                     </div>
                     {newCubeSchemaType === 'investment_capex_pmo' && (
+                      <div className="absolute top-2.5 right-2.5 w-4 h-4 rounded-full bg-primary flex items-center justify-center">
+                        <Check className="h-2.5 w-2.5 text-primary-foreground" />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Balance Sheet card */}
+                  <div
+                    className={`relative flex flex-col gap-2 p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                      newCubeSchemaType === 'balance_sheet'
+                        ? 'border-primary bg-primary/5'
+                        : 'border-border hover:border-primary/40 hover:bg-muted/30'
+                    }`}
+                    onClick={() => setNewCubeSchemaType('balance_sheet')}
+                  >
+                    <RadioGroupItem value="balance_sheet" id="schema-balance-sheet" className="sr-only" />
+                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${newCubeSchemaType === 'balance_sheet' ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground'}`}>
+                      <Database className="h-4.5 w-4.5" />
+                    </div>
+                    <div>
+                      <Label htmlFor="schema-balance-sheet" className="cursor-pointer font-semibold text-sm leading-tight">Balance Sheet</Label>
+                      <p className="text-xs text-muted-foreground mt-1 leading-snug">Dedicated account balances, liquidity &amp; leverage</p>
+                    </div>
+                    {newCubeSchemaType === 'balance_sheet' && (
                       <div className="absolute top-2.5 right-2.5 w-4 h-4 rounded-full bg-primary flex items-center justify-center">
                         <Check className="h-2.5 w-2.5 text-primary-foreground" />
                       </div>
