@@ -1,30 +1,16 @@
 [
 	{
-		"id": "a15ec7a3-d551-45e9-8177-ff5512969a67",
+		"id": "7307276c-c6d4-48db-b0c5-94364337e85d",
 		"position": 1,
-		"filepath": "attached_assets/imported_slides/kpi_business_metrics_four_entity_template_3_1789908325429/Slide1.tsx",
+		"filepath": "attached_assets/imported_slides/bosch01_8_20_26_4_15_pm_2_1790056161971/Slide1.tsx",
 		"title": "Slide 1",
 		"description": ""
 	},
 	{
-		"id": "f49e27f8-1957-4194-ad3b-49c693a5582b",
+		"id": "7f7c9422-95c7-4987-aa4b-4eed8fbee692",
 		"position": 2,
-		"filepath": "attached_assets/imported_slides/kpi_business_metrics_four_entity_template_3_1789908325429/Slide2.tsx",
+		"filepath": "attached_assets/imported_slides/bosch01_8_20_26_4_15_pm_2_1790056161971/Slide2.tsx",
 		"title": "Slide 2",
-		"description": ""
-	},
-	{
-		"id": "17ad4ebc-27e8-4735-ac17-3da7725d4b0f",
-		"position": 3,
-		"filepath": "attached_assets/imported_slides/kpi_business_metrics_four_entity_template_3_1789908325429/Slide3.tsx",
-		"title": "Slide 3",
-		"description": ""
-	},
-	{
-		"id": "01a9bdf2-1ea8-45b6-9600-7a7b6afa0e70",
-		"position": 4,
-		"filepath": "attached_assets/imported_slides/kpi_business_metrics_four_entity_template_3_1789908325429/Slide4.tsx",
-		"title": "Slide 4",
 		"description": ""
 	}
 ]
