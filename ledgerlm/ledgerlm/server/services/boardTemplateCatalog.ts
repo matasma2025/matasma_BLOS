@@ -63,7 +63,7 @@ const DEFINITIONS: BoardTemplateDefinition[] = [
     description: "Review assets, liabilities, equity, liquidity, and balance integrity.",
     tier: "standard",
     sourceTypes: ["enterprise"],
-    defaultConfig: standardConfig(["vault", "enterprise"], "Analyze balance-sheet integrity first, then liquidity, leverage, and material movements."),
+    defaultConfig: standardConfig(["enterprise"], "Analyze balance-sheet integrity first, then liquidity, leverage, and material movements."),
   },
   {
     slug: "audit-preparation",

@@ -88,8 +88,12 @@ export function BoardSourceSelector({ boardId }: { boardId: string }) {
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" /> Loading authorized sources…
         </div>
-      ) : visibleSources.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No Enterprise Data cubes or Vault documents are available to this account.</p>
+       ) : visibleSources.length === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          {config?.templateKey === "balance-sheet-tracker"
+            ? "No dedicated Balance Sheet cubes are available to this account."
+            : "No Enterprise Data cubes or Vault documents are available to this account."}
+        </p>
       ) : (
         <div className="flex gap-2 items-center">
           <select
