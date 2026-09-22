@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { BOARD_RESULT_SCHEMA_VERSION } from "@shared/boards/boardRun";
+import { balanceSheetReportSchema } from "@shared/boards/balanceSheet";
 
 const boundedRecord = <T extends z.ZodTypeAny>(valueSchema: T, maxEntries: number) =>
   z.record(valueSchema).superRefine((value, context) => {
@@ -77,6 +78,17 @@ export const boardAnalysisResultSchema = z.object({
     totals: boundedRecord(z.number().finite(), 100).default({}),
     ratios: boundedRecord(z.number().finite().nullable(), 100).default({}),
     unmappedRows: z.array(z.string().max(500)).max(500).default([]),
+    tolerance: z.number().finite().optional(),
+    currency: z.string().max(20).optional(),
+    unitLabel: z.string().max(50).optional(),
+    periodLabel: z.string().max(100).optional(),
+    periods: balanceSheetReportSchema.shape.periods.optional(),
+    lineItems: balanceSheetReportSchema.shape.lineItems.optional(),
+    movements: balanceSheetReportSchema.shape.movements.optional(),
+    warnings: z.array(z.string().max(1_000)).max(100).optional(),
+    insights: z.array(z.string().max(1_000)).max(30).optional(),
+    risks: z.array(z.string().max(1_000)).max(30).optional(),
+    actions: balanceSheetReportSchema.shape.actions.optional(),
   }).strict().optional(),
   entityPnl: z.object({
     entity: z.string().max(200),
