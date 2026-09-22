@@ -860,7 +860,7 @@ export function CubeManagement({ domainId, domainName, isSuperAdmin }: CubeManag
                             <Database className="h-4 w-4 mr-1" />
                             {seedBoschLogicMutation.isPending ? 'Seeding...' : 'Seed Bosch'}
                           </Button>
-                        ) : (
+                        ) : cube.schemaType === 'investment_capex_pmo' ? (
                           <Button
                             size="sm"
                             variant="outline"
@@ -875,6 +875,10 @@ export function CubeManagement({ domainId, domainName, isSuperAdmin }: CubeManag
                             <Database className="h-4 w-4 mr-1" />
                             {seedInvestmentLogicMutation.isPending ? 'Seeding...' : 'Seed Investment'}
                           </Button>
+                        ) : (
+                          <Badge variant="outline" className="text-xs">
+                            Balance Sheet cube
+                          </Badge>
                         )}
                         <Button
                           size="sm"

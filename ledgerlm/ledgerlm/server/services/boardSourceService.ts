@@ -13,6 +13,7 @@ export interface AuthorizedBoardSource {
   id: string;
   name: string;
   sourceType: "enterprise" | "vault";
+  schemaType?: string;
   columns?: string[];
   versions?: string[];
   metadata?: unknown;
@@ -45,6 +46,7 @@ export async function listAuthorizedBoardSources(userId: string): Promise<Author
         id: cube.id,
         name: cube.name,
         sourceType: "enterprise" as const,
+        schemaType: cube.schemaType,
         columns: Array.isArray(m?.metrics) ? m.metrics as string[] : undefined,
         versions: Array.isArray(m?.periods) ? m.periods as string[] : undefined,
         metadata: m ? { entities: m.entities } : undefined,

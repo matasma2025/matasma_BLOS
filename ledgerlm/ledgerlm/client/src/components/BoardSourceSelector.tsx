@@ -10,6 +10,7 @@ interface BoardSource {
   id: string;
   name: string;
   sourceType: "enterprise" | "vault";
+  schemaType?: string;
 }
 
 interface BoardConfig {
@@ -31,6 +32,12 @@ export function BoardSourceSelector({ boardId }: { boardId: string }) {
     queryFn: () => apiRequest("GET", `/api/boards/${boardId}/analysis-config`) as Promise<BoardConfig>,
     enabled: !!boardId,
   });
+  const visibleSources = useMemo(
+    () => config?.templateKey === "balance-sheet-tracker"
+      ? sources.filter((source) => source.sourceType === "enterprise" && source.schemaType === "balance_sheet")
+      : sources,
+    [config?.templateKey, sources],
+  );
 
   const currentKey = useMemo(() => {
     const source = config?.sourceConfig;
@@ -81,7 +88,7 @@ export function BoardSourceSelector({ boardId }: { boardId: string }) {
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" /> Loading authorized sources…
         </div>
-      ) : sources.length === 0 ? (
+      ) : visibleSources.length === 0 ? (
         <p className="text-sm text-muted-foreground">No Enterprise Data cubes or Vault documents are available to this account.</p>
       ) : (
         <div className="flex gap-2 items-center">
@@ -92,7 +99,7 @@ export function BoardSourceSelector({ boardId }: { boardId: string }) {
             data-testid="select-board-source"
           >
             <option value="">Select a source</option>
-            {sources.map((source) => (
+            {visibleSources.map((source) => (
               <option key={`${source.sourceType}:${source.id}`} value={`${source.sourceType}:${source.id}`}>
                 {source.sourceType === "enterprise" ? "Enterprise Data" : "Vault"} · {source.name}
               </option>
