@@ -118,6 +118,7 @@ import {
   computeNextBoardScheduleRun,
 } from "./services/boards/phase4Service";
 import { exportKpiReportPptx } from "./services/boards/kpiPptxExportService";
+import { ingestBalanceSheetRows } from "./services/balanceSheetService";
 import { boardExports, boardSchedules, boardReports } from "@shared/schema";
 import { boardScheduleConfigurationSchema } from "@shared/boards/boardSchedule";
 import {
@@ -8226,7 +8227,7 @@ ${faqContext ? `FAQ KNOWLEDGE BASE:\n${faqContext}` : "No FAQ documentation is c
         name,
         description: description || null,
         sourceType: sourceType || "manual",
-        schemaType: (cubeParsed.data.schemaType as 'kpi' | 'investment_capex_pmo') || 'kpi',
+        schemaType: (cubeParsed.data.schemaType as 'kpi' | 'investment_capex_pmo' | 'balance_sheet') || 'kpi',
         connectorId: connectorId || null,
         ingestionConfig: processedConfig
           ? JSON.stringify(processedConfig)
@@ -8311,6 +8312,22 @@ ${faqContext ? `FAQ KNOWLEDGE BASE:\n${faqContext}` : "No FAQ documentation is c
     } catch (error: any) {
       console.error("Error creating cube:", error);
       res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // Dedicated Balance Sheet ingestion. This endpoint intentionally does not
+  // write to cube_plan_data; each row is a point-in-time account balance.
+  app.post("/api/domain-admin/cubes/:cubeId/balance-sheet-data", requireDomainAdmin, async (req, res) => {
+    try {
+      const cube = await storage.getCube(req.params.cubeId);
+      if (!cube) return res.status(404).json({ error: "Cube not found" });
+      if (!(req as any).isSuperAdmin && cube.domainId !== (req as any).domain.id) {
+        return res.status(403).json({ error: "Cannot ingest data into another domain's cube" });
+      }
+      const result = await ingestBalanceSheetRows(cube.id, req.body);
+      res.status(201).json(result);
+    } catch (error: any) {
+      res.status(400).json({ error: error?.message || "Failed to ingest Balance Sheet data" });
     }
   });
 

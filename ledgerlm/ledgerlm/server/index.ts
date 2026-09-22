@@ -42,6 +42,7 @@ import { addCustomerColumns } from "./migrations/add-customer-columns";
 import { createAuditLogTable } from "./migrations/create-audit-log";
 import { createRetentionPoliciesTable } from "./migrations/create-retention-policies";
 import { runInvestmentTablesMigration } from "./migrations/create-investment-tables";
+import { runBalanceSheetTablesMigration } from "./migrations/create-balance-sheet-tables";
 import { addSsoGroupMappings } from "./migrations/add-sso-group-mappings";
 import { createBoardReportsTable } from "./migrations/create-board-reports";
 import { createBoardAnalysisConfigsTable } from "./migrations/create-board-analysis-configs";
@@ -438,6 +439,8 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 
   // Create Investment/CAPEX/PMO fact table and add schema_type to cubes
   await runInvestmentTablesMigration();
+  // Create the dedicated Balance Sheet fact table.
+  await runBalanceSheetTablesMigration();
 
   // Add sso_group_mappings JSONB column to domains + status column to domain_users
   await addSsoGroupMappings();
