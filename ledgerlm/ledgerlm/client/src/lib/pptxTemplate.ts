@@ -114,6 +114,11 @@ function slideText(xmlBytes: Uint8Array) {
       .map((node) => node.textContent ?? '')
       .join('')
       .replace(/\s+/g, ' ')
+      // PowerPoint templates commonly use angle-bracket notes such as
+      // "<if there is any note from the bar graph>". The imported text is
+      // stored as a prompt, where markup-like text is rejected for safety;
+      // preserve the note while making it safe display text.
+      .replace(/[<>]/g, (character) => character === '<' ? '[' : ']')
       .trim())
     .filter(Boolean);
 }
