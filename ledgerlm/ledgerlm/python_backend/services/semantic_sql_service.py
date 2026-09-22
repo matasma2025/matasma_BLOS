@@ -4375,7 +4375,8 @@ IMPORTANT: When in doubt, preserve the original text. Only fix clear typos."""
                 excel_cols_lower.get('particulars sub category'),
                 'cost_value': excel_cols_lower.get('cost value'),
                 'value_percent': excel_cols_lower.get('value %'),
-                'page': excel_cols_lower.get('page')
+                'page': excel_cols_lower.get('page'),
+                'delta_value': excel_cols_lower.get('delta'),
             }
 
             # Validate required columns exist
@@ -4442,17 +4443,20 @@ IMPORTANT: When in doubt, preserve the original text. Only fix clear typos."""
                     # Parse numeric values
                     cost_val = parse_numeric(safe_get(row, 'cost_value'))
                     value_pct = parse_numeric(safe_get(row, 'value_percent'))
+                    delta_val = parse_numeric(safe_get(row, 'delta_value'))
 
                     # Store as string for database but preserve precision
                     cost_value_str = str(
                         cost_val) if cost_val is not None else None
                     value_percent_str = str(
                         value_pct) if value_pct is not None else None
+                    delta_value_str = str(
+                        delta_val) if delta_val is not None else None
 
                     batch_data.append(
                         (cube_id, year_int, month_int, plan_type_str, entity,
                          gb, particulars_str, sub_category, cost_value_str,
-                         value_percent_str, page, file_name))
+                          value_percent_str, page, delta_value_str, file_name))
                 except Exception as e:
                     skipped_rows += 1
                     logger.debug(f"Row {idx} skipped: {e}")
@@ -4483,12 +4487,12 @@ IMPORTANT: When in doubt, preserve the original text. Only fix clear typos."""
                         """
                         INSERT INTO cube_plan_data (cube_id, year, month, plan_type, entity, gb, 
                                                     particulars, sub_category, cost_value, value_percent, 
-                                                    page, source_file)
+                                                    page, delta_value, source_file)
                         VALUES %s
                     """,
                         batch,
                         template=
-                        "(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)")
+                        "(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)")
                     inserted_rows += len(batch)
                     logger.info(
                         f"Inserted batch {i//batch_size + 1}: {len(batch)} rows"

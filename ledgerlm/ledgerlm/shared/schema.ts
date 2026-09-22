@@ -1045,6 +1045,7 @@ export const cubePlanData = pgTable("cube_plan_data", {
   costValue: text("cost_value"), // The CTG Override numeric value (stored as text for precision)
   valuePercent: text("value_percent"), // Percentage value
   page: varchar("page", { length: 100 }), // Page reference
+  deltaValue: text("delta_value"), // Actual capacity delta from the planning workbook (stored as text for precision)
   sourceFile: varchar("source_file", { length: 255 }), // Original file name
   ingestedAt: timestamp("ingested_at").defaultNow(),
   // Multi-tenant and multi-statement type support
