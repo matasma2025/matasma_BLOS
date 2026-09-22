@@ -45,10 +45,14 @@ const UTILIZATION_PAGE_PREDICATE = sql`
   upper(regexp_replace(trim(coalesce(page, '')), '\\s+', ' ', 'g'))
     IN ('', 'BLANK')
 `;
-const numericText = (column: "cost_value" | "value_percent") => sql.raw(
+const numericText = (column: "cost_value" | "value_percent" | "delta_value") => sql.raw(
   `CASE WHEN replace(trim(coalesce(${column}, '')), ',', '') ~ '^-?(?:\\d+\\.?\\d*|\\.\\d+)$'
     THEN replace(trim(${column}), ',', '')::numeric END`,
 );
+
+const numericCapacityPlanValue = () => sql`
+  COALESCE(${numericText("delta_value")}, ${numericText("cost_value")})
+`;
 
 function rowsOf(result: unknown): any[] {
   return (result as { rows?: any[] }).rows ?? [];
