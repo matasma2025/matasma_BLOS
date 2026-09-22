@@ -1,0 +1,355 @@
+WW	Total Capacity	YTD07.26	"(select Sum(""Capacity"") from MV_GB_INSIGHTS_ALL
+where ""Year"" = '2026' and ""Month"" = '07'
+and NVL(""Service Area"",0) NOT In ('Corporate','RBEI_CORPORATE','SDS_CORPORATE')
+and ""Cost Category"" = 'GB Wise END Capacity'
+and ""Resource Type"" IN ('Internal','External')
+and ""Onsite/Offshore"" IN ('OFFSHORE','ONSITE')
+)
++
+(SUM(Planned[Delta]), 
+Planned[Plan/Actual] IN {""Actuals"",""Actual""} , 
+Planned[Entity] = ""World Wide"",  
+Planned[Page] = ""World Wide"", 
+Planned[Particulars] = ""Total Capacity"", 
+Planned[Particulars Sub Category] = ""End"", 
+Planned[Year] = SELECTEDVALUE('Calendar'[Year]), 
+Planned[Month] = SELECTEDVALUE('Calendar'[Selected Mnth]))"	31530+11	
+WW	Total Capacity	MS	"select Sum(""Capacity"") from MV_GB_INSIGHTS_ALL
+where ""Year"" = '2026' and ""Month"" = '07'
+and NVL(""Service Area"",0) NOT In ('Corporate','RBEI_CORPORATE','SDS_CORPORATE')
+and ""Cost Category"" = 'GB Wise END Capacity'
+and ""Resource Type"" IN ('Internal','External')
+and ""Onsite/Offshore"" IN ('OFFSHORE','ONSITE')
+and NVL(""Project Type"",0) NOT in ('FixedPrice')
+and  ""New Service Area"" = 'MS'
+
++
+(SUM(Planned[Delta]), 
+Planned[Plan/Actual] IN {""Actuals"",""Actual""} , 
+Planned[Entity] = ""World Wide"",  
+Planned[Page] = ""MS view"", 
+Planned[Particulars] = ""Total Capacity"", 
+Planned[Particulars Sub Category] = ""End"", 
+Planned[Year] = SELECTEDVALUE('Calendar'[Year]), 
+Planned[Month] = SELECTEDVALUE('Calendar'[Selected Mnth]))
+"	20090+(-2)	
+WW	Total Capacity	SX / MM	"select Sum(""Capacity"") from MV_GB_INSIGHTS_ALL
+where ""Year"" = '2026' and ""Month"" = '07'
+and NVL(""Service Area"",0) NOT In ('Corporate','RBEI_CORPORATE','SDS_CORPORATE')
+and ""Cost Category"" = 'GB Wise END Capacity'
+and ""Resource Type"" IN ('Internal','External')
+and ""Onsite/Offshore"" IN ('OFFSHORE','ONSITE')
+and NVL(""Project Type"",0) NOT in ('FixedPrice')
+and NVL(""ProjDept"",0) NOT In ('CR/RAI-IN','CR/RDT-IN','CR/RTC-IN')
+and  ""New Service Area"" = 'SX'
+
++
+(SUM(Planned[Delta]), 
+Planned[Plan/Actual] IN {""Actuals"",""Actual""} , 
+Planned[Entity] = ""World Wide"",  
+Planned[Page] = ""SX view"", 
+Planned[Particulars] = ""Total Capacity"", 
+Planned[Particulars Sub Category] = ""End"", 
+Planned[Year] = SELECTEDVALUE('Calendar'[Year]), 
+Planned[Month] = SELECTEDVALUE('Calendar'[Selected Mnth]))"	1913+(-43)	
+WW	Total Capacity	SDS	"select Sum(""Capacity"") from MV_GB_INSIGHTS_ALL
+where ""Year"" = '2026' and ""Month"" = '07'
+and NVL(""Service Area"",0) NOT In ('Corporate','RBEI_CORPORATE','SDS_CORPORATE')
+and ""Cost Category"" = 'GB Wise END Capacity'
+and ""Resource Type"" IN ('Internal','External')
+and ""Onsite/Offshore"" IN ('OFFSHORE','ONSITE')
+and  ""New Service Area"" = 'SDS'
++
+(SUM(Planned[Delta]), 
+Planned[Plan/Actual] IN {""Actuals"",""Actual""} , 
+Planned[Entity] = ""World Wide"",  
+Planned[GB] = ""SDS"",  
+Planned[Page] = ""World Wide"", 
+Planned[Particulars] = ""Total Capacity"", 
+Planned[Particulars Sub Category] = ""End"", 
+Planned[Year] = SELECTEDVALUE('Calendar'[Year]), 
+Planned[Month] = SELECTEDVALUE('Calendar'[Selected Mnth]))"	2102+56	
+WW	Total Capacity	Integrated Service	"select Sum(""Capacity"") from MV_GB_INSIGHTS_ALL
+where ""Year"" = '2026' and ""Month"" = '07'
+and NVL(""Service Area"",0) NOT In ('Corporate','RBEI_CORPORATE','SDS_CORPORATE')
+and ""Cost Category"" = 'GB Wise END Capacity'
+and ""Resource Type"" IN ('Internal','External')
+and ""Onsite/Offshore"" IN ('OFFSHORE','ONSITE')
+and  ""ProjectGB"" in ('BD','GS','SO')
++
+(SUM(Planned[Delta]), 
+Planned[Plan/Actual] IN {""Actuals"",""Actual""} , 
+Planned[Entity] = ""World Wide"",  
+Planned[GB]  in ('BD','GS','SO')
+Planned[Page] = ""World Wide"", 
+Planned[Particulars] = ""Total Capacity"", 
+Planned[Particulars Sub Category] = ""End"", 
+Planned[Year] = SELECTEDVALUE('Calendar'[Year]), 
+Planned[Month] = SELECTEDVALUE('Calendar'[Selected Mnth]))"	7094+48	
+NE-MX	Total Capacity	YTD07.26	"select Sum(""Capacity"") from MV_GB_INSIGHTS_ALL
+where ""Year"" = '2026' and ""Month"" = '07'
+and NVL(""Service Area"",0) NOT In ('Corporate','RBEI_CORPORATE','SDS_CORPORATE')
+and ""Cost Category"" = 'GB Wise END Capacity'
+and ""Resource Type"" IN ('Internal','External')
+and ""Onsite/Offshore"" IN ('OFFSHORE')
+and ""Region/Entity"" = 'BGSW/NE-MX'
+
++
+(SUM(Planned[Delta]), 
+Planned[Plan/Actual] IN {""Actuals"",""Actual""} , 
+Planned[Entity] = ""NE-MX"",  
+Planned[Page] = ""Entity View"", 
+Planned[Particulars] = ""Total Capacity"", 
+Planned[Particulars Sub Category] = ""End"", 
+Planned[Year] = SELECTEDVALUE('Calendar'[Year]), 
+Planned[Month] = SELECTEDVALUE('Calendar'[Selected Mnth]))"	635	
+NE-MX	Total Capacity	MS	"select Sum(""Capacity"") from MV_GB_INSIGHTS_ALL
+where ""Year"" = '2026' and ""Month"" = '07'
+and NVL(""Service Area"",0) NOT In ('Corporate','RBEI_CORPORATE','SDS_CORPORATE')
+and ""Cost Category"" = 'GB Wise END Capacity'
+and ""Resource Type"" IN ('Internal','External')
+and ""Onsite/Offshore"" IN ('OFFSHORE')
+and ""New Service Area"" = 'MS'
+and NVL(""Project Type"",0) NOT in ('FixedPrice')
+and ""Region/Entity"" = 'BGSW/NE-MX'
+
++
+
+(SUM(Planned[Delta]), 
+Planned[Plan/Actual] IN {""Actuals"",""Actual""} , 
+Planned[Entity] = ""NE-MX"",  
+Planned[Page] = ""MS View"", 
+Planned[Particulars] = ""Total Capacity"", 
+Planned[Particulars Sub Category] = ""End"", 
+Planned[Year] = SELECTEDVALUE('Calendar'[Year]), 
+Planned[Month] = SELECTEDVALUE('Calendar'[Selected Mnth]))"	456+(-2)	
+NE-MX	Total Capacity	SX / MM	"select Sum(""Capacity"") from MV_GB_INSIGHTS_ALL
+where ""Year"" = '2026' and ""Month"" = '07'
+and NVL(""Service Area"",0) NOT In ('Corporate','RBEI_CORPORATE','SDS_CORPORATE')
+and ""Cost Category"" = 'GB Wise END Capacity'
+and ""Resource Type"" IN ('Internal','External')
+and ""Onsite/Offshore"" IN ('OFFSHORE')
+and ""New Service Area"" = 'SX'
+and NVL(""Project Type"",0) NOT in ('FixedPrice')
+and NVL(""ProjDept"",0) NOT In ('CR/RAI-IN','CR/RDT-IN','CR/RTC-IN')
+and ""Region/Entity"" = 'BGSW/NE-MX'
+
++
+
+(SUM(Planned[Delta]), 
+Planned[Plan/Actual] IN {""Actuals"",""Actual""} , 
+Planned[Entity] = ""NE-MX"",  
+Planned[Page] = ""SX View"", 
+Planned[Particulars] = ""Total Capacity"", 
+Planned[Particulars Sub Category] = ""End"", 
+Planned[Year] = SELECTEDVALUE('Calendar'[Year]), 
+Planned[Month] = SELECTEDVALUE('Calendar'[Selected Mnth]))"	156+4	
+NE-MX	Total Capacity	SDS	"select Sum(""Capacity"") from MV_GB_INSIGHTS_ALL
+where ""Year"" = '2026' and ""Month"" = '07'
+and NVL(""Service Area"",0) NOT In ('Corporate','RBEI_CORPORATE','SDS_CORPORATE')
+and ""Cost Category"" = 'GB Wise END Capacity'
+and ""Resource Type"" IN ('Internal','External')
+and ""Onsite/Offshore"" IN ('OFFSHORE')
+and  ""New Service Area"" in ('SDS')
+and ""Region/Entity"" = 'BGSW/NE-MX'
++
+
+(SUM(Planned[Delta]), 
+Planned[Plan/Actual] IN {""Actuals"",""Actual""} , 
+Planned[Entity] = ""BGSW/NE-MX"",  
+Planned[Page] = ""SX View"", 
+Planned[GB] IN ('SDS')
+Planned[Particulars] = ""Total Capacity"", 
+Planned[Particulars Sub Category] = ""End"", 
+Planned[Year] = SELECTEDVALUE('Calendar'[Year]), 
+Planned[Month] = SELECTEDVALUE('Calendar'[Selected Mnth]))"	21	
+BGSW	Total Capacity	YTD07.26	"select Sum(""Capacity"") from MV_GB_INSIGHTS_ALL
+where ""Year"" = '2026' and ""Month"" = '07'
+and NVL(""Service Area"",0) NOT In ('Corporate','RBEI_CORPORATE','SDS_CORPORATE')
+and ""Cost Category"" = 'GB Wise END Capacity'
+and ""Resource Type"" IN ('Internal','External')
+and ""Onsite/Offshore"" IN ('OFFSHORE')
+and ""Region/Entity"" = 'BGSW'
+
++
+(SUM(Planned[Delta]), 
+Planned[Plan/Actual] IN {""Actuals"",""Actual""} , 
+Planned[Entity] = ""BGSW"",  
+Planned[Page] = ""Entity View"", 
+Planned[Particulars] = ""Total Capacity"", 
+Planned[Particulars Sub Category] = ""End"", 
+Planned[Year] = SELECTEDVALUE('Calendar'[Year]), 
+Planned[Month] = SELECTEDVALUE('Calendar'[Selected Mnth]))"	26643 + (-75)	
+BGSW	Total Capacity	MS	"select Sum(""Capacity"") from MV_GB_INSIGHTS_ALL
+where ""Year"" = '2026' and ""Month"" = '07'
+and NVL(""Service Area"",0) NOT In ('Corporate','RBEI_CORPORATE','SDS_CORPORATE')
+and ""Cost Category"" = 'GB Wise END Capacity'
+and ""Resource Type"" IN ('Internal','External')
+and ""Onsite/Offshore"" IN ('OFFSHORE')
+and ""New Service Area"" = 'MS'
+and NVL(""Project Type"",0) NOT in ('FixedPrice')
+and ""Region/Entity"" = 'BGSW'
+
++
+
+(SUM(Planned[Delta]), 
+Planned[Plan/Actual] IN {""Actuals"",""Actual""} , 
+Planned[Entity] = ""BGSW"",  
+Planned[Page] = ""MS View"", 
+Planned[Particulars] = ""Total Capacity"", 
+Planned[Particulars Sub Category] = ""End"", 
+Planned[Year] = SELECTEDVALUE('Calendar'[Year]), 
+Planned[Month] = SELECTEDVALUE('Calendar'[Selected Mnth]))"	16949 + 0	
+BGSW	Total Capacity	SX / MM	"select Sum(""Capacity"") from MV_GB_INSIGHTS_ALL
+where ""Year"" = '2026' and ""Month"" = '07'
+and NVL(""Service Area"",0) NOT In ('Corporate','RBEI_CORPORATE','SDS_CORPORATE')
+and ""Cost Category"" = 'GB Wise END Capacity'
+and ""Resource Type"" IN ('Internal','External')
+and ""Onsite/Offshore"" IN ('OFFSHORE')
+and ""New Service Area"" = 'SX'
+and NVL(""Project Type"",0) NOT in ('FixedPrice')
+and NVL(""ProjDept"",0) NOT In ('CR/RAI-IN','CR/RDT-IN','CR/RTC-IN')
+and ""Region/Entity"" = 'BGSW'
+
++
+
+(SUM(Planned[Delta]), 
+Planned[Plan/Actual] IN {""Actuals"",""Actual""} , 
+Planned[Entity] = ""BGSW"",  
+Planned[Page] = ""SX View"", 
+Planned[Particulars] = ""Total Capacity"", 
+Planned[Particulars Sub Category] = ""End"", 
+Planned[Year] = SELECTEDVALUE('Calendar'[Year]), 
+Planned[Month] = SELECTEDVALUE('Calendar'[Selected Mnth]))"	1503+(-75)	
+BGSW	Total Capacity	SDS	"select Sum(""Capacity"") from MV_GB_INSIGHTS_ALL
+where ""Year"" = '2026' and ""Month"" = '07'
+and NVL(""Service Area"",0) NOT In ('Corporate','RBEI_CORPORATE','SDS_CORPORATE')
+and ""Cost Category"" = 'GB Wise END Capacity'
+and ""Resource Type"" IN ('Internal','External')
+and ""Onsite/Offshore"" IN ('OFFSHORE')
+and ""New Service Area"" = 'SDS'
+and ""Region/Entity"" = 'BGSW'
++
+(SUM(Planned[Delta]), 
+Planned[Plan/Actual] IN {""Actuals"",""Actual""} , 
+Planned[Entity] = ""BGSW"",  
+Planned[GB] IN ('SDS')
+Planned[Particulars] = ""Total Capacity"", 
+Planned[Particulars Sub Category] = ""End"", 
+Planned[Year] = SELECTEDVALUE('Calendar'[Year]), 
+Planned[Month] = SELECTEDVALUE('Calendar'[Selected Mnth]))"	1948+0	
+BGSW	Total Capacity	Integrated Service	"select Sum(""Capacity"") from MV_GB_INSIGHTS_ALL
+where ""Year"" = '2026' and ""Month"" = '07'
+and NVL(""Service Area"",0) NOT In ('Corporate','RBEI_CORPORATE','SDS_CORPORATE')
+and ""Cost Category"" = 'GB Wise END Capacity'
+and ""Resource Type"" IN ('Internal','External')
+and ""Onsite/Offshore"" IN ('OFFSHORE')
+and  ""ProjectGB"" in ('BD','GS','SO')
+and ""Region/Entity"" = 'BGSW'
+
++
+
+(SUM(Planned[Delta]), 
+Planned[Plan/Actual] IN {""Actuals"",""Actual""} , 
+Planned[Entity] = ""BGSW"",  
+Planned[GB] IN ('BD','GS','SO')
+Planned[Particulars] = ""Total Capacity"", 
+Planned[Particulars Sub Category] = ""End"", 
+Planned[Year] = SELECTEDVALUE('Calendar'[Year]), 
+Planned[Month] = SELECTEDVALUE('Calendar'[Selected Mnth]))"	5913+48	
+BGSV	Total Capacity	YTD07.26	"select Sum(""Capacity"") from MV_GB_INSIGHTS_ALL
+where ""Year"" = '2026' and ""Month"" = '07'
+and NVL(""Service Area"",0) NOT In ('Corporate','RBEI_CORPORATE','SDS_CORPORATE')
+and ""Cost Category"" = 'GB Wise END Capacity'
+and ""Resource Type"" IN ('Internal','External')
+and ""Onsite/Offshore"" IN ('OFFSHORE')
+and ""Region/Entity"" = 'BGSV'
+
++
+(SUM(Planned[Delta]), 
+Planned[Plan/Actual] IN {""Actuals"",""Actual""} , 
+Planned[Entity] = ""BGSV"",  
+Planned[Page] = ""Entity View"", 
+Planned[Particulars] = ""Total Capacity"", 
+Planned[Particulars Sub Category] = ""End"", 
+Planned[Year] = SELECTEDVALUE('Calendar'[Year]), 
+Planned[Month] = SELECTEDVALUE('Calendar'[Selected Mnth]))"	4034+0	
+BGSV	Total Capacity	MS	"select Sum(""Capacity"") from MV_GB_INSIGHTS_ALL
+where ""Year"" = '2026' and ""Month"" = '07'
+and NVL(""Service Area"",0) NOT In ('Corporate','RBEI_CORPORATE','SDS_CORPORATE')
+and ""Cost Category"" = 'GB Wise END Capacity'
+and ""Resource Type"" IN ('Internal','External')
+and ""Onsite/Offshore"" IN ('OFFSHORE')
+and ""New Service Area"" = 'MS'
+and NVL(""Project Type"",0) NOT in ('FixedPrice')
+and ""Region/Entity"" = 'BGSV'
+
++
+
+(SUM(Planned[Delta]), 
+Planned[Plan/Actual] IN {""Actuals"",""Actual""} , 
+Planned[Entity] = ""BGSV"",  
+Planned[Page] = ""MS View"", 
+Planned[Particulars] = ""Total Capacity"", 
+Planned[Particulars Sub Category] = ""End"", 
+Planned[Year] = SELECTEDVALUE('Calendar'[Year]), 
+Planned[Month] = SELECTEDVALUE('Calendar'[Selected Mnth]))"	2504+0	
+BGSV	Total Capacity	SX / MM	"select Sum(""Capacity"") from MV_GB_INSIGHTS_ALL
+where ""Year"" = '2026' and ""Month"" = '07'
+and NVL(""Service Area"",0) NOT In ('Corporate','RBEI_CORPORATE','SDS_CORPORATE')
+and ""Cost Category"" = 'GB Wise END Capacity'
+and ""Resource Type"" IN ('Internal','External')
+and ""Onsite/Offshore"" IN ('OFFSHORE')
+and ""New Service Area"" = 'SX'
+and NVL(""Project Type"",0) NOT in ('FixedPrice')
+and NVL(""ProjDept"",0) NOT In ('CR/RAI-IN','CR/RDT-IN','CR/RTC-IN')
+and ""Region/Entity"" = 'BGSV'
+
++
+
+(SUM(Planned[Delta]), 
+Planned[Plan/Actual] IN {""Actuals"",""Actual""} , 
+Planned[Entity] = ""BGSV"",  
+Planned[Page] = ""SX View"", 
+Planned[Particulars] = ""Total Capacity"", 
+Planned[Particulars Sub Category] = ""End"", 
+Planned[Year] = SELECTEDVALUE('Calendar'[Year]), 
+Planned[Month] = SELECTEDVALUE('Calendar'[Selected Mnth]))"	244+0	
+BGSV	Total Capacity	SDS	"select Sum(""Capacity"") from MV_GB_INSIGHTS_ALL
+where ""Year"" = '2026' and ""Month"" = '07'
+and NVL(""Service Area"",0) NOT In ('Corporate','RBEI_CORPORATE','SDS_CORPORATE')
+and ""Cost Category"" = 'GB Wise END Capacity'
+and ""Resource Type"" IN ('Internal','External')
+and ""Onsite/Offshore"" IN ('OFFSHORE')
+and  ""New Service Area"" in ('SDS')
+and ""Region/Entity"" = 'BGSV'
++
+
+(SUM(Planned[Delta]), 
+Planned[Plan/Actual] IN {""Actuals"",""Actual""} , 
+Planned[Entity] = ""BGSV"",  
+Planned[GB] IN ('SDS')
+Planned[Particulars] = ""Total Capacity"", 
+Planned[Particulars Sub Category] = ""End"", 
+Planned[Year] = SELECTEDVALUE('Calendar'[Year]), 
+Planned[Month] = SELECTEDVALUE('Calendar'[Selected Mnth]))"	111	
+BGSV	Total Capacity	Integrated Service	"select Sum(""Capacity"") from MV_GB_INSIGHTS_ALL
+where ""Year"" = '2026' and ""Month"" = '07'
+and NVL(""Service Area"",0) NOT In ('Corporate','RBEI_CORPORATE','SDS_CORPORATE')
+and ""Cost Category"" = 'GB Wise END Capacity'
+and ""Resource Type"" IN ('Internal','External')
+and ""Onsite/Offshore"" IN ('OFFSHORE')
+and  ""ProjectGB"" in ('BD','GS','SO')
+and ""Region/Entity"" = 'BGSV'
+
++
+
+(SUM(Planned[Delta]), 
+Planned[Plan/Actual] IN {""Actuals"",""Actual""} , 
+Planned[Entity] = ""BGSV"",  
+Planned[Page] = ""SX View"", 
+Planned[GB] IN ('BD','GS','SO')
+Planned[Particulars] = ""Total Capacity"", 
+Planned[Particulars Sub Category] = ""End"", 
+Planned[Year] = SELECTEDVALUE('Calendar'[Year]), 
+Planned[Month] = SELECTEDVALUE('Calendar'[Selected Mnth]))"	1175+0	
