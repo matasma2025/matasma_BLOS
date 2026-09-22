@@ -254,7 +254,8 @@ async function runKpiMetricSnapshot(request: KpiReportRequest) {
         AND lower(trim(coalesce(resource_type, ''))) = 'internal'
       `
     : sql`
-        cost_category = 'Billing Utilization'
+        lower(trim(coalesce(cost_category, ''))) = 'billing utilization summary'
+        AND upper(trim(coalesce(project_type, ''))) <> 'FIXEDPRICE'
         AND lower(trim(coalesce(resource_type, ''))) = 'internal'
       `;
   const externalActualFilter = workbookActuals
@@ -265,7 +266,8 @@ async function runKpiMetricSnapshot(request: KpiReportRequest) {
         AND lower(trim(coalesce(resource_type, ''))) = 'external'
       `
     : sql`
-        cost_category = 'Billing Utilization'
+        lower(trim(coalesce(cost_category, ''))) = 'billing utilization summary'
+        AND upper(trim(coalesce(project_type, ''))) <> 'FIXEDPRICE'
         AND lower(trim(coalesce(resource_type, ''))) = 'external'
       `;
   const internalActualValue = workbookActuals
