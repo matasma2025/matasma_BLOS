@@ -380,7 +380,7 @@ async function runKpiMetricSnapshot(request: KpiReportRequest) {
         `),
     db.execute(sql`
       SELECT
-        SUM(${numericText("cost_value")}) FILTER (
+        SUM(${numericCapacityPlanValue()}) FILTER (
           WHERE ${scenario}
             AND ${forecastRevenuePage}
             AND lower(trim(coalesce(particulars, ''))) = 'budget (musd)'
@@ -391,20 +391,20 @@ async function runKpiMetricSnapshot(request: KpiReportRequest) {
             AND ${forecastRevenuePage}
             AND lower(trim(coalesce(particulars, ''))) = 'budget (musd)'
             AND lower(trim(coalesce(sub_category, ''))) = 'total'
-            AND ${numericText("cost_value")} IS NOT NULL
+            AND ${numericCapacityPlanValue()} IS NOT NULL
         ) AS revenue_rows,
         NULL::numeric AS internal_value,
         0 AS internal_rows,
         NULL::numeric AS external_value,
         0 AS external_rows,
         COALESCE(
-          SUM(${numericText("cost_value")}) FILTER (
+          SUM(${numericCapacityPlanValue()}) FILTER (
             WHERE upper(trim(coalesce(plan_type, ''))) IN ('ACTUAL', 'ACTUALS')
               AND ${forecastCapacityPage}
               AND lower(trim(coalesce(particulars, ''))) = 'total capacity'
               AND lower(trim(coalesce(sub_category, ''))) = 'end'
           ),
-          SUM(${numericText("cost_value")}) FILTER (
+          SUM(${numericCapacityPlanValue()}) FILTER (
             WHERE ${scenario}
               AND ${forecastRevenuePage}
               AND lower(trim(coalesce(particulars, ''))) = 'total capacity'
@@ -417,14 +417,14 @@ async function runKpiMetricSnapshot(request: KpiReportRequest) {
               AND ${forecastCapacityPage}
               AND lower(trim(coalesce(particulars, ''))) = 'total capacity'
               AND lower(trim(coalesce(sub_category, ''))) = 'end'
-              AND ${numericText("cost_value")} IS NOT NULL
+              AND ${numericCapacityPlanValue()} IS NOT NULL
           ), 0),
           COUNT(*) FILTER (
             WHERE ${scenario}
               AND ${forecastRevenuePage}
               AND lower(trim(coalesce(particulars, ''))) = 'total capacity'
               AND lower(trim(coalesce(sub_category, ''))) = 'end'
-              AND ${numericText("cost_value")} IS NOT NULL
+              AND ${numericCapacityPlanValue()} IS NOT NULL
           )
         ) AS capacity_rows
       FROM cube_plan_data
@@ -705,8 +705,8 @@ async function runKpiBreakdownSnapshot(request: KpiReportRequest) {
           WHEN upper(trim(coalesce(gb, ''))) IN ('BD', 'GS', 'SO')
             THEN 'Integrated Service'
         END AS breakdown,
-        SUM(${numericText("cost_value")}) AS capacity_value,
-        COUNT(*) FILTER (WHERE ${numericText("cost_value")} IS NOT NULL) AS capacity_rows
+        SUM(${numericCapacityPlanValue()}) AS capacity_value,
+        COUNT(*) FILTER (WHERE ${numericCapacityPlanValue()} IS NOT NULL) AS capacity_rows
       FROM cube_plan_data
       WHERE cube_id = ${request.cubeId}
         AND year = ${request.year}
