@@ -11,6 +11,7 @@ interface BalanceSheetExportReport {
 const PptxConstructor = ((PptxGenJS as unknown as { default?: typeof PptxGenJS }).default ?? PptxGenJS);
 const CURRENT_COLOR = "439798";
 const PRIOR_COLOR = "BC4096";
+type ReportSection = "assets" | "liabilities" | "equity";
 
 function displayUnit(balanceSheet: BalanceSheetReport) {
   return balanceSheet.currency.toUpperCase() === "INR" ? "mINR" : balanceSheet.unitLabel || balanceSheet.currency;
@@ -65,14 +66,14 @@ function topMovements(balanceSheet: BalanceSheetReport, section: "assets" | "lia
 
 function narrativeText(
   balanceSheet: BalanceSheetReport,
-  section: "assets" | "liabilities" | "equity",
+  sections: ReportSection[],
   currentLabel: string,
   priorLabel: string,
 ) {
-  const categories = categoryBreakdowns(balanceSheet).filter((item) => item.section === section);
+  const categories = categoryBreakdowns(balanceSheet).filter((item) => sections.includes(item.section));
   const lines: string[] = [];
   for (const item of categories) {
-    const movement = topMovements(balanceSheet, section, item.label);
+    const movement = topMovements(balanceSheet, item.section, item.label);
     const detail = movement[0];
     lines.push(`${item.label}:`);
     lines.push(`• ${amount(item.value, balanceSheet)} ${displayUnit(balanceSheet)} at ${currentLabel} vs ${amount(item.previousValue, balanceSheet)} ${displayUnit(balanceSheet)} at ${priorLabel}: ${signedAmount(item.change, balanceSheet)} (${percentage(item.changePercent)}).`);
@@ -86,10 +87,10 @@ function narrativeText(
 
 function oldBalancePointers(
   balanceSheet: BalanceSheetReport,
-  section: "assets" | "liabilities" | "equity",
+  sections: ReportSection[],
 ) {
   const candidates = categoryBreakdowns(balanceSheet)
-    .filter((item) => item.section === section && Math.abs(item.previousValue) > 0)
+    .filter((item) => sections.includes(item.section) && Math.abs(item.previousValue) > 0)
     .sort((a, b) => Math.abs(b.change) - Math.abs(a.change))
     .slice(0, 2);
   if (!candidates.length) return "• Nothing flagged from the data — add from supporting schedules.";
@@ -107,9 +108,10 @@ function addSectionSlide(
   title: string,
 ) {
   const slide = pptx.addSlide();
+  const includedSections: ReportSection[] = section === "liabilities" ? ["liabilities", "equity"] : ["assets"];
   const currentLabel = balanceSheet.periodLabel;
   const priorLabel = balanceSheet.comparisonPeriodLabel || "prior loaded period";
-  const categories = categoryBreakdowns(balanceSheet).filter((item) => item.section === section);
+  const categories = categoryBreakdowns(balanceSheet).filter((item) => includedSections.includes(item.section));
   const chartLabels = categories.map((item) => item.label);
   const chartValues = categories.map((item) => item.value / scaleFor(balanceSheet));
   const priorValues = categories.map((item) => item.previousValue / scaleFor(balanceSheet));
