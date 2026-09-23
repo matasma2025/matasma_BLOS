@@ -128,14 +128,14 @@ function addSectionSlide(
     catAxisLabelColor: "333333", valAxisLabelFontFace: "Aptos", valAxisLabelFontSize: 8,
     valAxisLabelColor: "666666", valAxisLabelFormatCode: "#,##0", valAxisTitle: displayUnit(balanceSheet),
     valAxisTitleFontFace: "Aptos", valAxisTitleFontSize: 8, valAxisTitleColor: "666666",
-    valGridLine: { color: "D9E1E2", width: 1 }, chartColors: [CURRENT_COLOR, PRIOR_COLOR],
+    valGridLine: { color: "D9E1E2" }, chartColors: [CURRENT_COLOR, PRIOR_COLOR],
     showLegend: true, legendPos: "b", showTitle: false, showValue: false,
     showCatName: false, showSerName: false, showLabel: false, showBorder: false,
   });
   slide.addText(narrativeText(balanceSheet, section, currentLabel, priorLabel), {
     x: 6.35, y: 0.92, w: 6.5, h: 3.65,
     fontFace: "Aptos", fontSize: 8.7, color: "000000", margin: 0.03,
-    breakLine: false, fit: "shrink", valign: "top", paraSpaceAfterPt: 3,
+    breakLine: false, fit: "shrink", valign: "top", paraSpaceAfter: 3,
   });
   slide.addText("All figures in " + displayUnit(balanceSheet) + ".", {
     x: 0.47, y: 4.18, w: 3, h: 0.18,
@@ -148,7 +148,7 @@ function addSectionSlide(
   slide.addText(oldBalancePointers(balanceSheet, section), {
     x: 0.47, y: 4.78, w: 12.25, h: 1.65,
     fontFace: "Aptos", fontSize: 8.4, color: "000000", margin: 0.02,
-    breakLine: false, fit: "shrink", valign: "top", paraSpaceAfterPt: 3,
+    breakLine: false, fit: "shrink", valign: "top", paraSpaceAfter: 3,
   });
   slide.addText(`Source: ${report.sourceSnapshot?.name ?? "Dedicated Balance Sheet cube"} · comparison uses the latest earlier loaded period`, {
     x: 0.47, y: 7.18, w: 12.35, h: 0.13,
