@@ -51,6 +51,15 @@ export const balanceSheetMovementSchema = z.object({
   changePercent: z.number().finite().nullable(),
 }).strict();
 
+export const balanceSheetCategoryBreakdownSchema = z.object({
+  label: z.string().max(255),
+  section: z.enum(["assets", "liabilities", "equity"]),
+  value: z.number().finite(),
+  previousValue: z.number().finite(),
+  change: z.number().finite(),
+  changePercent: z.number().finite().nullable(),
+}).strict();
+
 export const balanceSheetReportSchema = z.object({
   balanced: z.boolean(),
   difference: z.number().finite(),
@@ -58,11 +67,13 @@ export const balanceSheetReportSchema = z.object({
   currency: z.string().max(20),
   unitLabel: z.string().max(50),
   periodLabel: z.string().max(100),
+  comparisonPeriodLabel: z.string().max(100).nullable().optional(),
   totals: balanceSheetTotalsSchema,
   ratios: balanceSheetRatiosSchema,
   periods: z.array(balanceSheetPeriodSchema).max(24).default([]),
   lineItems: z.array(balanceSheetLineItemSchema).max(500).default([]),
   movements: z.array(balanceSheetMovementSchema).max(20).default([]),
+  categoryBreakdowns: z.array(balanceSheetCategoryBreakdownSchema).max(50).default([]),
   unmappedRows: z.array(z.string().max(500)).max(500).default([]),
   warnings: z.array(z.string().max(1_000)).max(100).default([]),
   insights: z.array(z.string().max(1_000)).max(30).default([]),
@@ -79,4 +90,5 @@ export type BalanceSheetRatios = z.infer<typeof balanceSheetRatiosSchema>;
 export type BalanceSheetLineItem = z.infer<typeof balanceSheetLineItemSchema>;
 export type BalanceSheetPeriod = z.infer<typeof balanceSheetPeriodSchema>;
 export type BalanceSheetMovement = z.infer<typeof balanceSheetMovementSchema>;
+export type BalanceSheetCategoryBreakdown = z.infer<typeof balanceSheetCategoryBreakdownSchema>;
 export type BalanceSheetReport = z.infer<typeof balanceSheetReportSchema>;
