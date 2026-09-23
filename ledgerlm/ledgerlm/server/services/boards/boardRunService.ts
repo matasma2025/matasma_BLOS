@@ -211,7 +211,12 @@ export async function executeBoardAnalysis(runId: string) {
     const standaloneTemplate = String(run.templateKey) !== "variance-analysis" || !mapping.actuals || !mapping.budget;
     const configuredVersion = settings.boardFlow?.scope?.version || mapping.actuals || mapping.forecast;
     let standaloneVersion = configuredVersion ? String(configuredVersion) : undefined;
-    if (standaloneTemplate && sourceSelection.sourceType === "enterprise" && !standaloneVersion) {
+    if (
+      standaloneTemplate
+      && run.templateKey !== "balance-sheet-tracker"
+      && sourceSelection.sourceType === "enterprise"
+      && !standaloneVersion
+    ) {
       standaloneVersion = (await getCubeVersions(sourceSelection.cubeId))[0];
       if (!standaloneVersion) throw new Error("The selected Enterprise source has no available data versions");
     }
