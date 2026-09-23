@@ -248,21 +248,22 @@ export async function ingestBalanceSheetRows(cubeId: string, input: unknown) {
     parsed.rows.map((row) => [`${row.fiscalYear}-${row.month}`, { fiscalYear: row.fiscalYear, month: row.month }]),
   ).values());
 
-  await db.transaction(async (tx) => {
-    for (const period of replacePeriods) {
-      await tx.delete(cubeBalanceSheetData).where(and(
-        eq(cubeBalanceSheetData.cubeId, cubeId),
-        eq(cubeBalanceSheetData.fiscalYear, period.fiscalYear),
-        eq(cubeBalanceSheetData.month, period.month),
-      ));
-    }
-    await tx.insert(cubeBalanceSheetData).values(parsed.rows.map((row) => ({
-      ...row,
-      cubeId,
-      amountReporting: String(row.amountReporting),
-      amountLocal: row.amountLocal === null || row.amountLocal === undefined ? null : String(row.amountLocal),
-    })));
-  });
+  // The default deployment uses Drizzle's Neon HTTP driver, which does not
+  // support interactive transactions. Keep each statement separate so this
+  // ingestion works in Neon as well as the node-postgres deployment.
+  for (const period of replacePeriods) {
+    await db.delete(cubeBalanceSheetData).where(and(
+      eq(cubeBalanceSheetData.cubeId, cubeId),
+      eq(cubeBalanceSheetData.fiscalYear, period.fiscalYear),
+      eq(cubeBalanceSheetData.month, period.month),
+    ));
+  }
+  await db.insert(cubeBalanceSheetData).values(parsed.rows.map((row) => ({
+    ...row,
+    cubeId,
+    amountReporting: String(row.amountReporting),
+    amountLocal: row.amountLocal === null || row.amountLocal === undefined ? null : String(row.amountLocal),
+  })));
 
   return { cubeId, inserted: parsed.rows.length, replacedPeriods: replacePeriods };
 }
