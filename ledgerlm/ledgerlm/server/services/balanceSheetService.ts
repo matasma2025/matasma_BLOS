@@ -234,6 +234,31 @@ function periodLabel(year: number, month: number, supplied?: string | null) {
   return supplied?.trim() || `${new Intl.DateTimeFormat("en-US", { month: "short" }).format(new Date(year, month - 1, 1))} ${year}`;
 }
 
+function reportValue(section: string, value: unknown): number {
+  const numeric = numberValue(value);
+  return section === "assets" ? numeric : Math.abs(numeric);
+}
+
+function reportCategoryLabel(section: string, category: string, accountName: string): string {
+  const value = `${category} ${accountName}`.trim().toLowerCase();
+  if (section === "equity") return "Equity & reserves";
+  if (section === "assets") {
+    if (value.includes("cash and cash equivalent") || value.includes("bank balance")) return "Cash & equivalents";
+    if (value.includes("trade receivable")) return "Trade receivables";
+    if (value.includes("right-of-use") || value.includes("right of use")) return "Right-of-use assets";
+    if (value.includes("tangible fixed") || value.includes("fixed asset")) return "Fixed assets";
+    if (value.includes("investment")) return "Investments";
+    if (value.includes("non-current") || value.includes("non current")) return "Other non-current";
+    return "Other current";
+  }
+  if (value.includes("trade payable")) return "Trade payables";
+  if (value.includes("lease liabil")) return "Lease liabilities";
+  if (value.includes("provision")) return "Provisions";
+  if (value.includes("non-current") || value.includes("non current")) return "Non-current liabilities & provisions";
+  if (value.includes("equity") || value.includes("reserve") || value.includes("surplus")) return "Equity & reserves";
+  return "Other liabilities";
+}
+
 function ratio(numerator: number, denominator: number): number | null {
   return denominator === 0 ? null : round(numerator / denominator);
 }
@@ -337,17 +362,19 @@ export async function runBalanceSheetReport(request: BalanceSheetReportRequest):
 
   const currentMonth = reportMonths[reportMonths.length - 1];
   const currentRows = rows.filter((row) => row.month === currentMonth);
-  const priorMonth = currentMonth === 1 ? 12 : currentMonth - 1;
-  const priorYear = currentMonth === 1 ? reportYear - 1 : reportYear;
-  const previousRows = (await db.select().from(cubeBalanceSheetData).where(and(
-    eq(cubeBalanceSheetData.cubeId, request.cubeId),
-    eq(cubeBalanceSheetData.fiscalYear, priorYear),
-    eq(cubeBalanceSheetData.month, priorMonth),
-    ...(request.entity?.trim() ? [eq(cubeBalanceSheetData.entity, request.entity.trim())] : []),
-  ))).map((row) => row);
+  const previousPeriod = (await listBalanceSheetPeriods(request.cubeId))
+    .find((period) => period.year < reportYear || (period.year === reportYear && period.month < currentMonth));
+  const previousRows = previousPeriod
+    ? (await db.select().from(cubeBalanceSheetData).where(and(
+      eq(cubeBalanceSheetData.cubeId, request.cubeId),
+      eq(cubeBalanceSheetData.fiscalYear, previousPeriod.year),
+      eq(cubeBalanceSheetData.month, previousPeriod.month),
+      ...(request.entity?.trim() ? [eq(cubeBalanceSheetData.entity, request.entity.trim())] : []),
+    ))).map((row) => row)
+    : [];
 
-  const currentValues = currentRows.map((row) => ({ section: row.section, category: row.category, value: numberValue(row.amountReporting) }));
-  const previousValues = previousRows.map((row) => ({ section: row.section, category: row.category, value: numberValue(row.amountReporting) }));
+  const currentValues = currentRows.map((row) => ({ section: row.section, category: row.category, value: reportValue(row.section, row.amountReporting) }));
+  const previousValues = previousRows.map((row) => ({ section: row.section, category: row.category, value: reportValue(row.section, row.amountReporting) }));
   const totals = totalsForRows(currentValues);
   const previousTotals = totalsForRows(previousValues);
   const tolerance = request.tolerance ?? 0.01;
