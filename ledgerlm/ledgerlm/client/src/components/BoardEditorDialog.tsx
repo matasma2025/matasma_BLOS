@@ -31,7 +31,7 @@ import { useLocation } from 'wouter';
 import { type BoardTemplate, type Board } from '@shared/schema';
 import { BoardCreationWizard } from './BoardCreationWizard';
 
-interface Cube { id: string; name: string; description?: string }
+interface Cube { id: string; name: string; description?: string; schemaType?: 'kpi' | 'investment_capex_pmo' | 'balance_sheet' }
 interface CubeAccess { cubes: Cube[] }
 
 interface BoardEditorDialogProps {
@@ -61,7 +61,11 @@ export function BoardEditorDialog({
     queryKey: ['/api/user/accessible-cubes'],
     enabled: open,
   });
-  const cubes = cubeAccess?.cubes ?? [];
+  const cubes = (cubeAccess?.cubes ?? []).filter((cube) =>
+    isBalanceSheetTemplate
+      ? cube.schemaType === 'balance_sheet'
+      : cube.schemaType !== 'balance_sheet',
+  );
 
   // ── Form state ─────────────────────────────────────────────────────────────
   const getInitialFormData = () => {

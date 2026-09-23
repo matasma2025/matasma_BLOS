@@ -4246,7 +4246,7 @@ ${intentDef.question}`;
 
       const cubes = await storage.getCubes(domainUser.domainId);
       const filteredCubes = cubes.filter((cube) =>
-        accessibleCubeIds.includes(cube.id),
+        domainUser.role === "admin" || accessibleCubeIds.includes(cube.id),
       );
 
       // Get document counts for each cube
@@ -4256,6 +4256,7 @@ ${intentDef.question}`;
           name: cube.name,
           description: cube.description,
           sourceType: cube.sourceType,
+          schemaType: cube.schemaType,
           documentCount: await storage.getCubeDocumentCount(cube.id),
         })),
       );
