@@ -134,7 +134,7 @@ function addSectionSlide(
     showLegend: true, legendPos: "b", showTitle: false, showValue: false,
     showCatName: false, showSerName: false, showLabel: false, showBorder: false,
   });
-  slide.addText(narrativeText(balanceSheet, section, currentLabel, priorLabel), {
+  slide.addText(narrativeText(balanceSheet, includedSections, currentLabel, priorLabel), {
     x: 6.35, y: 0.92, w: 6.5, h: 3.65,
     fontFace: "Aptos", fontSize: 8.7, color: "000000", margin: 0.03,
     breakLine: false, fit: "shrink", valign: "top", paraSpaceAfter: 3,
@@ -147,7 +147,7 @@ function addSectionSlide(
     x: 0.47, y: 4.52, w: 5.5, h: 0.2,
     fontFace: "Aptos", fontSize: 9, bold: true, color: "000000", margin: 0,
   });
-  slide.addText(oldBalancePointers(balanceSheet, section), {
+  slide.addText(oldBalancePointers(balanceSheet, includedSections), {
     x: 0.47, y: 4.78, w: 12.25, h: 1.65,
     fontFace: "Aptos", fontSize: 8.4, color: "000000", margin: 0.02,
     breakLine: false, fit: "shrink", valign: "top", paraSpaceAfter: 3,
