@@ -130,9 +130,10 @@ function oldBalancePointers(
     .sort((a, b) => Math.abs(b.change) - Math.abs(a.change))
     .slice(0, 2);
   if (!candidates.length) return "• Nothing flagged from the data — add from supporting schedules.";
+  const currentLabel = compactPeriodLabel(balanceSheet.periodLabel);
   return candidates.map((item) => {
     const share = balanceSheet.totals.assets === 0 ? null : (item.value / balanceSheet.totals.assets) * 100;
-    return `• ${item.label} remains ${amount(item.value, balanceSheet)} ${displayUnit(balanceSheet)} at ${balanceSheet.periodLabel}${share === null ? "" : ` (${share.toFixed(1)}% of total assets)`}; validate the underlying account mix and any reclassification behind the ${signedAmount(item.change, balanceSheet)} ${displayUnit(balanceSheet)} movement.`;
+    return `• ${item.label} remains ${amount(item.value, balanceSheet)} ${displayUnit(balanceSheet)} at ${currentLabel}${share === null ? "" : ` (${share.toFixed(1)}% of total assets)`}; validate the underlying account mix and any reclassification behind the ${signedAmount(item.change, balanceSheet)} ${displayUnit(balanceSheet)} movement.`;
   }).join("\n");
 }
 
