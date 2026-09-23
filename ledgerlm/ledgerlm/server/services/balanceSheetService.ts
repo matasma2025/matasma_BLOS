@@ -136,7 +136,7 @@ export async function parseBalanceSheetWorkbook(filePath: string, sourceFile: st
     for (let rowNumber = 2; rowNumber <= worksheet.rowCount; rowNumber += 1) {
       const row = worksheet.getRow(rowNumber);
       const accountName = cellText(row.getCell(4).value);
-      if (!accountName || /^total\b/i.test(accountName)) continue;
+      if (!accountName || (/^total\b/i.test(accountName) && !/^total:\s*equity\b/i.test(accountName))) continue;
       const accountCode = cellText(row.getCell(5).value) || null;
       const category = cellText(row.getCell(3).value) || cellText(row.getCell(2).value) || section;
       const rowSection = classifyWorkbookRow(section, category, accountName);
