@@ -9,3 +9,4 @@
 - [KPI source normalization](kpi-source-normalization.md) — Anaplan plan totals vary by page label and aggregate counts need zero-safe fallback handling
 - [Plan Delta capacity](plan-delta-capacity.md) — Actual capacity adjustments come from the workbook Delta column, with Cost value only as a legacy fallback
 - [Balance Sheet cube isolation](balance-sheet-cube-isolation.md) — Balance Sheet boards use point-in-time account data in their own cube/table, never the KPI planning fact path
+- [Balance Sheet PPTX exports](balance-sheet-pptx-exports.md) — generate standalone two-slide decks dynamically from dedicated cube data; generic uploaded templates cannot express live narratives/charts
