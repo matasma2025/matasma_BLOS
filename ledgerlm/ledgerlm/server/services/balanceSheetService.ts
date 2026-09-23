@@ -383,20 +383,20 @@ export async function runBalanceSheetReport(request: BalanceSheetReportRequest):
   for (const row of currentRows) {
     const key = lineItemKey(row);
     const existing = itemMap.get(key);
-    if (existing) existing.value += numberValue(row.amountReporting);
+    if (existing) existing.value += reportValue(row.section, row.amountReporting);
     else itemMap.set(key, {
       accountCode: row.accountCode,
       accountName: row.accountName,
       category: row.category,
       section: row.section as "assets" | "liabilities" | "equity",
-      value: numberValue(row.amountReporting),
+      value: reportValue(row.section, row.amountReporting),
       previousValue: null,
     });
   }
   const previousMap = new Map<string, number>();
   for (const row of previousRows) {
     const key = lineItemKey(row);
-    previousMap.set(key, (previousMap.get(key) ?? 0) + numberValue(row.amountReporting));
+    previousMap.set(key, (previousMap.get(key) ?? 0) + reportValue(row.section, row.amountReporting));
   }
   const lineItems: BalanceSheetLineItem[] = Array.from(itemMap.values()).map((item) => {
     const previousValue = previousMap.get(lineItemKey(item));
@@ -414,10 +414,10 @@ export async function runBalanceSheetReport(request: BalanceSheetReportRequest):
     };
   }).sort((a, b) => Math.abs(b.change) - Math.abs(a.change)).slice(0, 500);
 
-  const periods: BalanceSheetPeriod[] = months.map((month) => {
-    const periodRows = rows.filter((row) => row.month === month).map((row) => ({ section: row.section, category: row.category, value: numberValue(row.amountReporting) }));
+  const periods: BalanceSheetPeriod[] = reportMonths.map((month) => {
+    const periodRows = rows.filter((row) => row.month === month).map((row) => ({ section: row.section, category: row.category, value: reportValue(row.section, row.amountReporting) }));
     return {
-      label: periodLabel(request.year, month, rows.find((row) => row.month === month)?.periodLabel),
+      label: periodLabel(reportYear, month, rows.find((row) => row.month === month)?.periodLabel),
       year: reportYear,
       month,
       totals: totalsForRows(periodRows),
@@ -432,6 +432,44 @@ export async function runBalanceSheetReport(request: BalanceSheetReportRequest):
     change: item.change,
     changePercent: item.changePercent,
   }));
+  const categoryMap = new Map<string, {
+    label: string;
+    section: "assets" | "liabilities" | "equity";
+    value: number;
+    previousValue: number;
+  }>();
+  for (const row of currentRows) {
+    const section = row.section as "assets" | "liabilities" | "equity";
+    const label = reportCategoryLabel(section, row.category, row.accountName);
+    const key = `${section}|${label}`;
+    const existing = categoryMap.get(key);
+    if (existing) existing.value += reportValue(section, row.amountReporting);
+    else categoryMap.set(key, { label, section, value: reportValue(section, row.amountReporting), previousValue: 0 });
+  }
+  for (const row of previousRows) {
+    const section = row.section as "assets" | "liabilities" | "equity";
+    const label = reportCategoryLabel(section, row.category, row.accountName);
+    const key = `${section}|${label}`;
+    const existing = categoryMap.get(key);
+    if (existing) existing.previousValue += reportValue(section, row.amountReporting);
+    else categoryMap.set(key, { label, section, value: 0, previousValue: reportValue(section, row.amountReporting) });
+  }
+  const categoryBreakdowns = Array.from(categoryMap.values()).map((item) => {
+    const value = round(item.value);
+    const previousValue = round(item.previousValue);
+    const change = round(value - previousValue);
+    return {
+      label: item.label,
+      section: item.section,
+      value,
+      previousValue,
+      change,
+      changePercent: previousValue === 0 ? null : round(change / Math.abs(previousValue)),
+    };
+  }).sort((a, b) => {
+    const sectionOrder = { assets: 0, liabilities: 1, equity: 2 };
+    return sectionOrder[a.section] - sectionOrder[b.section] || Math.abs(b.value) - Math.abs(a.value);
+  }).slice(0, 50);
   const balanced = Math.abs(totals.balanceDifference) <= tolerance;
   const periodWasAdjusted = reportYear !== request.year
     || reportMonths.length !== months.length
@@ -463,11 +501,13 @@ export async function runBalanceSheetReport(request: BalanceSheetReportRequest):
     currency,
     unitLabel: currency,
     periodLabel: periodLabel(reportYear, currentMonth, currentRows[0]?.periodLabel),
+    comparisonPeriodLabel: previousPeriod ? periodLabel(previousPeriod.year, previousPeriod.month, previousRows[0]?.periodLabel) : null,
     totals,
     ratios,
     periods,
     lineItems,
     movements,
+    categoryBreakdowns,
     unmappedRows: [],
     warnings,
     insights,
