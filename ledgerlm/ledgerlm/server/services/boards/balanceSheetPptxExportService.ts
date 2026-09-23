@@ -33,6 +33,12 @@ function percentage(value: number | null) {
   return value === null ? "n/a" : `${value >= 0 ? "+" : ""}${(value * 100).toFixed(1)}%`;
 }
 
+function compactPeriodLabel(label: string) {
+  const match = label.trim().match(/^([A-Za-z]{3,})\s+(\d{4})$/);
+  if (!match) return label;
+  return `${match[1].slice(0, 3)}-${match[2].slice(-2)}`;
+}
+
 function categoryBreakdowns(balanceSheet: BalanceSheetReport): BalanceSheetCategoryBreakdown[] {
   if (balanceSheet.categoryBreakdowns?.length) return balanceSheet.categoryBreakdowns;
   const grouped = new Map<string, BalanceSheetCategoryBreakdown>();
@@ -55,6 +61,36 @@ function categoryBreakdowns(balanceSheet: BalanceSheetReport): BalanceSheetCateg
     }
   }
   return Array.from(grouped.values());
+}
+
+function chartCategories(
+  balanceSheet: BalanceSheetReport,
+  section: "assets" | "liabilities",
+) {
+  const order = section === "assets"
+    ? [
+      "Cash & Cash equivalents",
+      "Trade Receivables",
+      "Other current assets",
+      "Investments in Group Entities",
+      "Right-of-use assets",
+      "Fixed Assets",
+      "Other Noncurrent assets",
+    ]
+    : [
+      "Equity & reserves",
+      "Trade Payables",
+      "Lease liabilities",
+      "Provisions",
+      "Other Liabilities",
+      "Non-current liabilities & provisions",
+    ];
+  const rank = new Map(order.map((label, index) => [label, index]));
+  return categoryBreakdowns(balanceSheet)
+    .filter((item) => (section === "assets"
+      ? item.section === "assets"
+      : item.section === "liabilities" || item.section === "equity"))
+    .sort((a, b) => (rank.get(a.label) ?? order.length) - (rank.get(b.label) ?? order.length));
 }
 
 function topMovements(balanceSheet: BalanceSheetReport, section: "assets" | "liabilities" | "equity", label: string) {
@@ -109,23 +145,23 @@ function addSectionSlide(
 ) {
   const slide = pptx.addSlide();
   const includedSections: ReportSection[] = section === "liabilities" ? ["liabilities", "equity"] : ["assets"];
-  const currentLabel = balanceSheet.periodLabel;
-  const priorLabel = balanceSheet.comparisonPeriodLabel || "prior loaded period";
-  const categories = categoryBreakdowns(balanceSheet).filter((item) => includedSections.includes(item.section));
+  const currentLabel = compactPeriodLabel(balanceSheet.periodLabel);
+  const priorLabel = compactPeriodLabel(balanceSheet.comparisonPeriodLabel || "prior loaded period");
+  const categories = chartCategories(balanceSheet, section);
   const chartLabels = categories.map((item) => item.label);
   const chartValues = categories.map((item) => item.value / scaleFor(balanceSheet));
   const priorValues = categories.map((item) => item.previousValue / scaleFor(balanceSheet));
 
   slide.background = { color: "FFFFFF" };
   slide.addText(title, {
-    x: 0.45, y: 0.2, w: 12.3, h: 0.45,
-    fontFace: "Aptos Display", fontSize: 24, bold: true, color: "000000", margin: 0, fit: "shrink",
+    x: 0.28, y: 0.29, w: 11.43, h: 0.43,
+    fontFace: "Aptos Display", fontSize: 28, bold: true, color: "000000", margin: 0.1, fit: "shrink",
   });
   slide.addChart(pptx.ChartType.bar, [
     { name: currentLabel, labels: chartLabels, values: chartValues },
     { name: priorLabel, labels: chartLabels, values: priorValues },
   ], {
-    x: 0.45, y: 0.95, w: 5.55, h: 3.15,
+    x: 0.47, y: 1.09, w: 5.35, h: 2.98,
     barDir: "col", catAxisLabelRotate: -35, catAxisLabelFontFace: "Aptos", catAxisLabelFontSize: 8,
     catAxisLabelColor: "333333", valAxisLabelFontFace: "Aptos", valAxisLabelFontSize: 8,
     valAxisLabelColor: "666666", valAxisLabelFormatCode: "#,##0", valAxisTitle: displayUnit(balanceSheet),
@@ -135,21 +171,21 @@ function addSectionSlide(
     showCatName: false, showSerName: false, showLabel: false, showBorder: false,
   });
   slide.addText(narrativeText(balanceSheet, includedSections, currentLabel, priorLabel), {
-    x: 6.35, y: 0.92, w: 6.5, h: 3.65,
-    fontFace: "Aptos", fontSize: 8.7, color: "000000", margin: 0.03,
+    x: 6.51, y: 0.91, w: 6.42, h: 5.67,
+    fontFace: "Aptos", fontSize: 10, color: "000000", margin: 0.07,
     breakLine: false, fit: "shrink", valign: "top", paraSpaceAfter: 3,
   });
   slide.addText("All figures in " + displayUnit(balanceSheet) + ".", {
-    x: 0.47, y: 4.18, w: 3, h: 0.18,
-    fontFace: "Aptos", fontSize: 6.5, italic: true, color: "000000", margin: 0,
+    x: 0.28, y: 4.33, w: 3, h: 0.18,
+    fontFace: "Aptos", fontSize: 6, italic: true, color: "000000", margin: 0.1,
   });
   slide.addText("Key pointers on old balances:", {
-    x: 0.47, y: 4.52, w: 5.5, h: 0.2,
-    fontFace: "Aptos", fontSize: 9, bold: true, color: "000000", margin: 0,
+    x: 0.28, y: 4.66, w: 5.97, h: 0.2,
+    fontFace: "Aptos", fontSize: 8.5, bold: true, color: "000000", margin: 0.1,
   });
   slide.addText(oldBalancePointers(balanceSheet, includedSections), {
-    x: 0.47, y: 4.78, w: 12.25, h: 1.65,
-    fontFace: "Aptos", fontSize: 8.4, color: "000000", margin: 0.02,
+    x: 0.28, y: 4.86, w: 5.97, h: 1.98,
+    fontFace: "Aptos", fontSize: 8.5, color: "000000", margin: 0.1,
     breakLine: false, fit: "shrink", valign: "top", paraSpaceAfter: 3,
   });
   slide.addText(`Source: ${report.sourceSnapshot?.name ?? "Dedicated Balance Sheet cube"} · comparison uses the latest earlier loaded period`, {
@@ -174,8 +210,9 @@ export async function exportBalanceSheetPptx(
   pptx.company = "LedgerLM";
   pptx.subject = "Balance Sheet standalone analysis";
   pptx.title = report.title;
-  addSectionSlide(pptx, report, balanceSheet, "assets", `Balance Sheet – Assets as of ${balanceSheet.periodLabel}`);
-  addSectionSlide(pptx, report, balanceSheet, "liabilities", `Balance Sheet – Liabilities as of ${balanceSheet.periodLabel}`);
+  const periodLabel = compactPeriodLabel(balanceSheet.periodLabel);
+  addSectionSlide(pptx, report, balanceSheet, "assets", `Balance Sheet – Assets as of ${periodLabel}`);
+  addSectionSlide(pptx, report, balanceSheet, "liabilities", `Balance Sheet – Liabilities as of ${periodLabel}`);
   const output = await pptx.write({ outputType: "nodebuffer" });
   return Buffer.isBuffer(output) ? output : Buffer.from(output as Uint8Array);
 }
