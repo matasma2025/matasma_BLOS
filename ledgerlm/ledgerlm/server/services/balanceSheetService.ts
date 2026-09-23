@@ -86,6 +86,18 @@ function periodFromCell(value: unknown): { fiscalYear: number; month: number; pe
   };
 }
 
+function classifyWorkbookRow(section: "assets" | "liabilities" | "equity", category: string, accountName: string) {
+  if (section !== "liabilities") return section;
+  const categoryText = category.trim().toLowerCase();
+  const accountText = accountName.trim().toLowerCase();
+  if (
+    categoryText === "equity"
+    || /^total:\s*equity\b/.test(accountText)
+    || /^(subscribed capital|capital surplus|earned surplus reserves|unappropriate earnings\/losses|non-controlling interests)\b/.test(accountText)
+  ) return "equity" as const;
+  return section;
+}
+
 /**
  * Reads the supplied Balance Sheet workbook format:
  * - BS-Assets and BS-Liabilities sheets
@@ -127,6 +139,7 @@ export async function parseBalanceSheetWorkbook(filePath: string, sourceFile: st
       if (!accountName || /^total\b/i.test(accountName)) continue;
       const accountCode = cellText(row.getCell(5).value) || null;
       const category = cellText(row.getCell(3).value) || cellText(row.getCell(2).value) || section;
+      const rowSection = classifyWorkbookRow(section, category, accountName);
       for (const { column, period } of periodColumns) {
         const amountReporting = cellNumber(row.getCell(column).value);
         if (amountReporting === null) continue;
@@ -140,11 +153,11 @@ export async function parseBalanceSheetWorkbook(filePath: string, sourceFile: st
           location: null,
           accountCode,
           accountName,
-          section,
+          section: rowSection,
           category,
           amountLocal: amountReporting,
           amountReporting,
-          currency: "USD",
+          currency: "INR",
           sourceFile,
           sourceRowNumber: rowNumber,
         });
