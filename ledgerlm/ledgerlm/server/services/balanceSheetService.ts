@@ -294,19 +294,38 @@ export async function runBalanceSheetReport(request: BalanceSheetReportRequest):
   const months = Array.from(new Set(request.months.map(Number))).filter((month) => month >= 1 && month <= 12).sort((a, b) => a - b);
   if (!months.length) throw new Error("Select at least one Balance Sheet month.");
 
-  const filters = [
-    eq(cubeBalanceSheetData.cubeId, request.cubeId),
-    eq(cubeBalanceSheetData.fiscalYear, request.year),
-    inArray(cubeBalanceSheetData.month, months),
-  ];
-  if (request.entity?.trim()) filters.push(eq(cubeBalanceSheetData.entity, request.entity.trim()));
-  const rows = await db.select().from(cubeBalanceSheetData).where(and(...filters));
-  if (!rows.length) throw new Error(`No Balance Sheet data is available for ${request.year} and the selected period.`);
+  const loadRows = async (year: number, selectedMonths: number[]) => {
+    const filters = [
+      eq(cubeBalanceSheetData.cubeId, request.cubeId),
+      eq(cubeBalanceSheetData.fiscalYear, year),
+      inArray(cubeBalanceSheetData.month, selectedMonths),
+    ];
+    if (request.entity?.trim()) filters.push(eq(cubeBalanceSheetData.entity, request.entity.trim()));
+    return db.select().from(cubeBalanceSheetData).where(and(...filters));
+  };
 
-  const currentMonth = months[months.length - 1];
+  let reportYear = request.year;
+  let reportMonths = months;
+  let rows = await loadRows(reportYear, reportMonths);
+  if (!rows.length) {
+    const latestPeriod = (await listBalanceSheetPeriods(request.cubeId))[0];
+    if (!latestPeriod) {
+      throw new Error(`No Balance Sheet data is available in cube ${request.cubeId}.`);
+    }
+    reportYear = latestPeriod.year;
+    reportMonths = [latestPeriod.month];
+    rows = await loadRows(reportYear, reportMonths);
+  } else {
+    // Ignore selected months that are not loaded while retaining the requested
+    // year and the loaded periods that can actually be reported.
+    const loadedMonths = new Set(rows.map((row) => row.month));
+    reportMonths = reportMonths.filter((month) => loadedMonths.has(month));
+  }
+
+  const currentMonth = reportMonths[reportMonths.length - 1];
   const currentRows = rows.filter((row) => row.month === currentMonth);
   const priorMonth = currentMonth === 1 ? 12 : currentMonth - 1;
-  const priorYear = currentMonth === 1 ? request.year - 1 : request.year;
+  const priorYear = currentMonth === 1 ? reportYear - 1 : reportYear;
   const previousRows = (await db.select().from(cubeBalanceSheetData).where(and(
     eq(cubeBalanceSheetData.cubeId, request.cubeId),
     eq(cubeBalanceSheetData.fiscalYear, priorYear),
@@ -359,7 +378,7 @@ export async function runBalanceSheetReport(request: BalanceSheetReportRequest):
     const periodRows = rows.filter((row) => row.month === month).map((row) => ({ section: row.section, category: row.category, value: numberValue(row.amountReporting) }));
     return {
       label: periodLabel(request.year, month, rows.find((row) => row.month === month)?.periodLabel),
-      year: request.year,
+      year: reportYear,
       month,
       totals: totalsForRows(periodRows),
     };
@@ -374,7 +393,13 @@ export async function runBalanceSheetReport(request: BalanceSheetReportRequest):
     changePercent: item.changePercent,
   }));
   const balanced = Math.abs(totals.balanceDifference) <= tolerance;
+  const periodWasAdjusted = reportYear !== request.year
+    || reportMonths.length !== months.length
+    || reportMonths.some((month, index) => month !== months[index]);
   const warnings = [
+    ...(periodWasAdjusted
+      ? [`The requested period had no loaded Balance Sheet rows; this report uses ${periodLabel(reportYear, currentMonth)} instead.`]
+      : []),
     ...(!balanced ? [`Balance Sheet is out of balance by ${totals.balanceDifference.toFixed(2)} ${currency}.`] : []),
     ...(previousRows.length ? [] : ["No prior-period Balance Sheet rows were available; movement comparisons use zero only where a current account is new."]),
   ];
@@ -397,7 +422,7 @@ export async function runBalanceSheetReport(request: BalanceSheetReportRequest):
     tolerance,
     currency,
     unitLabel: currency,
-    periodLabel: periodLabel(request.year, currentMonth, currentRows[0]?.periodLabel),
+    periodLabel: periodLabel(reportYear, currentMonth, currentRows[0]?.periodLabel),
     totals,
     ratios,
     periods,
