@@ -120,7 +120,7 @@ import {
 } from "./services/boards/phase4Service";
 import { exportKpiReportPptx } from "./services/boards/kpiPptxExportService";
 import { exportBalanceSheetPptx } from "./services/boards/balanceSheetPptxExportService";
-import { ingestBalanceSheetRows, parseBalanceSheetWorkbook } from "./services/balanceSheetService";
+import { ingestBalanceSheetRows, listBalanceSheetPeriods, parseBalanceSheetWorkbook } from "./services/balanceSheetService";
 import { boardExports, boardSchedules, boardReports } from "@shared/schema";
 import { boardScheduleConfigurationSchema } from "@shared/boards/boardSchedule";
 import {
@@ -3174,6 +3174,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(versions);
     } catch (error) {
       res.status(403).json({ error: "You do not have access to this Enterprise Data cube" });
+    }
+  });
+
+  app.get("/api/cubes/:cubeId/balance-sheet-periods", async (req, res) => {
+    try {
+      const userId = (req.session?.userId ?? "");
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      const source = await getAuthorizedBoardSource(userId, { sourceType: "enterprise", cubeId: req.params.cubeId });
+      if (source.schemaType !== "balance_sheet") {
+        return res.status(400).json({ error: "The selected cube is not a Balance Sheet cube" });
+      }
+      res.json(await listBalanceSheetPeriods(req.params.cubeId));
+    } catch (error: any) {
+      res.status(error?.message?.includes("not available") ? 403 : 500)
+        .json({ error: error?.message || "Failed to fetch Balance Sheet periods" });
     }
   });
 

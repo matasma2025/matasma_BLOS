@@ -1,4 +1,4 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import ExcelJS from "exceljs";
 import { db } from "../db";
@@ -266,6 +266,16 @@ export async function ingestBalanceSheetRows(cubeId: string, input: unknown) {
   })));
 
   return { cubeId, inserted: parsed.rows.length, replacedPeriods: replacePeriods };
+}
+
+export async function listBalanceSheetPeriods(cubeId: string) {
+  const rows = await db.selectDistinct({
+    year: cubeBalanceSheetData.fiscalYear,
+    month: cubeBalanceSheetData.month,
+  }).from(cubeBalanceSheetData)
+    .where(eq(cubeBalanceSheetData.cubeId, cubeId))
+    .orderBy(desc(cubeBalanceSheetData.fiscalYear), desc(cubeBalanceSheetData.month));
+  return rows.map((row) => ({ year: Number(row.year), month: Number(row.month) }));
 }
 
 export interface BalanceSheetReportRequest {

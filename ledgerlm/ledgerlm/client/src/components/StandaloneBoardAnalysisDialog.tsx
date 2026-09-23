@@ -25,6 +25,11 @@ interface AnalysisConfig {
   excludedColumns?: string[];
 }
 
+interface BalanceSheetPeriod {
+  year: number;
+  month: number;
+}
+
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const DIMENSIONS = ['Entity', 'Sector', 'Cost Category', 'Resource Type', 'Location', 'Project GB', 'Planning GB', 'Salary Level'];
 
@@ -47,6 +52,7 @@ export function StandaloneBoardAnalysisDialog({
   const flow = settings.boardFlow ?? {};
   const templateKey = settings.templateKey ?? 'custom-kpi-board';
   const label = templateLabel(templateKey);
+  const isBalanceSheet = templateKey === 'balance-sheet-tracker';
   const currentYear = new Date().getFullYear();
   const configuredDimensions = Array.isArray(settings.defaultDimensions)
     ? settings.defaultDimensions.map(String)
@@ -82,6 +88,23 @@ export function StandaloneBoardAnalysisDialog({
     if (settings.cubeId) return { sourceType: 'enterprise' as const, cubeId: settings.cubeId };
     return undefined;
   }, [config, settings.cubeId]);
+
+  const { data: availableBalanceSheetPeriods = [], isLoading: periodsLoading } = useQuery<BalanceSheetPeriod[]>({
+    queryKey: ['/api/cubes', sourceSelection?.sourceType === 'enterprise' ? sourceSelection.cubeId : '', 'balance-sheet-periods'],
+    queryFn: () => apiRequest('GET', `/api/cubes/${(sourceSelection as { cubeId: string }).cubeId}/balance-sheet-periods`) as Promise<BalanceSheetPeriod[]>,
+    enabled: open && isBalanceSheet && sourceSelection?.sourceType === 'enterprise',
+  });
+
+  useEffect(() => {
+    if (!open || !isBalanceSheet || !availableBalanceSheetPeriods.length) return;
+    const selectedPeriod = availableBalanceSheetPeriods.find(
+      (period) => period.year === year && months.length === 1 && period.month === months[0],
+    ) ?? availableBalanceSheetPeriods[0];
+    if (selectedPeriod.year !== year || months.length !== 1 || months[0] !== selectedPeriod.month) {
+      setYear(selectedPeriod.year);
+      setMonths([selectedPeriod.month]);
+    }
+  }, [availableBalanceSheetPeriods, isBalanceSheet, open]);
 
   const runMutation = useMutation({
     mutationFn: async () => {
@@ -145,20 +168,50 @@ export function StandaloneBoardAnalysisDialog({
           </div>
 
           <div className="space-y-3">
-            <Label className="text-sm font-medium flex items-center gap-2"><CalendarDays className="w-4 h-4 text-muted-foreground" />Analysis period</Label>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground w-10">Year</span>
-              <div className="flex gap-1">
-                {[currentYear - 1, currentYear, currentYear + 1].map((value) => (
-                  <button key={value} type="button" onClick={() => setYear(value)} className={`px-3 py-1 rounded text-sm border ${year === value ? 'bg-primary text-primary-foreground border-primary' : 'hover:bg-muted'}`}>{value}</button>
-                ))}
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {MONTHS.map((month, index) => (
-                <button key={month} type="button" onClick={() => toggleMonth(index + 1)} className={`px-2.5 py-1.5 rounded text-xs border ${months.includes(index + 1) ? 'bg-primary text-primary-foreground border-primary' : 'hover:bg-muted'}`}>{month}</button>
-              ))}
-            </div>
+             {isBalanceSheet ? (
+               <>
+                 <p className="text-xs text-muted-foreground">
+                   Select a period loaded in the dedicated Balance Sheet cube.
+                 </p>
+                 {periodsLoading ? (
+                   <p className="text-sm text-muted-foreground">Loading available Balance Sheet periods…</p>
+                 ) : availableBalanceSheetPeriods.length ? (
+                   <div className="flex flex-wrap gap-1.5">
+                     {availableBalanceSheetPeriods.map((period) => {
+                       const selected = year === period.year && months.length === 1 && months[0] === period.month;
+                       return (
+                         <button
+                           key={`${period.year}-${period.month}`}
+                           type="button"
+                           onClick={() => { setYear(period.year); setMonths([period.month]); }}
+                           className={`px-2.5 py-1.5 rounded text-xs border ${selected ? 'bg-primary text-primary-foreground border-primary' : 'hover:bg-muted'}`}
+                         >
+                           {MONTHS[period.month - 1]} {period.year}
+                         </button>
+                       );
+                     })}
+                   </div>
+                 ) : (
+                   <p className="text-sm text-destructive">No Balance Sheet periods are loaded in this cube.</p>
+                 )}
+               </>
+             ) : (
+               <>
+                 <div className="flex items-center gap-2">
+                   <span className="text-xs text-muted-foreground w-10">Year</span>
+                   <div className="flex gap-1">
+                     {[currentYear - 1, currentYear, currentYear + 1].map((value) => (
+                       <button key={value} type="button" onClick={() => setYear(value)} className={`px-3 py-1 rounded text-sm border ${year === value ? 'bg-primary text-primary-foreground border-primary' : 'hover:bg-muted'}`}>{value}</button>
+                     ))}
+                   </div>
+                 </div>
+                 <div className="flex flex-wrap gap-1.5">
+                   {MONTHS.map((month, index) => (
+                     <button key={month} type="button" onClick={() => toggleMonth(index + 1)} className={`px-2.5 py-1.5 rounded text-xs border ${months.includes(index + 1) ? 'bg-primary text-primary-foreground border-primary' : 'hover:bg-muted'}`}>{month}</button>
+                   ))}
+                 </div>
+               </>
+             )}
             <p className="text-xs text-muted-foreground">Selected: {months.length ? months.map((month) => MONTHS[month - 1]).join(', ') : 'none'} {year}</p>
           </div>
 
