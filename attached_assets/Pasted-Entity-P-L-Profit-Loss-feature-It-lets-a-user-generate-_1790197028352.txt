@@ -1,0 +1,22 @@
+Entity P&L (Profit & Loss) feature. It lets a user generate a financial statement for one entity—or all entities—from an Enterprise Data cube they’re authorized to access.
+
+What it allows
+Create an Entity P&L Analysis board and select a cube, entity, and as-of month.
+Compare quarter-end monthly results against the prior quarter (QoQ), or year-to-date results against the same month last year (YoY).
+View results in USD or INR, optionally with a CF forecast scenario in a separate column from Actual.
+Review revenue, expense lines, EBIT (revenue minus total expenses), EBIT%, and on-roll/outsourcing capacity, plus a chart, summary, and source-evidence notes.
+Run the analysis again and download a PowerPoint financial-statement slide or a PDF summary.
+Each run reads the authorized cube through the server; it does not copy the Enterprise Data rows into the board. The standalone board currently saves its settings and generated reports in the browser’s local storage, so those saved board reports are not a shared server-side report repository.
+
+Main related files
+File	Role
+boards-standalone/lib/templates.ts [blocked]	Defines the “Entity P&L Analysis” board template and its analysis rules.
+boards-standalone/components/board/BoardModal.tsx [blocked]	Configuration form: cube, entity, month, comparison, currency, and CF scenario.
+boards-standalone/app/boards/[id]/page.tsx [blocked]	Board screen for running analysis, viewing reports, and starting exports.
+boards-standalone/lib/runAnalysis.ts [blocked]	Sends the selected settings to LedgerLM and saves the returned report on the board.
+ledgerlm/server/routes.ts [blocked]	Checks sign-in and permission for the selected cube, then forwards the request to the calculation service.
+ledgerlm/python_backend/api/routes/entity_pnl.py [blocked]	Reads cube facts and calculates the governed P&L figures, comparisons, and capacity values.
+boards-standalone/lib/exportReport.ts [blocked]	Builds the dedicated Entity P&L PowerPoint layout.
+boards-standalone/app/api/export/route.ts [blocked]	Handles background PowerPoint/PDF export requests and downloads.
+boards-standalone/lib/store.ts [blocked] and lib/types.ts [blocked]	Define and store board settings and generated reports in the browser.
+There are also Entity P&L prompt suggestions in ledgerlm/client/src/pages/ChatDetail.tsx [blocked], but the dedicated configured feature is the standalone Entity P&L board, not a separate page in the main LedgerLM client.
