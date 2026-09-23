@@ -105,8 +105,10 @@ function classifyWorkbookRow(section: "assets" | "liabilities" | "equity", categ
  * - column E: account number
  * - date columns: point-in-time balances
  *
- * Subtotal rows are deliberately excluded so report totals do not double-count
- * both leaf accounts and their spreadsheet subtotals.
+ * Leaf accounts and subtotal rows are retained. Report calculations select the
+ * appropriate subtotal rows for statement totals and use leaf rows for account
+ * movement detail, so the standalone output can preserve the workbook's full
+ * asset and liability presentation without double-counting.
  */
 export async function parseBalanceSheetWorkbook(filePath: string, sourceFile: string): Promise<BalanceSheetImportRow[]> {
   const workbook = new ExcelJS.Workbook();
@@ -136,7 +138,7 @@ export async function parseBalanceSheetWorkbook(filePath: string, sourceFile: st
     for (let rowNumber = 2; rowNumber <= worksheet.rowCount; rowNumber += 1) {
       const row = worksheet.getRow(rowNumber);
       const accountName = cellText(row.getCell(4).value);
-      if (!accountName || (/^total\b/i.test(accountName) && !/^total:\s*equity\b/i.test(accountName))) continue;
+      if (!accountName) continue;
       const accountCode = cellText(row.getCell(5).value) || null;
       const category = cellText(row.getCell(3).value) || cellText(row.getCell(2).value) || section;
       const rowSection = classifyWorkbookRow(section, category, accountName);
@@ -239,24 +241,211 @@ function reportValue(section: string, value: unknown): number {
   return section === "assets" ? numeric : Math.abs(numeric);
 }
 
+type BalanceSheetSourceRow = {
+  section: string;
+  category: string;
+  accountName: string;
+  amountReporting: unknown;
+};
+
+function isSummaryRow(row: Pick<BalanceSheetSourceRow, "accountName">) {
+  return /^total\s*:/i.test(row.accountName.trim());
+}
+
+function summaryAmount(rows: BalanceSheetSourceRow[], labels: string[]): number | null {
+  const wanted = new Set(labels.map((label) => label.trim().toLowerCase()));
+  const row = rows.find((candidate) => wanted.has(candidate.accountName.trim().toLowerCase()));
+  return row ? reportValue(row.section, row.amountReporting) : null;
+}
+
+function sumSummaryAmounts(rows: BalanceSheetSourceRow[], labels: string[]): number | null {
+  const values = labels
+    .map((label) => summaryAmount(rows, [label]))
+    .filter((value): value is number => value !== null);
+  return values.length ? round(values.reduce((total, value) => total + value, 0)) : null;
+}
+
+function totalsForPeriod(rows: BalanceSheetSourceRow[]): BalanceSheetTotals {
+  const detailRows = rows.filter((row) => !isSummaryRow(row));
+  const fallback = totalsForRows(detailRows.length ? detailRows : rows);
+  const assets = summaryAmount(rows, ["Total: Assets"]) ?? fallback.assets;
+  const equity = summaryAmount(rows, ["Total: Equity"]) ?? fallback.equity;
+  const liabilitiesAndEquity = summaryAmount(rows, ["Total: Liabilities and equity"]) ?? fallback.liabilitiesAndEquity;
+  const liabilities = summaryAmount(rows, ["Total: Liabilities"])
+    ?? (summaryAmount(rows, ["Total: Liabilities and equity"]) !== null
+      ? round(liabilitiesAndEquity - equity)
+      : fallback.liabilities);
+  const currentAssets = summaryAmount(rows, ["Total: Current assets"]) ?? fallback.currentAssets;
+  const currentLiabilities = summaryAmount(rows, ["Total: Current liabilities"]) ?? fallback.currentLiabilities;
+  const cash = summaryAmount(rows, ["Total: Cash and cash equivalents"]) ?? fallback.cash;
+  const receivables = summaryAmount(rows, ["Total: Trade receivables"]) ?? fallback.receivables;
+
+  return {
+    ...fallback,
+    assets: round(assets),
+    liabilities: round(liabilities),
+    equity: round(equity),
+    liabilitiesAndEquity: round(liabilitiesAndEquity),
+    balanceDifference: round(assets - liabilitiesAndEquity),
+    currentAssets: round(currentAssets),
+    currentLiabilities: round(currentLiabilities),
+    workingCapital: round(currentAssets - currentLiabilities),
+    cash: round(cash),
+    receivables: round(receivables),
+  };
+}
+
 function reportCategoryLabel(section: string, category: string, accountName: string): string {
   const value = `${category} ${accountName}`.trim().toLowerCase();
   if (section === "equity") return "Equity & reserves";
   if (section === "assets") {
-    if (value.includes("cash and cash equivalent") || value.includes("bank balance")) return "Cash & equivalents";
-    if (value.includes("trade receivable")) return "Trade receivables";
+    if (value.includes("cash and cash equivalent") || value.includes("bank balance") || value.includes("marketable securities")) return "Cash & Cash equivalents";
+    if (value.includes("trade receivable") || value.includes("contract asset")) return "Trade Receivables";
     if (value.includes("right-of-use") || value.includes("right of use")) return "Right-of-use assets";
-    if (value.includes("tangible fixed") || value.includes("fixed asset")) return "Fixed assets";
-    if (value.includes("investment")) return "Investments";
-    if (value.includes("non-current") || value.includes("non current")) return "Other non-current";
-    return "Other current";
+    if (value.includes("tangible fixed") || value.includes("fixed asset") || value.includes("intangible asset")) return "Fixed Assets";
+    if (value.includes("investment")) return "Investments in Group Entities";
+    if (
+      value.includes("non-current")
+      || value.includes("non current")
+      || value.includes("deferred tax")
+      || value.includes("income tax receivables > 1 y")
+      || value.includes("loans > 1 y")
+    ) return "Other Noncurrent assets";
+    return "Other current assets";
   }
-  if (value.includes("trade payable")) return "Trade payables";
-  if (value.includes("lease liabil")) return "Lease liabilities";
-  if (value.includes("provision")) return "Provisions";
-  if (value.includes("non-current") || value.includes("non current")) return "Non-current liabilities & provisions";
+  if (value.includes("trade payable")) return "Trade Payables";
   if (value.includes("equity") || value.includes("reserve") || value.includes("surplus")) return "Equity & reserves";
-  return "Other liabilities";
+  if (value.includes("lease liabil")) return "Lease liabilities";
+  if (
+    value.includes("non-current")
+    || value.includes("non current")
+    || value.includes("provisions for pensions")
+    || value.includes("income tax provisions > 1 y")
+    || value.includes("other liabilities > 1 y")
+  ) return "Non-current liabilities & provisions";
+  if (value.includes("provision")) return "Provisions";
+  return "Other Liabilities";
+}
+
+function referenceCategoryBreakdowns(
+  currentRows: BalanceSheetSourceRow[],
+  previousRows: BalanceSheetSourceRow[],
+  currentTotals: BalanceSheetTotals,
+  previousTotals: BalanceSheetTotals,
+) {
+  const hasStatementTotals = currentRows.some((row) => isSummaryRow(row))
+    && previousRows.some((row) => isSummaryRow(row));
+  if (!hasStatementTotals) return null;
+
+  const amount = (rows: BalanceSheetSourceRow[], labels: string[], fallback = 0) =>
+    sumSummaryAmounts(rows, labels) ?? fallback;
+  const currentCash = amount(currentRows, [
+    "Total: Cash and cash equivalents",
+    "Total: Marketable securities ≤ 1 y.",
+  ]);
+  const previousCash = amount(previousRows, [
+    "Total: Cash and cash equivalents",
+    "Total: Marketable securities ≤ 1 y.",
+  ]);
+  const currentTrade = amount(currentRows, ["Total: Trade receivables"]);
+  const previousTrade = amount(previousRows, ["Total: Trade receivables"]);
+  const currentContractAssets = amount(currentRows, ["Total: Contract assets (CA) > 1 y"]);
+  const previousContractAssets = amount(previousRows, ["Total: Contract assets (CA) > 1 y"]);
+  const currentTradeAndUnbilled = currentTrade + currentContractAssets;
+  const previousTradeAndUnbilled = previousTrade + previousContractAssets;
+  const currentInvestments = amount(currentRows, ["Total: Investments (wo B-a)"]);
+  const previousInvestments = amount(previousRows, ["Total: Investments (wo B-a)"]);
+  const currentFixedAssets = amount(currentRows, [
+    "Total: Tangible fixed assets",
+    "Total: Intangible assets",
+  ]);
+  const previousFixedAssets = amount(previousRows, [
+    "Total: Tangible fixed assets",
+    "Total: Intangible assets",
+  ]);
+  const currentRightOfUse = amount(currentRows, ["Total: Right-of-use assets leasing"]);
+  const previousRightOfUse = amount(previousRows, ["Total: Right-of-use assets leasing"]);
+  const currentOtherNoncurrent = Math.max(
+    0,
+    currentTotals.assets - currentTotals.currentAssets
+      - currentInvestments - currentFixedAssets - currentRightOfUse - currentContractAssets,
+  );
+  const previousOtherNoncurrent = Math.max(
+    0,
+    previousTotals.assets - previousTotals.currentAssets
+      - previousInvestments - previousFixedAssets - previousRightOfUse - previousContractAssets,
+  );
+  const currentOtherCurrent = Math.max(0, currentTotals.currentAssets - currentCash - currentTrade);
+  const previousOtherCurrent = Math.max(0, previousTotals.currentAssets - previousCash - previousTrade);
+
+  const currentTradePayables = amount(currentRows, [
+    "Total: Trade payables and notes payable",
+    "Total: Trade payables",
+  ]);
+  const previousTradePayables = amount(previousRows, [
+    "Total: Trade payables and notes payable",
+    "Total: Trade payables",
+  ]);
+  const currentLease = amount(currentRows, [
+    "Total: Lease liabilities (lessee) ≤ 1 y",
+    "Total: Lease liabilities (lessee) > 1 y",
+  ]);
+  const previousLease = amount(previousRows, [
+    "Total: Lease liabilities (lessee) ≤ 1 y",
+    "Total: Lease liabilities (lessee) > 1 y",
+  ]);
+  const currentProvisions = amount(currentRows, ["Total: Current provisions"]);
+  const previousProvisions = amount(previousRows, ["Total: Current provisions"]);
+  const currentNoncurrentLiabilities = amount(currentRows, [
+    "Total: Non-current provisions",
+    "Total: Other Liabilities > 1 y",
+  ]);
+  const previousNoncurrentLiabilities = amount(previousRows, [
+    "Total: Non-current provisions",
+    "Total: Other Liabilities > 1 y",
+  ]);
+  const currentOtherLiabilities = Math.max(
+    0,
+    currentTotals.liabilities - currentTradePayables - currentLease - currentProvisions - currentNoncurrentLiabilities,
+  );
+  const previousOtherLiabilities = Math.max(
+    0,
+    previousTotals.liabilities - previousTradePayables - previousLease - previousProvisions - previousNoncurrentLiabilities,
+  );
+
+  const values: Array<{
+    label: string;
+    section: "assets" | "liabilities" | "equity";
+    value: number;
+    previousValue: number;
+  }> = [
+    { label: "Cash & Cash equivalents", section: "assets", value: currentCash, previousValue: previousCash },
+    { label: "Trade Receivables", section: "assets", value: currentTradeAndUnbilled, previousValue: previousTradeAndUnbilled },
+    { label: "Other current assets", section: "assets", value: currentOtherCurrent, previousValue: previousOtherCurrent },
+    { label: "Investments in Group Entities", section: "assets", value: currentInvestments, previousValue: previousInvestments },
+    { label: "Fixed Assets", section: "assets", value: currentFixedAssets, previousValue: previousFixedAssets },
+    { label: "Other Noncurrent assets", section: "assets", value: currentOtherNoncurrent, previousValue: previousOtherNoncurrent },
+    { label: "Right-of-use assets", section: "assets", value: currentRightOfUse, previousValue: previousRightOfUse },
+    { label: "Trade Payables", section: "liabilities", value: currentTradePayables, previousValue: previousTradePayables },
+    { label: "Other Liabilities", section: "liabilities", value: currentOtherLiabilities, previousValue: previousOtherLiabilities },
+    { label: "Equity & reserves", section: "equity", value: currentTotals.equity, previousValue: previousTotals.equity },
+    { label: "Lease liabilities", section: "liabilities", value: currentLease, previousValue: previousLease },
+    { label: "Provisions", section: "liabilities", value: currentProvisions, previousValue: previousProvisions },
+    { label: "Non-current liabilities & provisions", section: "liabilities", value: currentNoncurrentLiabilities, previousValue: previousNoncurrentLiabilities },
+  ];
+
+  return values.map((item) => {
+    const value = round(item.value);
+    const previousValue = round(item.previousValue);
+    const change = round(value - previousValue);
+    return {
+      ...item,
+      value,
+      previousValue,
+      change,
+      changePercent: previousValue === 0 ? null : round(change / Math.abs(previousValue)),
+    };
+  });
 }
 
 function ratio(numerator: number, denominator: number): number | null {
@@ -373,14 +562,14 @@ export async function runBalanceSheetReport(request: BalanceSheetReportRequest):
     ))).map((row) => row)
     : [];
 
-  const currentValues = currentRows.map((row) => ({ section: row.section, category: row.category, value: reportValue(row.section, row.amountReporting) }));
-  const previousValues = previousRows.map((row) => ({ section: row.section, category: row.category, value: reportValue(row.section, row.amountReporting) }));
-  const totals = totalsForRows(currentValues);
-  const previousTotals = totalsForRows(previousValues);
+  const currentDetailRows = currentRows.filter((row) => !isSummaryRow(row));
+  const previousDetailRows = previousRows.filter((row) => !isSummaryRow(row));
+  const totals = totalsForPeriod(currentRows);
+  const previousTotals = totalsForPeriod(previousRows);
   const tolerance = request.tolerance ?? 0.01;
   const currency = request.currency || currentRows[0]?.currency || "USD";
   const itemMap = new Map<string, { accountCode: string | null; accountName: string; category: string; section: "assets" | "liabilities" | "equity"; value: number; previousValue: number | null }>();
-  for (const row of currentRows) {
+  for (const row of currentDetailRows) {
     const key = lineItemKey(row);
     const existing = itemMap.get(key);
     if (existing) existing.value += reportValue(row.section, row.amountReporting);
@@ -394,7 +583,7 @@ export async function runBalanceSheetReport(request: BalanceSheetReportRequest):
     });
   }
   const previousMap = new Map<string, number>();
-  for (const row of previousRows) {
+  for (const row of previousDetailRows) {
     const key = lineItemKey(row);
     previousMap.set(key, (previousMap.get(key) ?? 0) + reportValue(row.section, row.amountReporting));
   }
@@ -405,7 +594,7 @@ export async function runBalanceSheetReport(request: BalanceSheetReportRequest):
     return {
       accountCode: item.accountCode,
       accountName: item.accountName,
-      category: item.category,
+      category: reportCategoryLabel(item.section, item.category, item.accountName),
       section: item.section,
       value,
       previousValue: previousValue === undefined ? null : round(previousValue),
@@ -415,12 +604,12 @@ export async function runBalanceSheetReport(request: BalanceSheetReportRequest):
   }).sort((a, b) => Math.abs(b.change) - Math.abs(a.change)).slice(0, 500);
 
   const periods: BalanceSheetPeriod[] = reportMonths.map((month) => {
-    const periodRows = rows.filter((row) => row.month === month).map((row) => ({ section: row.section, category: row.category, value: reportValue(row.section, row.amountReporting) }));
+    const periodRows = rows.filter((row) => row.month === month);
     return {
       label: periodLabel(reportYear, month, rows.find((row) => row.month === month)?.periodLabel),
       year: reportYear,
       month,
-      totals: totalsForRows(periodRows),
+      totals: totalsForPeriod(periodRows),
     };
   });
   const movements = lineItems.slice(0, 20).map((item) => ({
@@ -438,7 +627,7 @@ export async function runBalanceSheetReport(request: BalanceSheetReportRequest):
     value: number;
     previousValue: number;
   }>();
-  for (const row of currentRows) {
+  for (const row of currentDetailRows) {
     const section = row.section as "assets" | "liabilities" | "equity";
     const label = reportCategoryLabel(section, row.category, row.accountName);
     const key = `${section}|${label}`;
@@ -446,7 +635,7 @@ export async function runBalanceSheetReport(request: BalanceSheetReportRequest):
     if (existing) existing.value += reportValue(section, row.amountReporting);
     else categoryMap.set(key, { label, section, value: reportValue(section, row.amountReporting), previousValue: 0 });
   }
-  for (const row of previousRows) {
+  for (const row of previousDetailRows) {
     const section = row.section as "assets" | "liabilities" | "equity";
     const label = reportCategoryLabel(section, row.category, row.accountName);
     const key = `${section}|${label}`;
@@ -454,7 +643,7 @@ export async function runBalanceSheetReport(request: BalanceSheetReportRequest):
     if (existing) existing.previousValue += reportValue(section, row.amountReporting);
     else categoryMap.set(key, { label, section, value: 0, previousValue: reportValue(section, row.amountReporting) });
   }
-  const categoryBreakdowns = Array.from(categoryMap.values()).map((item) => {
+  const legacyCategoryBreakdowns = Array.from(categoryMap.values()).map((item) => {
     const value = round(item.value);
     const previousValue = round(item.previousValue);
     const change = round(value - previousValue);
@@ -470,6 +659,8 @@ export async function runBalanceSheetReport(request: BalanceSheetReportRequest):
     const sectionOrder = { assets: 0, liabilities: 1, equity: 2 };
     return sectionOrder[a.section] - sectionOrder[b.section] || Math.abs(b.value) - Math.abs(a.value);
   }).slice(0, 50);
+  const categoryBreakdowns = referenceCategoryBreakdowns(currentRows, previousRows, totals, previousTotals)
+    ?? legacyCategoryBreakdowns;
   const balanced = Math.abs(totals.balanceDifference) <= tolerance;
   const periodWasAdjusted = reportYear !== request.year
     || reportMonths.length !== months.length
