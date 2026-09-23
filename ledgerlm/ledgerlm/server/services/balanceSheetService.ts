@@ -1,5 +1,6 @@
 import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
+import ExcelJS from "exceljs";
 import { db } from "../db";
 import { cubeBalanceSheetData, cubes } from "@shared/schema";
 import type {
@@ -37,6 +38,125 @@ export const balanceSheetIngestionSchema = z.object({
 }).strict();
 
 type RawBalanceSheetRow = z.infer<typeof balanceSheetRowSchema>;
+
+export type BalanceSheetImportRow = RawBalanceSheetRow;
+
+function cellText(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  if (typeof value === "object") {
+    if ("result" in value) return cellText((value as { result?: unknown }).result);
+    if ("text" in value) return cellText((value as { text?: unknown }).text);
+    if ("richText" in value && Array.isArray((value as { richText?: unknown[] }).richText)) {
+      return ((value as { richText: Array<{ text?: unknown }> }).richText)
+        .map((part) => cellText(part.text))
+        .join("");
+    }
+  }
+  return String(value).trim();
+}
+
+function cellNumber(value: unknown): number | null {
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  const normalized = cellText(value).replace(/,/g, "").replace(/^\((.*)\)$/, "-$1");
+  if (!normalized || normalized === "-" || /^#/.test(normalized)) return null;
+  const parsed = Number(normalized.replace(/%$/, ""));
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function periodFromCell(value: unknown): { fiscalYear: number; month: number; periodLabel: string } | null {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    const fiscalYear = value.getFullYear();
+    const month = value.getMonth() + 1;
+    return {
+      fiscalYear,
+      month,
+      periodLabel: new Intl.DateTimeFormat("en-US", { month: "short", year: "numeric" }).format(value),
+    };
+  }
+  const text = cellText(value);
+  const match = text.match(/^(?:(\d{1,2})[\/-])?(\d{4})$/);
+  if (!match) return null;
+  const month = Number(match[1] ?? 1);
+  const fiscalYear = Number(match[2]);
+  if (month < 1 || month > 12) return null;
+  return {
+    fiscalYear,
+    month,
+    periodLabel: new Intl.DateTimeFormat("en-US", { month: "short", year: "numeric" }).format(new Date(fiscalYear, month - 1, 1)),
+  };
+}
+
+/**
+ * Reads the supplied Balance Sheet workbook format:
+ * - BS-Assets and BS-Liabilities sheets
+ * - column D: account particulars
+ * - column E: account number
+ * - date columns: point-in-time balances
+ *
+ * Subtotal rows are deliberately excluded so report totals do not double-count
+ * both leaf accounts and their spreadsheet subtotals.
+ */
+export async function parseBalanceSheetWorkbook(filePath: string, sourceFile: string): Promise<BalanceSheetImportRow[]> {
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.readFile(filePath);
+  const rows: BalanceSheetImportRow[] = [];
+
+  for (const worksheet of workbook.worksheets) {
+    const sheetName = worksheet.name.toLowerCase();
+    const section: BalanceSheetImportRow["section"] | null = sheetName.includes("liabil")
+      ? "liabilities"
+      : sheetName.includes("asset")
+        ? "assets"
+        : sheetName.includes("equity")
+          ? "equity"
+          : null;
+    if (!section) continue;
+
+    const periodColumns: Array<{ column: number; period: NonNullable<ReturnType<typeof periodFromCell>> }> = [];
+    worksheet.getRow(1).eachCell((cell, column) => {
+      const period = periodFromCell(cell.value);
+      if (period) periodColumns.push({ column, period });
+    });
+    if (!periodColumns.length) {
+      throw new Error(`${worksheet.name} does not contain any month/year balance columns.`);
+    }
+
+    for (let rowNumber = 2; rowNumber <= worksheet.rowCount; rowNumber += 1) {
+      const row = worksheet.getRow(rowNumber);
+      const accountName = cellText(row.getCell(4).value);
+      if (!accountName || /^total\b/i.test(accountName)) continue;
+      const accountCode = cellText(row.getCell(5).value) || null;
+      const category = cellText(row.getCell(3).value) || cellText(row.getCell(2).value) || section;
+      for (const { column, period } of periodColumns) {
+        const amountReporting = cellNumber(row.getCell(column).value);
+        if (amountReporting === null) continue;
+        rows.push({
+          fiscalYear: period.fiscalYear,
+          month: period.month,
+          periodLabel: period.periodLabel,
+          entity: null,
+          companyId: null,
+          subsidiary: null,
+          location: null,
+          accountCode,
+          accountName,
+          section,
+          category,
+          amountLocal: amountReporting,
+          amountReporting,
+          currency: "USD",
+          sourceFile,
+          sourceRowNumber: rowNumber,
+        });
+      }
+    }
+  }
+
+  if (!rows.length) {
+    throw new Error("The workbook does not contain readable Balance Sheet account rows.");
+  }
+  return rows;
+}
 
 function numberValue(value: unknown): number {
   const parsed = Number(value);

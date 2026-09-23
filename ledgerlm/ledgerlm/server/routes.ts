@@ -119,7 +119,7 @@ import {
 } from "./services/boards/phase4Service";
 import { exportKpiReportPptx } from "./services/boards/kpiPptxExportService";
 import { exportBalanceSheetPptx } from "./services/boards/balanceSheetPptxExportService";
-import { ingestBalanceSheetRows } from "./services/balanceSheetService";
+import { ingestBalanceSheetRows, parseBalanceSheetWorkbook } from "./services/balanceSheetService";
 import { boardExports, boardSchedules, boardReports } from "@shared/schema";
 import { boardScheduleConfigurationSchema } from "@shared/boards/boardSchedule";
 import {
@@ -5465,13 +5465,14 @@ ${intentDef.question}`;
 
         // Verify cube belongs to domain if specified
         let cubeId: string | null = null;
+        let targetCube: Awaited<ReturnType<typeof storage.getCube>> = null;
         if (requestCubeId) {
-          const cube = await storage.getCube(requestCubeId);
-          if (!cube) {
+          targetCube = await storage.getCube(requestCubeId);
+          if (!targetCube) {
             await cleanupUploadedFiles(files);
             return res.status(404).json({ error: "Cube not found" });
           }
-          if (cube.domainId !== domainId) {
+          if (targetCube.domainId !== domainId) {
             await cleanupUploadedFiles(files);
             return res
               .status(403)
@@ -5510,6 +5511,49 @@ ${intentDef.question}`;
           return res.status(400).json({
             error: "All uploaded files were rejected — content does not match declared type.",
             rejected: rejectedNames,
+          });
+        }
+
+        // Balance Sheet workbooks use the dedicated point-in-time account path.
+        // Do not send them through the generic Python document/embedding worker:
+        // that path treats Excel date headers as JSON metadata and cannot safely
+        // serialize Python datetime values.
+        if (targetCube?.schemaType === "balance_sheet") {
+          const unsupported = validFiles.find(
+            (file) => !file.originalname.toLowerCase().endsWith(".xlsx"),
+          );
+          if (unsupported) {
+            await cleanupUploadedFiles(validFiles);
+            return res.status(400).json({
+              error: "Balance Sheet uploads must be .xlsx workbooks with BS-Assets or BS-Liabilities sheets.",
+            });
+          }
+
+          const importedRows = (
+            await Promise.all(
+              validFiles.map((file) => parseBalanceSheetWorkbook(file.path, file.originalname)),
+            )
+          ).flat();
+          const ingestion = await ingestBalanceSheetRows(cubeId, { rows: importedRows });
+          const documents = await Promise.all(
+            validFiles.map((file) =>
+              storage.createEnterpriseDocument({
+                companyId: company!.id,
+                domainId,
+                uploadedBy: user.id,
+                name: file.originalname.normalize("NFC"),
+                filePath: file.filename,
+                fileSize: file.size.toString(),
+                fileType: file.mimetype,
+                cubeId,
+              }),
+            ),
+          );
+          filesPersisted = true;
+          return res.status(201).json({
+            documents: documents.map(toPublicEnterpriseDocument),
+            job_id: null,
+            balance_sheet: ingestion,
           });
         }
 
