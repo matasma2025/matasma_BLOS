@@ -265,6 +265,14 @@ function sumSummaryAmounts(rows: BalanceSheetSourceRow[], labels: string[]): num
   return values.length ? round(values.reduce((total, value) => total + value, 0)) : null;
 }
 
+function firstSummaryAmount(rows: BalanceSheetSourceRow[], labels: string[]): number | null {
+  for (const label of labels) {
+    const value = summaryAmount(rows, [label]);
+    if (value !== null) return value;
+  }
+  return null;
+}
+
 function totalsForPeriod(rows: BalanceSheetSourceRow[]): BalanceSheetTotals {
   const detailRows = rows.filter((row) => !isSummaryRow(row));
   const fallback = totalsForRows(detailRows.length ? detailRows : rows);
@@ -378,14 +386,14 @@ function referenceCategoryBreakdowns(
   const currentOtherCurrent = Math.max(0, currentTotals.currentAssets - currentCash - currentTrade);
   const previousOtherCurrent = Math.max(0, previousTotals.currentAssets - previousCash - previousTrade);
 
-  const currentTradePayables = amount(currentRows, [
+  const currentTradePayables = firstSummaryAmount(currentRows, [
     "Total: Trade payables and notes payable",
     "Total: Trade payables",
-  ]);
-  const previousTradePayables = amount(previousRows, [
+  ]) ?? 0;
+  const previousTradePayables = firstSummaryAmount(previousRows, [
     "Total: Trade payables and notes payable",
     "Total: Trade payables",
-  ]);
+  ]) ?? 0;
   const currentLease = amount(currentRows, [
     "Total: Lease liabilities (lessee) ≤ 1 y",
     "Total: Lease liabilities (lessee) > 1 y",
