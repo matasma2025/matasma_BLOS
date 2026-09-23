@@ -1,6 +1,5 @@
 import PptxGenJS from "pptxgenjs";
-import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
-import type { BalanceSheetReport } from "@shared/boards/balanceSheet";
+import type { BalanceSheetCategoryBreakdown, BalanceSheetLineItem, BalanceSheetReport } from "@shared/boards/balanceSheet";
 
 interface BalanceSheetExportReport {
   title: string;
@@ -9,86 +8,172 @@ interface BalanceSheetExportReport {
   result?: { balanceSheet?: BalanceSheetReport } | null;
 }
 
-function money(value: number, currency: string) {
-  return `${new Intl.NumberFormat("en-US", { maximumFractionDigits: 1 }).format(value)} ${currency}`;
-}
-
-function escapeXml(value: string) {
-  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
-}
-
-function replaceTokens(templateBytesBase64: string, report: BalanceSheetExportReport, balanceSheet: BalanceSheetReport) {
-  const files = unzipSync(new Uint8Array(Buffer.from(templateBytesBase64, "base64")));
-  const tokens: Record<string, string> = {
-    "{{report_title}}": report.title,
-    "{{period_label}}": balanceSheet.periodLabel,
-    "{{currency}}": balanceSheet.currency,
-    "{{balance_status}}": balanceSheet.balanced ? "Balanced" : `Difference ${money(balanceSheet.difference, balanceSheet.currency)}`,
-    "{{assets}}": money(balanceSheet.totals.assets, balanceSheet.currency),
-    "{{liabilities}}": money(balanceSheet.totals.liabilities, balanceSheet.currency),
-    "{{equity}}": money(balanceSheet.totals.equity, balanceSheet.currency),
-    "{{liabilities_and_equity}}": money(balanceSheet.totals.liabilitiesAndEquity, balanceSheet.currency),
-    "{{current_ratio}}": balanceSheet.ratios.currentRatio === null ? "—" : `${balanceSheet.ratios.currentRatio.toFixed(2)}x`,
-    "{{quick_ratio}}": balanceSheet.ratios.quickRatio === null ? "—" : `${balanceSheet.ratios.quickRatio.toFixed(2)}x`,
-    "{{debt_to_equity}}": balanceSheet.ratios.debtToEquity === null ? "—" : `${balanceSheet.ratios.debtToEquity.toFixed(2)}x`,
-    "{{equity_ratio}}": balanceSheet.ratios.equityRatio === null ? "—" : `${(balanceSheet.ratios.equityRatio * 100).toFixed(1)}%`,
-    "{{warnings}}": balanceSheet.warnings.join(" | ") || "None",
-  };
-  for (const name of Object.keys(files)) {
-    if (!/^ppt\/slides\/slide\d+\.xml$/i.test(name)) continue;
-    let xml = strFromU8(files[name]);
-    for (const [token, value] of Object.entries(tokens)) xml = xml.split(token).join(escapeXml(value));
-    files[name] = strToU8(xml);
-  }
-  return Buffer.from(zipSync(files));
-}
-
 const PptxConstructor = ((PptxGenJS as unknown as { default?: typeof PptxGenJS }).default ?? PptxGenJS);
+const CURRENT_COLOR = "439798";
+const PRIOR_COLOR = "BC4096";
 
-function addBalanceSheetSlide(pptx: InstanceType<typeof PptxGenJS>, report: BalanceSheetExportReport, balanceSheet: BalanceSheetReport, title: string) {
-  const slide = pptx.addSlide();
-  slide.background = { color: "F8FAFC" };
-  slide.addShape(pptx.ShapeType.rect, { x: 0, y: 0, w: 13.333, h: 1.25, fill: { color: "073B4C" }, line: { color: "073B4C" } });
-  slide.addText("BALANCE SHEET ANALYSIS", { x: 0.6, y: 0.22, w: 5, h: 0.2, fontFace: "Aptos", fontSize: 8, bold: true, charSpacing: 1.5, color: "CCFBF1", margin: 0 });
-  slide.addText(title, { x: 0.6, y: 0.5, w: 8.5, h: 0.35, fontFace: "Aptos Display", fontSize: 22, bold: true, color: "FFFFFF", margin: 0, fit: "shrink" });
-  slide.addText(`${balanceSheet.periodLabel} · ${report.sourceSnapshot?.name ?? "Dedicated Balance Sheet cube"}`, { x: 0.6, y: 0.93, w: 9, h: 0.16, fontFace: "Aptos", fontSize: 8, color: "E6FFFB", margin: 0 });
-  const cards = [["Assets", balanceSheet.totals.assets], ["Liabilities", balanceSheet.totals.liabilities], ["Equity", balanceSheet.totals.equity], ["Liabilities + Equity", balanceSheet.totals.liabilitiesAndEquity]] as const;
-  cards.forEach(([label, value], index) => {
-    const x = 0.6 + index * 3.08;
-    slide.addShape(pptx.ShapeType.roundRect, { x, y: 1.65, w: 2.8, h: 1.0, rectRadius: 0.06, fill: { color: "FFFFFF" }, line: { color: "D7E3E8" } });
-    slide.addText(label, { x: x + 0.2, y: 1.86, w: 2.4, h: 0.16, fontFace: "Aptos", fontSize: 8, color: "64748B", margin: 0 });
-    slide.addText(money(value, balanceSheet.currency), { x: x + 0.2, y: 2.15, w: 2.4, h: 0.23, fontFace: "Aptos Display", fontSize: 16, bold: true, color: "0F172A", margin: 0, fit: "shrink" });
-  });
-  slide.addText(`Balance status: ${balanceSheet.balanced ? "Balanced" : `Difference ${money(balanceSheet.difference, balanceSheet.currency)}`}`, { x: 0.6, y: 2.95, w: 6, h: 0.2, fontFace: "Aptos", fontSize: 10, bold: true, color: balanceSheet.balanced ? "166534" : "B91C1C", margin: 0 });
-  slide.addText("Liquidity & leverage", { x: 7.2, y: 2.95, w: 3, h: 0.2, fontFace: "Aptos", fontSize: 10, bold: true, color: "0F172A", margin: 0 });
-  slide.addText([
-    `Current ratio: ${balanceSheet.ratios.currentRatio?.toFixed(2) ?? "—"}`,
-    `Quick ratio: ${balanceSheet.ratios.quickRatio?.toFixed(2) ?? "—"}`,
-    `Debt / equity: ${balanceSheet.ratios.debtToEquity?.toFixed(2) ?? "—"}`,
-    `Equity ratio: ${balanceSheet.ratios.equityRatio === null ? "—" : `${(balanceSheet.ratios.equityRatio * 100).toFixed(1)}%`}`,
-  ].join("\n"), { x: 7.2, y: 3.25, w: 4.8, h: 0.9, fontFace: "Aptos", fontSize: 10, color: "334155", margin: 0.02, breakLine: false });
-  slide.addText("Material movements", { x: 0.6, y: 3.45, w: 3, h: 0.2, fontFace: "Aptos", fontSize: 10, bold: true, color: "0F172A", margin: 0 });
-  balanceSheet.movements.slice(0, 8).forEach((movement, index) => {
-    const y = 3.78 + index * 0.34;
-    slide.addText(movement.accountName, { x: 0.6, y, w: 3.5, h: 0.16, fontFace: "Aptos", fontSize: 8.5, color: "334155", margin: 0, fit: "shrink" });
-    slide.addText(movement.category, { x: 4.2, y, w: 2.8, h: 0.16, fontFace: "Aptos", fontSize: 8.5, color: "64748B", margin: 0, fit: "shrink" });
-    slide.addText(money(movement.change, balanceSheet.currency), { x: 7.2, y, w: 2.4, h: 0.16, fontFace: "Aptos", fontSize: 8.5, color: movement.change < 0 ? "B91C1C" : "166534", margin: 0, fit: "shrink" });
-  });
-  slide.addText("INTERNAL · GOVERNED ENTERPRISE DATA", { x: 8.8, y: 6.95, w: 3.9, h: 0.16, fontFace: "Aptos", fontSize: 7.5, bold: true, color: "64748B", align: "right", margin: 0 });
+function displayUnit(balanceSheet: BalanceSheetReport) {
+  return balanceSheet.currency.toUpperCase() === "INR" ? "mINR" : balanceSheet.unitLabel || balanceSheet.currency;
 }
 
-export async function exportBalanceSheetPptx(report: BalanceSheetExportReport, templateBytesBase64?: string): Promise<Buffer> {
+function scaleFor(balanceSheet: BalanceSheetReport) {
+  return balanceSheet.currency.toUpperCase() === "INR" ? 1_000_000 : 1;
+}
+
+function amount(value: number, balanceSheet: BalanceSheetReport) {
+  return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(value / scaleFor(balanceSheet));
+}
+
+function signedAmount(value: number, balanceSheet: BalanceSheetReport) {
+  return `${value >= 0 ? "+" : ""}${amount(value, balanceSheet)}`;
+}
+
+function percentage(value: number | null) {
+  return value === null ? "n/a" : `${value >= 0 ? "+" : ""}${(value * 100).toFixed(1)}%`;
+}
+
+function categoryBreakdowns(balanceSheet: BalanceSheetReport): BalanceSheetCategoryBreakdown[] {
+  if (balanceSheet.categoryBreakdowns?.length) return balanceSheet.categoryBreakdowns;
+  const grouped = new Map<string, BalanceSheetCategoryBreakdown>();
+  for (const item of balanceSheet.lineItems) {
+    const key = `${item.section}|${item.category}`;
+    const existing = grouped.get(key);
+    if (existing) {
+      existing.value += item.value;
+      existing.previousValue += item.previousValue ?? 0;
+      existing.change += item.change;
+    } else {
+      grouped.set(key, {
+        label: item.category,
+        section: item.section === "unmapped" ? "assets" : item.section,
+        value: item.value,
+        previousValue: item.previousValue ?? 0,
+        change: item.change,
+        changePercent: item.previousValue ? item.change / Math.abs(item.previousValue) : null,
+      });
+    }
+  }
+  return Array.from(grouped.values());
+}
+
+function topMovements(balanceSheet: BalanceSheetReport, section: "assets" | "liabilities" | "equity", label: string) {
+  return balanceSheet.lineItems
+    .filter((item) => item.section === section && item.category === label)
+    .sort((a, b) => Math.abs(b.change) - Math.abs(a.change))
+    .slice(0, 2);
+}
+
+function narrativeText(
+  balanceSheet: BalanceSheetReport,
+  section: "assets" | "liabilities" | "equity",
+  currentLabel: string,
+  priorLabel: string,
+) {
+  const categories = categoryBreakdowns(balanceSheet).filter((item) => item.section === section);
+  const lines: string[] = [];
+  for (const item of categories) {
+    const movement = topMovements(balanceSheet, section, item.label);
+    const detail = movement[0];
+    lines.push(`${item.label}:`);
+    lines.push(`• ${amount(item.value, balanceSheet)} ${displayUnit(balanceSheet)} at ${currentLabel} vs ${amount(item.previousValue, balanceSheet)} ${displayUnit(balanceSheet)} at ${priorLabel}: ${signedAmount(item.change, balanceSheet)} (${percentage(item.changePercent)}).`);
+    if (detail && Math.abs(detail.change) > 0) {
+      lines.push(`• Main account movement: ${detail.accountName} changed by ${signedAmount(detail.change, balanceSheet)} ${displayUnit(balanceSheet)} (${percentage(detail.changePercent)}).`);
+    }
+  }
+  if (!lines.length) lines.push("• No category-level movement was available for this section.");
+  return lines.join("\n");
+}
+
+function oldBalancePointers(
+  balanceSheet: BalanceSheetReport,
+  section: "assets" | "liabilities" | "equity",
+) {
+  const candidates = categoryBreakdowns(balanceSheet)
+    .filter((item) => item.section === section && Math.abs(item.previousValue) > 0)
+    .sort((a, b) => Math.abs(b.change) - Math.abs(a.change))
+    .slice(0, 2);
+  if (!candidates.length) return "• Nothing flagged from the data — add from supporting schedules.";
+  return candidates.map((item) => {
+    const share = balanceSheet.totals.assets === 0 ? null : (item.value / balanceSheet.totals.assets) * 100;
+    return `• ${item.label} remains ${amount(item.value, balanceSheet)} ${displayUnit(balanceSheet)} at ${balanceSheet.periodLabel}${share === null ? "" : ` (${share.toFixed(1)}% of total assets)`}; validate the underlying account mix and any reclassification behind the ${signedAmount(item.change, balanceSheet)} ${displayUnit(balanceSheet)} movement.`;
+  }).join("\n");
+}
+
+function addSectionSlide(
+  pptx: InstanceType<typeof PptxGenJS>,
+  report: BalanceSheetExportReport,
+  balanceSheet: BalanceSheetReport,
+  section: "assets" | "liabilities",
+  title: string,
+) {
+  const slide = pptx.addSlide();
+  const currentLabel = balanceSheet.periodLabel;
+  const priorLabel = balanceSheet.comparisonPeriodLabel || "prior loaded period";
+  const categories = categoryBreakdowns(balanceSheet).filter((item) => item.section === section);
+  const chartLabels = categories.map((item) => item.label);
+  const chartValues = categories.map((item) => item.value / scaleFor(balanceSheet));
+  const priorValues = categories.map((item) => item.previousValue / scaleFor(balanceSheet));
+
+  slide.background = { color: "FFFFFF" };
+  slide.addText(title, {
+    x: 0.45, y: 0.2, w: 12.3, h: 0.45,
+    fontFace: "Aptos Display", fontSize: 24, bold: true, color: "000000", margin: 0, fit: "shrink",
+  });
+  slide.addChart(pptx.ChartType.bar, [
+    { name: currentLabel, labels: chartLabels, values: chartValues },
+    { name: priorLabel, labels: chartLabels, values: priorValues },
+  ], {
+    x: 0.45, y: 0.95, w: 5.55, h: 3.15,
+    barDir: "col", catAxisLabelRotate: -35, catAxisLabelFontFace: "Aptos", catAxisLabelFontSize: 8,
+    catAxisLabelColor: "333333", valAxisLabelFontFace: "Aptos", valAxisLabelFontSize: 8,
+    valAxisLabelColor: "666666", valAxisLabelFormatCode: "#,##0", valAxisTitle: displayUnit(balanceSheet),
+    valAxisTitleFontFace: "Aptos", valAxisTitleFontSize: 8, valAxisTitleColor: "666666",
+    valGridLine: { color: "D9E1E2", width: 1 }, chartColors: [CURRENT_COLOR, PRIOR_COLOR],
+    showLegend: true, legendPos: "b", showTitle: false, showValue: false,
+    showCatName: false, showSerName: false, showLabel: false, showBorder: false,
+  });
+  slide.addText(narrativeText(balanceSheet, section, currentLabel, priorLabel), {
+    x: 6.35, y: 0.92, w: 6.5, h: 3.65,
+    fontFace: "Aptos", fontSize: 8.7, color: "000000", margin: 0.03,
+    breakLine: false, fit: "shrink", valign: "top", paraSpaceAfterPt: 3,
+  });
+  slide.addText("All figures in " + displayUnit(balanceSheet) + ".", {
+    x: 0.47, y: 4.18, w: 3, h: 0.18,
+    fontFace: "Aptos", fontSize: 6.5, italic: true, color: "000000", margin: 0,
+  });
+  slide.addText("Key pointers on old balances:", {
+    x: 0.47, y: 4.52, w: 5.5, h: 0.2,
+    fontFace: "Aptos", fontSize: 9, bold: true, color: "000000", margin: 0,
+  });
+  slide.addText(oldBalancePointers(balanceSheet, section), {
+    x: 0.47, y: 4.78, w: 12.25, h: 1.65,
+    fontFace: "Aptos", fontSize: 8.4, color: "000000", margin: 0.02,
+    breakLine: false, fit: "shrink", valign: "top", paraSpaceAfterPt: 3,
+  });
+  slide.addText(`Source: ${report.sourceSnapshot?.name ?? "Dedicated Balance Sheet cube"} · comparison uses the latest earlier loaded period`, {
+    x: 0.47, y: 7.18, w: 12.35, h: 0.13,
+    fontFace: "Aptos", fontSize: 6.5, color: "667085", margin: 0, align: "right",
+  });
+}
+
+export async function exportBalanceSheetPptx(
+  report: BalanceSheetExportReport,
+  templateBytesBase64?: string,
+): Promise<Buffer> {
   const balanceSheet = report.result?.balanceSheet;
   if (!balanceSheet) throw new Error("This report does not contain Balance Sheet data");
-  if (templateBytesBase64) return replaceTokens(templateBytesBase64, report, balanceSheet);
+  // Balance Sheet exports are generated from the dedicated report payload. An
+  // uploaded generic token template cannot carry the category chart and
+  // period-over-period narrative required by the standalone output.
+  void templateBytesBase64;
   const pptx = new PptxConstructor();
   pptx.layout = "LAYOUT_WIDE";
   pptx.author = "LedgerLM";
   pptx.company = "LedgerLM";
-  pptx.subject = "Balance Sheet report";
+  pptx.subject = "Balance Sheet standalone analysis";
   pptx.title = report.title;
-  addBalanceSheetSlide(pptx, report, balanceSheet, "Balance Sheet");
-  addBalanceSheetSlide(pptx, report, balanceSheet, "Balance Sheet — Liabilities & Equity");
+  addSectionSlide(pptx, report, balanceSheet, "assets", `Balance Sheet – Assets as of ${balanceSheet.periodLabel}`);
+  addSectionSlide(pptx, report, balanceSheet, "liabilities", `Balance Sheet – Liabilities as of ${balanceSheet.periodLabel}`);
   const output = await pptx.write({ outputType: "nodebuffer" });
   return Buffer.isBuffer(output) ? output : Buffer.from(output as Uint8Array);
 }
