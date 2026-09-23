@@ -13,6 +13,7 @@ import {
   insertBoardSchema,
   insertQueryAuditSchema,
   enterpriseDocuments,
+  enterpriseDocumentProcessing,
 } from "@shared/schema";
 import { and, eq, desc, sql as sqlTag, sql } from "drizzle-orm";
 import { randomBytes, randomUUID, createHash } from "crypto";
@@ -5669,6 +5670,59 @@ ${intentDef.question}`;
         }
 
         const filePath = path.join(uploadDir, document.filePath);
+
+        // Manual retry for a Balance Sheet document must use the same
+        // dedicated workbook importer as the upload path. Do not send it to
+        // the generic Python embedding processor.
+        const documentCube = document.cubeId ? await storage.getCube(document.cubeId) : null;
+        if (documentCube?.schemaType === "balance_sheet") {
+          try {
+            if (!document.name.toLowerCase().endsWith(".xlsx")) {
+              throw new Error("Balance Sheet uploads must be .xlsx workbooks with BS-Assets or BS-Liabilities sheets.");
+            }
+            const importedRows = await parseBalanceSheetWorkbook(filePath, document.name);
+            const ingestion = await ingestBalanceSheetRows(documentCube.id, { rows: importedRows });
+            await db.insert(enterpriseDocumentProcessing).values({
+              documentId: document.id,
+              companyId: document.companyId,
+              status: "completed",
+              totalChunks: 0,
+              processedChunks: 0,
+              errorMessage: null,
+              startedAt: new Date(),
+              completedAt: new Date(),
+            }).onConflictDoUpdate({
+              target: enterpriseDocumentProcessing.documentId,
+              set: {
+                status: "completed",
+                totalChunks: 0,
+                processedChunks: 0,
+                errorMessage: null,
+                startedAt: new Date(),
+                completedAt: new Date(),
+              },
+            });
+            return res.json({ job_id: null, balance_sheet: ingestion });
+          } catch (error: any) {
+            const message = error?.message || "Balance Sheet import failed";
+            await db.insert(enterpriseDocumentProcessing).values({
+              documentId: document.id,
+              companyId: document.companyId,
+              status: "failed",
+              errorMessage: message,
+              startedAt: new Date(),
+              completedAt: new Date(),
+            }).onConflictDoUpdate({
+              target: enterpriseDocumentProcessing.documentId,
+              set: {
+                status: "failed",
+                errorMessage: message,
+                completedAt: new Date(),
+              },
+            });
+            return res.status(400).json({ error: message });
+          }
+        }
 
         // Look up domain AI config for this document
         const docDomain = document.domainId ? await storage.getDomain(document.domainId) : null;
