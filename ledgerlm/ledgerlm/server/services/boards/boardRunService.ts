@@ -387,9 +387,7 @@ export async function executeBoardAnalysis(runId: string) {
             sourceType: "enterprise",
             queryFingerprint: "governed-entity-pnl-v1",
             period: governedEntityPnlReport.periodLabel,
-            rowCount: governedEntityPnlReport.warnings.some((warning) => warning.startsWith("No Actual"))
-              ? 0
-              : 1,
+            rowCount: governedEntityPnlReport.sourceRowCount,
           }],
         };
       } else {
@@ -503,6 +501,8 @@ export async function executeBoardAnalysis(runId: string) {
         forecastLabel: governedEntityPnlReport.forecastLabel,
         yearEndLabel: governedEntityPnlReport.yearEndLabel,
         lines: governedEntityPnlReport.lines,
+        sourceRowCount: governedEntityPnlReport.sourceRowCount,
+        forecastSourceRowCount: governedEntityPnlReport.forecastSourceRowCount,
         metrics: governedEntityPnlReport.metrics,
         evidence: governedEntityPnlReport.evidence,
         warnings: governedEntityPnlReport.warnings,

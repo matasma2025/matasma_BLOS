@@ -61,12 +61,19 @@ function valueText(label: string, value: number | null | undefined, currency: "U
 }
 
 function exportRows(payload: EntityPnlExportPayload) {
-  return payload.lines.map((line) => [
-    line.label,
-    ...payload.columns.map((column) => valueText(line.label, line.values[column], payload.currency)),
-    line.variance === null ? "—" : valueText(line.label, line.variance, payload.currency),
-    line.variancePercent === null ? "—" : `${line.variancePercent.toFixed(1)}%`,
-  ]);
+  return payload.lines.map((line) => {
+    const variance = line.variance === null
+      ? "—"
+      : line.label === "EBIT%"
+        ? `${line.variance.toFixed(1)} pp`
+        : valueText(line.label, line.variance, payload.currency);
+    return [
+      line.label,
+      ...payload.columns.map((column) => valueText(line.label, line.values[column], payload.currency)),
+      variance,
+      line.variancePercent === null ? "—" : `${line.variancePercent.toFixed(1)}%`,
+    ];
+  });
 }
 
 function addPptxTable(slide: any, payload: EntityPnlExportPayload) {
