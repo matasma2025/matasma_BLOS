@@ -20,6 +20,7 @@ import { BoardSourceSelector } from '@/components/BoardSourceSelector';
 import { KpiTemplateReport, type KpiTemplateData } from '@/components/KpiTemplateReport';
 import { BalanceSheetTemplateReport } from '@/components/BalanceSheetTemplateReport';
 import type { BalanceSheetReport } from '@shared/boards/balanceSheet';
+import { EntityPnlTemplateReport } from '@/components/EntityPnlTemplateReport';
 
 type TabId = 'reports' | 'threads';
 
@@ -41,6 +42,32 @@ interface GenericReport {
     tables?: Array<{ title?: string; columns: string[]; rows: unknown[][] }>;
     kpiReport?: KpiTemplateData;
     balanceSheet?: BalanceSheetReport;
+    entityPnl?: {
+      entity: string;
+      asOf: string;
+      comparison: 'qoq' | 'yoy';
+      currency: 'USD' | 'INR';
+      units?: string;
+      columns: string[];
+      currentLabel: string;
+      comparisonLabel: string;
+      forecastLabel?: string;
+      yearEndLabel: string;
+      lines: Array<{
+        label: string;
+        values: Record<string, number | null>;
+        variance: number | null;
+        variancePercent: number | null;
+      }>;
+      evidence: string[];
+      warnings: string[];
+      chart?: {
+        title: string;
+        series: Array<{ name: string; values: Array<{ period: string; value: number | null }> }>;
+      };
+    };
+    kpis?: Array<{ label: string; value: string; change?: string; direction?: string }>;
+    commentary?: Array<{ label: string; text: string }>;
   };
   sourceSnapshot?: { name?: string; sourceType?: string };
   deterministicMetrics?: {
@@ -305,6 +332,7 @@ export default function BoardDetail() {
   const boardSettings = board.settings as any ?? {};
   const boardTemplateKey = boardSettings.templateKey ?? '';
   const hasCube = !!boardSettings.cubeId;
+  const isEntityPnlBoard = boardTemplateKey === 'entity-pnl';
   const mapping = boardSettings.columnMapping ?? {};
   const isStandaloneBoard = boardTemplateKey !== 'variance-analysis' || !mapping.actuals || !mapping.budget;
   const reportTemplate = typeof boardSettings.boardFlow?.reportTemplate === 'string'
@@ -405,6 +433,9 @@ export default function BoardDetail() {
                    <Badge variant="secondary" className="text-xs">{boardTemplateKey === 'kpi-metrics' ? 'KPI Metrics' : boardTemplateKey === 'entity-pnl' ? 'Entity P&L' : 'Balance Sheet'}</Badge>
                    {boardSettings.boardFlow?.scope?.version && <Badge variant="outline" className="text-xs">Version · {boardSettings.boardFlow.scope.version}</Badge>}
                    {boardSettings.boardFlow?.scope?.entity && <Badge variant="outline" className="text-xs">Entity · {boardSettings.boardFlow.scope.entity}</Badge>}
+                   {isEntityPnlBoard && <Badge variant="outline" className="text-xs">{boardSettings.boardFlow?.scope?.pnlComparison === 'yoy' ? 'YoY' : 'QoQ'}</Badge>}
+                   {isEntityPnlBoard && <Badge variant="outline" className="text-xs">{boardSettings.boardFlow?.scope?.currency ?? 'INR'}</Badge>}
+                   {isEntityPnlBoard && boardSettings.boardFlow?.scope?.forecastScenario && <Badge variant="outline" className="text-xs">Forecast · {boardSettings.boardFlow.scope.forecastScenario}</Badge>}
                  </div>
                  <p className="text-xs text-muted-foreground">
                    Runs use the selected authorized source and configured period. Actuals and Budget mappings are not required.
@@ -563,13 +594,26 @@ export default function BoardDetail() {
                             isExporting={exportMutation.isPending}
                           />
                         ) : null}
-                        {report.result?.summary && <p className="text-sm whitespace-pre-wrap">{report.result.summary}</p>}
-                        {!!report.result?.insights?.length && (
+                        {isEntityPnlBoard && report.result?.entityPnl ? (
+                          <EntityPnlTemplateReport
+                            title={report.title}
+                            periodLabel={report.periodLabel}
+                            report={report.result.entityPnl}
+                            summary={report.result.summary}
+                            kpis={report.result.kpis}
+                            insights={report.result.insights}
+                            commentary={report.result.commentary}
+                            onExport={(format) => exportMutation.mutate({ reportId: report.id, format })}
+                            isExporting={exportMutation.isPending}
+                          />
+                        ) : null}
+                        {report.result?.summary && !report.result?.entityPnl && <p className="text-sm whitespace-pre-wrap">{report.result.summary}</p>}
+                        {!!report.result?.insights?.length && !report.result?.entityPnl && (
                           <ul className="list-disc pl-5 text-sm text-muted-foreground space-y-1">
                             {report.result.insights.slice(0, 5).map((insight) => <li key={insight}>{insight}</li>)}
                           </ul>
                         )}
-                        {report.result?.tables?.[0] && (
+                        {report.result?.tables?.[0] && !report.result?.entityPnl && (
                           <div className="overflow-x-auto">
                             <table className="w-full text-xs border-collapse">
                               <thead><tr>{report.result.tables[0].columns.map((column) => <th key={column} className="border px-2 py-1 text-left bg-muted">{column}</th>)}</tr></thead>

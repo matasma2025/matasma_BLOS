@@ -120,6 +120,7 @@ import {
 } from "./services/boards/phase4Service";
 import { exportKpiReportPptx } from "./services/boards/kpiPptxExportService";
 import { exportBalanceSheetPptx } from "./services/boards/balanceSheetPptxExportService";
+import { exportEntityPnlPdf, exportEntityPnlPptx } from "./services/boards/entityPnlExportService";
 import { ingestBalanceSheetRows, listBalanceSheetPeriods, parseBalanceSheetWorkbook } from "./services/balanceSheetService";
 import { boardExports, boardSchedules, boardReports } from "@shared/schema";
 import { boardScheduleConfigurationSchema } from "@shared/boards/boardSchedule";
@@ -3281,9 +3282,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { userId, board } = await requireOwnedBoard(req, req.params.id);
       const format = req.body?.format;
-      if (format !== "csv" && format !== "xlsx" && format !== "pptx") return res.status(400).json({ error: "Supported exports are CSV, XLSX, and PPTX" });
+      if (format !== "csv" && format !== "xlsx" && format !== "pptx" && format !== "pdf") return res.status(400).json({ error: "Supported exports are CSV, XLSX, PPTX, and PDF" });
       const report = (await db.select().from(boardReports).where(and(eq(boardReports.id, req.params.reportId), eq(boardReports.boardId, board.id))).limit(1))[0];
       if (!report) return res.status(404).json({ error: "Report not found" });
+      if (format === "pdf" && String(report.templateKey) !== "entity-pnl") {
+        return res.status(400).json({ error: "PDF export is currently available for Entity P&L reports." });
+      }
       const boardSettings = (board.settings ?? {}) as {
         boardFlow?: { reportTemplatePptxBase64?: string };
       };
@@ -3294,13 +3298,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ? exportDeterministicCsv(report.deterministicMetrics)
         : format === "xlsx"
           ? await exportDeterministicXlsx(report.deterministicMetrics)
-         : String(report.templateKey) === "balance-sheet-tracker"
-           ? await exportBalanceSheetPptx(report as any, boardSettings.boardFlow?.reportTemplatePptxBase64)
-           : await exportKpiReportPptx(
-               report as any,
-               typeof req.body?.scopeCode === "string" ? req.body.scopeCode : undefined,
-               boardSettings.boardFlow?.reportTemplatePptxBase64,
-             );
+          : format === "pdf"
+            ? exportEntityPnlPdf(report as any)
+            : String(report.templateKey) === "balance-sheet-tracker"
+              ? await exportBalanceSheetPptx(report as any, boardSettings.boardFlow?.reportTemplatePptxBase64)
+              : String(report.templateKey) === "entity-pnl"
+                ? await exportEntityPnlPptx(report as any)
+                : await exportKpiReportPptx(
+                    report as any,
+                    typeof req.body?.scopeCode === "string" ? req.body.scopeCode : undefined,
+                    boardSettings.boardFlow?.reportTemplatePptxBase64,
+                  );
       const storageKey = path.join(dir, `${id}.${format}`);
       await fs.writeFile(storageKey, bytes, { flag: "wx" });
        const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
