@@ -375,6 +375,8 @@ async function runKpiMetricSnapshot(request: KpiReportRequest) {
             }
             AND lower(trim(coalesce(particulars, ''))) = 'total capacity'
             AND lower(trim(coalesce(sub_category, ''))) = 'end'
+            -- Keep only the top-level total adjustment; GB-specific deltas are applied in breakdowns.
+            AND NULLIF(trim(coalesce(gb, '')), '') IS NULL
         `)
       : db.execute(sql`
           SELECT NULL::numeric AS capacity_value, 0 AS capacity_rows
