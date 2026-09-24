@@ -1,16 +1,30 @@
 [
 	{
-		"id": "f0b62e51-63ae-43f6-a1a8-a2c36f14866d",
+		"id": "1ca70bdf-6b8c-4959-949c-c88ef0f9e598",
 		"position": 1,
-		"filepath": "attached_assets/imported_slides/balance_sheet_analysis_9_22_26_5_32_pm_1790192008191/Slide1.tsx",
+		"filepath": "attached_assets/imported_slides/board_364103ab_0508_4735_b552_00fc7790d2ca_summary_1_1790269265782/Slide1.tsx",
 		"title": "Slide 1",
 		"description": ""
 	},
 	{
-		"id": "1e730172-70af-4564-b491-67d06b86c060",
+		"id": "9d60fe38-ed3d-44c9-8fc9-18c962baaba2",
 		"position": 2,
-		"filepath": "attached_assets/imported_slides/balance_sheet_analysis_9_22_26_5_32_pm_1790192008191/Slide2.tsx",
+		"filepath": "attached_assets/imported_slides/board_364103ab_0508_4735_b552_00fc7790d2ca_summary_1_1790269265782/Slide2.tsx",
 		"title": "Slide 2",
+		"description": ""
+	},
+	{
+		"id": "07a01f8f-b5af-451c-9a2a-758c55f1099d",
+		"position": 3,
+		"filepath": "attached_assets/imported_slides/board_364103ab_0508_4735_b552_00fc7790d2ca_summary_1_1790269265782/Slide3.tsx",
+		"title": "Slide 3",
+		"description": ""
+	},
+	{
+		"id": "fe588ddc-8baf-48fb-889a-cb292389bd05",
+		"position": 4,
+		"filepath": "attached_assets/imported_slides/board_364103ab_0508_4735_b552_00fc7790d2ca_summary_1_1790269265782/Slide4.tsx",
+		"title": "Slide 4",
 		"description": ""
 	}
 ]
