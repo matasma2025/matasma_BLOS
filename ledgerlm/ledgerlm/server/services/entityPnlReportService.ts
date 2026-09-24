@@ -456,6 +456,6 @@ export async function runEntityPnlReport(request: EntityPnlReportRequest): Promi
       )
     GROUP BY year, month, scenario, cost_category, entity_category, resource_type, source_sub_category
   `);
-  const rows = ((result as { rows?: AggregateRow[] }).rows ?? []) as AggregateRow[];
+  const rows = ((result as unknown as { rows?: unknown[] }).rows ?? []) as AggregateRow[];
   return buildEntityPnlReport(rows, request);
 }
