@@ -228,22 +228,24 @@ export function StandaloneBoardAnalysisDialog({
             <p className="text-xs text-muted-foreground">Selected: {months.length ? months.map((month) => MONTHS[month - 1]).join(', ') : 'none'} {year}</p>
           </div>
 
-           {!isEntityPnl && <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label className="text-sm font-medium">Group results by</Label>
-              <button type="button" className="text-xs text-muted-foreground hover:text-foreground" onClick={() => setDimensions(configuredDimensions)}>Reset</button>
-           </div>}
-            <div className="flex flex-wrap gap-1.5">
-              {DIMENSIONS.map((dimension) => {
-                const selected = dimensions.includes(dimension);
-                return (
-                  <button key={dimension} type="button" onClick={() => toggleDimension(dimension)} className={`px-2.5 py-1 rounded-full text-xs border ${selected ? 'bg-primary text-primary-foreground border-primary' : 'hover:bg-muted'}`}>
-                    {selected && <Check className="inline-block w-3 h-3 mr-1" />}{dimension}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+            {!isEntityPnl && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-medium">Group results by</Label>
+                  <button type="button" className="text-xs text-muted-foreground hover:text-foreground" onClick={() => setDimensions(configuredDimensions)}>Reset</button>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {DIMENSIONS.map((dimension) => {
+                    const selected = dimensions.includes(dimension);
+                    return (
+                      <button key={dimension} type="button" onClick={() => toggleDimension(dimension)} className={`px-2.5 py-1 rounded-full text-xs border ${selected ? 'bg-primary text-primary-foreground border-primary' : 'hover:bg-muted'}`}>
+                        {selected && <Check className="inline-block w-3 h-3 mr-1" />}{dimension}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
           <div className="space-y-2">
             <Label className="text-sm font-medium">Additional context <span className="font-normal text-muted-foreground">(optional)</span></Label>
@@ -254,7 +256,7 @@ export function StandaloneBoardAnalysisDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={runMutation.isPending}>Cancel</Button>
-          <Button onClick={() => runMutation.mutate()} disabled={runMutation.isPending || configLoading || !sourceSelection || !months.length || !dimensions.length}>
+          <Button onClick={() => runMutation.mutate()} disabled={runMutation.isPending || configLoading || !sourceSelection || !months.length || (!isEntityPnl && !dimensions.length)}>
             {runMutation.isPending ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Starting…</> : <><Play className="w-4 h-4 mr-2" />Start analysis</>}
           </Button>
         </DialogFooter>
