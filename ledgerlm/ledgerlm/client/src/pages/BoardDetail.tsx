@@ -265,7 +265,7 @@ export default function BoardDetail() {
   });
 
   const exportMutation = useMutation({
-    mutationFn: (input: { reportId: string; format: 'csv' | 'xlsx' | 'pptx'; scopeCode?: string }) =>
+    mutationFn: (input: { reportId: string; format: 'csv' | 'xlsx' | 'pptx' | 'pdf'; scopeCode?: string }) =>
       apiRequest('POST', `/api/boards/${board.id}/reports/${input.reportId}/exports`, {
         format: input.format,
         ...(input.scopeCode ? { scopeCode: input.scopeCode } : {}),

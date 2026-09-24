@@ -1,14 +1,3 @@
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Legend,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
-import { Download, Presentation } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -94,15 +83,17 @@ export function EntityPnlTemplateReport({
   onExport,
   isExporting = false,
 }: EntityPnlTemplateReportProps) {
-  const chartData = (report.chart?.series ?? []).flatMap((series) => series.values.map((item) => item.period))
-    .filter((period, index, all) => all.indexOf(period) === index)
-    .map((period) => {
-      const point: Record<string, string | number | null> = { period };
-      for (const series of report.chart?.series ?? []) {
-        point[series.name] = series.values.find((item) => item.period === period)?.value ?? null;
-      }
-      return point;
-    });
+  const chartSeries = report.chart?.series ?? [];
+  const chartPeriods = chartSeries[0]?.values.map((item) => item.period) ?? [];
+  const chartScale = Math.max(
+    1,
+    ...chartSeries.flatMap((series) => series.values.map((item) => Math.abs(item.value ?? 0))),
+  );
+  const chartColors: Record<string, string> = {
+    Revenue: "#388e8e",
+    "Total Expenses": "#d98b34",
+    EBIT: "#64748b",
+  };
 
   return (
     <div className="space-y-4" data-testid="entity-pnl-template-report">
@@ -120,10 +111,10 @@ export function EntityPnlTemplateReport({
         </div>
         <div className="flex gap-2">
           <Button size="sm" variant="outline" onClick={() => onExport("pdf")} disabled={isExporting}>
-            <Download className="mr-2 h-4 w-4" /> PDF
+            Export PDF
           </Button>
           <Button size="sm" onClick={() => onExport("pptx")} disabled={isExporting}>
-            <Presentation className="mr-2 h-4 w-4" /> PowerPoint
+            Export PowerPoint
           </Button>
         </div>
       </div>
@@ -144,24 +135,45 @@ export function EntityPnlTemplateReport({
         </div>
       )}
 
-      {chartData.length > 0 && (
+      {chartSeries.length > 0 && chartPeriods.length > 0 && (
         <Card>
           <CardHeader className="pb-1">
             <CardTitle className="text-sm">{report.chart?.title || "Revenue, Expenses and EBIT"}</CardTitle>
           </CardHeader>
-          <CardContent className="h-64 pt-2">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData} margin={{ top: 8, right: 12, left: 4, bottom: 4 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="period" tick={{ fontSize: 11 }} />
-                <YAxis tick={{ fontSize: 10 }} tickFormatter={(value) => new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(value)} />
-                <Tooltip formatter={(value) => formatAmount(Number(value), report.currency)} />
-                <Legend />
-                <Bar dataKey="Revenue" fill="#388e8e" radius={[3, 3, 0, 0]} />
-                <Bar dataKey="Total Expenses" fill="#d98b34" radius={[3, 3, 0, 0]} />
-                <Bar dataKey="EBIT" fill="#64748b" radius={[3, 3, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+          <CardContent className="pt-3">
+            <div role="img" aria-label="Bar comparison of revenue, total expenses, and EBIT across the selected periods" className="space-y-3">
+              <div className="grid grid-cols-[135px_repeat(2,minmax(0,1fr))] gap-x-3 gap-y-2">
+                <div />
+                {chartPeriods.map((period) => <p key={period} className="text-center text-[11px] font-medium text-muted-foreground">{period}</p>)}
+                {chartSeries.map((series) => (
+                  <div key={series.name} className="contents">
+                    <p className="self-center text-xs font-medium">{series.name}</p>
+                    {chartPeriods.map((period) => {
+                      const value = series.values.find((item) => item.period === period)?.value ?? 0;
+                      const barWidth = `${Math.min(46, Math.abs(value) / chartScale * 46)}%`;
+                      const compactValue = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(value);
+                      return (
+                        <div key={`${series.name}-${period}`} className="flex min-w-0 items-center gap-2">
+                          <div className="relative h-5 min-w-0 flex-1">
+                            <div className="absolute bottom-0 left-1/2 top-0 w-px bg-border" />
+                            <div
+                              className="absolute bottom-1 top-1 rounded-sm"
+                              style={{
+                                backgroundColor: chartColors[series.name] || "#64748b",
+                                width: barWidth,
+                                left: value >= 0 ? "50%" : undefined,
+                                right: value < 0 ? "50%" : undefined,
+                              }}
+                            />
+                          </div>
+                          <span className="w-16 shrink-0 text-right text-[11px] tabular-nums text-muted-foreground">{compactValue}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
+            </div>
           </CardContent>
         </Card>
       )}

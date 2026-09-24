@@ -190,6 +190,7 @@ export function BoardEditorDialog({
     comparisonBasis: 'previous-period',
     scope: { entity: '', version: '', year: String(new Date().getFullYear()), month: String(new Date().getMonth() + 1), forecastScenario: '', pnlComparison: 'qoq', currency: 'INR' },
     reportTemplate: '',
+    reportTemplatePptxBase64: '',
     schedule: { enabled: false, frequency: 'monthly', interval: 1, intervalUnit: 'months', timezone: 'UTC', startAt: '' },
   });
 
