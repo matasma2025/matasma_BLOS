@@ -112,7 +112,7 @@ export function StandaloneBoardAnalysisDialog({
     mutationFn: async () => {
       if (!sourceSelection) throw new Error('Select an authorized source before starting this analysis.');
       if (!months.length) throw new Error('Select at least one month.');
-      if (!dimensions.length) throw new Error('Select at least one grouping dimension.');
+       if (!isEntityPnl && !dimensions.length) throw new Error('Select at least one grouping dimension.');
       return apiRequest('POST', `/api/boards/${board.id}/analysis-runs`, {
         year,
         months,

@@ -206,8 +206,8 @@ export function validateEntityPnlReportRequest(payload: unknown): EntityPnlRepor
   const cfVersion = typeof request.cfVersion === "string" ? request.cfVersion.trim() : "";
   if (entity.length > 200) throw new Error("Entity selection is too long.");
   if (cfVersion.length > 100) throw new Error("Forecast scenario name is too long.");
-  if (cfVersion && !/^(?:CF(?:02|05|09|11)(?:\s+\d{4})?|YTD Forecast)$/i.test(cfVersion)) {
-    throw new Error("Choose an available CF02, CF05, CF09, CF11, or YTD Forecast scenario.");
+  if (cfVersion && !(/\bCF\d{2}\b/i.test(cfVersion) || /forecast/i.test(cfVersion))) {
+    throw new Error("Choose an available CF or Forecast scenario from the selected cube.");
   }
   return {
     cubeId: request.cubeId.trim(),

@@ -82,7 +82,6 @@ function addPptxTable(slide: any, payload: EntityPnlExportPayload) {
     w: 12.25,
     h: 5.68,
     colW: columnWidths,
-    rowH: 0.32,
     fontFace: "Aptos",
     fontSize: columnCount > 7 ? 6 : 7,
     color: "1F2937",
