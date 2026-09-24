@@ -59,6 +59,8 @@ interface GenericReport {
         variance: number | null;
         variancePercent: number | null;
       }>;
+      sourceRowCount?: number;
+      forecastSourceRowCount?: number;
       evidence: string[];
       warnings: string[];
       chart?: {

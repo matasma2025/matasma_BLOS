@@ -33,6 +33,8 @@ export interface EntityPnlReport {
   yearEndLabel: string;
   lines: EntityPnlLine[];
   metrics: Record<string, number | null>;
+  sourceRowCount: number;
+  forecastSourceRowCount: number;
   evidence: string[];
   warnings: string[];
   summary: string;
@@ -377,6 +379,7 @@ export function buildEntityPnlReport(rows: AggregateRow[], request: EntityPnlRep
   ]);
   const metrics = Object.fromEntries(lines.map((line) => [line.label, line.values[currentLabel] ?? null]));
   const evidence = [
+    `Read ${rowCounts.get("actual") ?? 0} Actual source rows from the selected authorized cube.`,
     request.entity
       ? `Read-only run from the selected Enterprise cube for ${entity}.`
       : "Read-only run from the selected Enterprise cube across all entity rows, including blank entity values.",
@@ -384,6 +387,9 @@ export function buildEntityPnlReport(rows: AggregateRow[], request: EntityPnlRep
     "Total Expenses uses the full governed Cost Summary population; visible expense rows are a presentation subset.",
     "Actual and CF are queried as separate scenarios and are never combined.",
   ];
+  if (request.cfVersion) {
+    evidence.push(`Read ${rowCounts.get(request.cfVersion) ?? 0} source rows for ${request.cfVersion}; forecast amounts remain separate from Actual.`);
+  }
   const chart = {
     title: "Revenue, Expenses and EBIT",
     series: ["Revenue", "Total Expenses", "EBIT"].map((name) => ({
@@ -408,6 +414,8 @@ export function buildEntityPnlReport(rows: AggregateRow[], request: EntityPnlRep
     yearEndLabel,
     lines,
     metrics,
+    sourceRowCount: rowCounts.get("actual") ?? 0,
+    forecastSourceRowCount: request.cfVersion ? rowCounts.get(request.cfVersion) ?? 0 : 0,
     evidence,
     warnings,
     summary,

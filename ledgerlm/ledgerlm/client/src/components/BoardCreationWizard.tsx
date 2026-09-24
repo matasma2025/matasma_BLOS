@@ -304,10 +304,10 @@ export function BoardCreationWizard({
                           <select value={formData.scope.forecastScenario ?? ''} onChange={(event) => updateScope({ forecastScenario: event.target.value })} className="w-full h-9 rounded-md border bg-background px-3 text-sm">
                             <option value="">Actual only</option>
                             {cubeVersions
-                              .filter((version) => /^(?:CF(?:02|05|09|11)(?:\s+\d{4})?|YTD Forecast)$/i.test(version))
+                              .filter((version) => /\bCF\d{2}\b/i.test(version) || /forecast/i.test(version))
                               .map((scenario) => <option key={scenario} value={scenario}>{scenario}</option>)}
                           </select>
-                          {formData.cubeId && cubeVersions.filter((version) => /^(?:CF(?:02|05|09|11)(?:\s+\d{4})?|YTD Forecast)$/i.test(version)).length === 0
+                          {formData.cubeId && cubeVersions.filter((version) => /\bCF\d{2}\b/i.test(version) || /forecast/i.test(version)).length === 0
                             && <p className="text-[11px] text-muted-foreground">No supported forecast version is available in this cube.</p>}
                         </div>
                       </>

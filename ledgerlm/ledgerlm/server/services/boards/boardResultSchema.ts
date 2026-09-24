@@ -110,6 +110,8 @@ export const boardAnalysisResultSchema = z.object({
       variance: z.number().finite().nullable(),
       variancePercent: z.number().finite().nullable(),
     }).strict()).max(30).optional(),
+    sourceRowCount: z.number().int().min(0).optional(),
+    forecastSourceRowCount: z.number().int().min(0).optional(),
     evidence: z.array(z.string().max(1_000)).max(20).optional(),
     chart: z.object({
       title: z.string().max(200),
