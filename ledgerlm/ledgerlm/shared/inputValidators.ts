@@ -116,6 +116,8 @@ export const boardSettingsSchema = z.object({
       year: z.string().regex(/^\d{4}$/, "Scope year must be four digits").optional(),
       month: z.string().regex(/^(?:[1-9]|1[0-2])$/, "Scope month must be 1-12").optional(),
       forecastScenario: boardVersionName.optional(),
+      pnlComparison: z.enum(["qoq", "yoy"]).optional(),
+      currency: z.enum(["USD", "INR"]).optional(),
     }).strict().optional(),
     reportTemplate: boardReportTemplate.optional(),
     reportTemplatePptxBase64: z.string()
@@ -175,6 +177,13 @@ export const boardAnalysisRequestSchema = z.object({
     year: z.number().int().min(1900).max(2200),
     months: z.array(z.number().int().min(1).max(12)).min(1).max(12),
     label: safeDisplayText("Comparison label", 200, true).optional(),
+  }).strict().optional(),
+  entityPnl: z.object({
+    asOf: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, "Entity P&L period must be YYYY-MM"),
+    comparison: z.enum(["qoq", "yoy"]),
+    currency: z.enum(["USD", "INR"]),
+    entity: boardVersionName.optional(),
+    cfVersion: boardVersionName.optional(),
   }).strict().optional(),
   sourceSelection: boardSourceSelectionSchema.optional(),
   extraContext: safeDisplayText("Extra context", 10_000).optional(),

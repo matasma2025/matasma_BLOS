@@ -262,7 +262,7 @@ export function BoardCreationWizard({
                       <Label className="text-xs">Entity {isKpi || isEntityPnl ? '(optional)' : ''}</Label>
                       <Input value={formData.scope.entity} onChange={(event) => updateScope({ entity: event.target.value })} placeholder="All entities" />
                     </div>
-                    {isStandaloneTemplate && (
+                    {isStandaloneTemplate && !isEntityPnl && (
                       <div className="space-y-1.5">
                         <Label className="text-xs">Data version <span className="font-normal text-muted-foreground">(optional)</span></Label>
                         <select value={formData.scope.version} onChange={(event) => updateScope({ version: event.target.value })} className="w-full h-9 rounded-md border bg-background px-3 text-sm">
@@ -283,12 +283,42 @@ export function BoardCreationWizard({
                         {MONTHS.map((month, index) => <option key={month} value={String(index + 1)}>{month}</option>)}
                       </select>
                     </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">Forecast scenario</Label>
-                      <select value={formData.scope.forecastScenario} onChange={(event) => updateScope({ forecastScenario: event.target.value })} className="w-full h-9 rounded-md border bg-background px-3 text-sm">
-                        {['YTD Forecast', 'CF02', 'CF05', 'CF09', 'CF11'].map((scenario) => <option key={scenario}>{scenario}</option>)}
-                      </select>
-                    </div>
+                    {isEntityPnl ? (
+                      <>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">Comparison</Label>
+                          <select value={formData.scope.pnlComparison ?? 'qoq'} onChange={(event) => updateScope({ pnlComparison: event.target.value })} className="w-full h-9 rounded-md border bg-background px-3 text-sm">
+                            <option value="qoq">QoQ — quarter-end MTD vs prior quarter-end MTD</option>
+                            <option value="yoy">YoY — YTD vs same month last year</option>
+                          </select>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">Currency</Label>
+                          <select value={formData.scope.currency ?? 'INR'} onChange={(event) => updateScope({ currency: event.target.value })} className="w-full h-9 rounded-md border bg-background px-3 text-sm">
+                            <option value="INR">INR (₹)</option>
+                            <option value="USD">USD ($)</option>
+                          </select>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">Forecast scenario <span className="font-normal text-muted-foreground">(optional)</span></Label>
+                          <select value={formData.scope.forecastScenario ?? ''} onChange={(event) => updateScope({ forecastScenario: event.target.value })} className="w-full h-9 rounded-md border bg-background px-3 text-sm">
+                            <option value="">Actual only</option>
+                            {cubeVersions
+                              .filter((version) => /^(?:CF(?:02|05|09|11)(?:\s+\d{4})?|YTD Forecast)$/i.test(version))
+                              .map((scenario) => <option key={scenario} value={scenario}>{scenario}</option>)}
+                          </select>
+                          {formData.cubeId && cubeVersions.filter((version) => /^(?:CF(?:02|05|09|11)(?:\s+\d{4})?|YTD Forecast)$/i.test(version)).length === 0
+                            && <p className="text-[11px] text-muted-foreground">No supported forecast version is available in this cube.</p>}
+                        </div>
+                      </>
+                    ) : (
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Forecast scenario</Label>
+                        <select value={formData.scope.forecastScenario} onChange={(event) => updateScope({ forecastScenario: event.target.value })} className="w-full h-9 rounded-md border bg-background px-3 text-sm">
+                          {['YTD Forecast', 'CF02', 'CF05', 'CF09', 'CF11'].map((scenario) => <option key={scenario}>{scenario}</option>)}
+                        </select>
+                      </div>
+                    )}
                   </div>
                   {formData.cubeId && !isStandaloneTemplate && (
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2 border-t">

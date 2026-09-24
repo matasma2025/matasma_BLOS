@@ -20,6 +20,11 @@ import { executeEnterpriseDeterministicAnalysis } from "./sources/enterpriseDete
 import { deterministicAnalysisResultSchema } from "@shared/boards/deterministicAnalysis";
 import { runKpiReport, validateKpiReportRequest } from "../kpiReportService";
 import { runBalanceSheetReport } from "../balanceSheetService";
+import {
+  runEntityPnlReport,
+  validateEntityPnlReportRequest,
+  type EntityPnlReport,
+} from "../entityPnlReportService";
 
 export interface BoardAnalysisRequest {
   year?: number;
@@ -42,6 +47,13 @@ export interface BoardAnalysisRequest {
   extraContext?: string;
   userPromptTemplate?: string;
   comparison?: { year: number; months: number[]; label?: string };
+  entityPnl?: {
+    asOf: string;
+    comparison: "qoq" | "yoy";
+    currency: "USD" | "INR";
+    entity?: string;
+    cfVersion?: string;
+  };
 }
 
 function sourceId(selection: BoardSourceSelection) {
@@ -232,6 +244,7 @@ export async function executeBoardAnalysis(runId: string) {
     let deterministic;
     let governedKpiReport: Awaited<ReturnType<typeof runKpiReport>> | undefined;
     let governedBalanceSheetReport: Awaited<ReturnType<typeof runBalanceSheetReport>> | undefined;
+    let governedEntityPnlReport: EntityPnlReport | undefined;
     if (sourceSelection.sourceType === "vault") {
       const { loadVaultBoardDataset, runVaultDeterministicAnalysis, assertVaultIdentity } = await import("./phase4Service");
       const dataset = await loadVaultBoardDataset(run.requestedBy, sourceSelection.documentId);
@@ -331,6 +344,54 @@ export async function executeBoardAnalysis(runId: string) {
             ),
           }],
         };
+      } else if (run.templateKey === "entity-pnl") {
+        const scope = settings.boardFlow?.scope ?? {};
+        const entityPnlRequest = validateEntityPnlReportRequest({
+          cubeId: sourceSelection.cubeId,
+          asOf: request.entityPnl?.asOf
+            ?? `${normalizedRequest.year}-${String(normalizedRequest.months?.[0] ?? new Date().getMonth() + 1).padStart(2, "0")}`,
+          comparison: request.entityPnl?.comparison ?? scope.pnlComparison ?? "qoq",
+          currency: request.entityPnl?.currency ?? scope.currency ?? "INR",
+          entity: request.entityPnl?.entity ?? scope.entity,
+          cfVersion: request.entityPnl?.cfVersion ?? (scope.forecastScenario || undefined),
+        });
+        governedEntityPnlReport = await runEntityPnlReport(entityPnlRequest);
+        preparedSource = {
+          source: {
+            id: sourceSelection.cubeId,
+            name: selection.name ?? sourceSelection.cubeId,
+            sourceType: "enterprise",
+          },
+          plan: {
+            year: Number(entityPnlRequest.asOf.slice(0, 4)),
+            measures: [{ column: "entity_pnl", label: "Entity P&L", aggregation: "sum", valueType: "currency", filters: [] }],
+          },
+        };
+        const current = governedEntityPnlReport.currentLabel;
+        const prior = governedEntityPnlReport.comparisonLabel;
+        deterministic = {
+          measures: governedEntityPnlReport.lines
+            .filter((line) => line.label !== "EBIT%")
+            .map((line) => ({
+              measureId: line.label,
+              actual: line.values[current] ?? 0,
+              budget: line.values[prior] ?? 0,
+              variance: line.variance ?? 0,
+              variancePct: line.variancePercent,
+              favorable: null,
+              contribution: null,
+            })),
+          contributors: [],
+          evidence: [{
+            sourceId: sourceSelection.cubeId,
+            sourceType: "enterprise",
+            queryFingerprint: "governed-entity-pnl-v1",
+            period: governedEntityPnlReport.periodLabel,
+            rowCount: governedEntityPnlReport.warnings.some((warning) => warning.startsWith("No Actual"))
+              ? 0
+              : 1,
+          }],
+        };
       } else {
         preparedSource = await prepareEnterpriseBoardSource({
           userId: run.requestedBy, selection: sourceSelection, config: effectiveSnapshot.config,
@@ -374,12 +435,15 @@ export async function executeBoardAnalysis(runId: string) {
     await db.update(boardAnalysisRuns).set({ progressPercent: 85, progressStage: "Persisting report" })
       .where(eq(boardAnalysisRuns.id, runId));
     const result = parseBoardAnalysisResult(standaloneTemplate ? {
-      summary: `Standalone ${run.templateKey} analysis for ${preparedSource.plan.year}.`,
-      kpis: deterministic.measures.map((measure) => ({
+      summary: governedEntityPnlReport?.summary ?? `Standalone ${run.templateKey} analysis for ${preparedSource.plan.year}.`,
+      kpis: governedEntityPnlReport?.kpis ?? deterministic.measures.map((measure) => ({
         label: measure.measureId,
         value: String(measure.actual),
       })),
-      tables: [{
+      charts: [],
+      insights: governedEntityPnlReport?.insights ?? [],
+      commentary: governedEntityPnlReport?.commentary ?? [],
+      tables: governedEntityPnlReport ? [governedEntityPnlReport.table] : [{
         title: "Board metrics",
         columns: ["Metric", "Value"],
         rows: deterministic.measures.map((measure) => [measure.measureId, measure.actual]),
@@ -427,6 +491,23 @@ export async function executeBoardAnalysis(runId: string) {
         warnings: standaloneVersion ? [] : ["No explicit data version was selected; the first available source version was used."],
       },
       balanceSheet: governedBalanceSheetReport,
+      entityPnl: governedEntityPnlReport ? {
+        entity: governedEntityPnlReport.entity,
+        currency: governedEntityPnlReport.currency,
+        units: governedEntityPnlReport.units,
+        asOf: governedEntityPnlReport.asOf,
+        comparison: governedEntityPnlReport.comparison,
+        columns: governedEntityPnlReport.columns,
+        currentLabel: governedEntityPnlReport.currentLabel,
+        comparisonLabel: governedEntityPnlReport.comparisonLabel,
+        forecastLabel: governedEntityPnlReport.forecastLabel,
+        yearEndLabel: governedEntityPnlReport.yearEndLabel,
+        lines: governedEntityPnlReport.lines,
+        metrics: governedEntityPnlReport.metrics,
+        evidence: governedEntityPnlReport.evidence,
+        warnings: governedEntityPnlReport.warnings,
+        chart: governedEntityPnlReport.chart,
+      } : undefined,
     } : {
       summary: legacyReport?.rawAnalysis?.slice(0, 4_000)
         || `Deterministic analysis for ${preparedSource.plan.measures.map((measure: { label: string }) => measure.label).join(", ")}.`,
@@ -447,7 +528,7 @@ export async function executeBoardAnalysis(runId: string) {
       runId: run.id,
       templateKey: run.templateKey,
       title: legacyReport?.title ?? `${preparedSource.plan.year} — Deterministic Analysis`,
-      periodLabel: legacyReport?.periodLabel ?? `${preparedSource.plan.year}`,
+      periodLabel: legacyReport?.periodLabel ?? governedEntityPnlReport?.periodLabel ?? `${preparedSource.plan.year}`,
       result,
       schemaVersion: BOARD_RESULT_SCHEMA_VERSION,
       deterministicMetrics: deterministic,

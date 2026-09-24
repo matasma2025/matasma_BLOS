@@ -53,6 +53,8 @@ export function StandaloneBoardAnalysisDialog({
   const templateKey = settings.templateKey ?? 'custom-kpi-board';
   const label = templateLabel(templateKey);
   const isBalanceSheet = templateKey === 'balance-sheet-tracker';
+  const isEntityPnl = templateKey === 'entity-pnl';
+  const scope = flow.scope ?? {};
   const currentYear = new Date().getFullYear();
   const configuredDimensions = Array.isArray(settings.defaultDimensions)
     ? settings.defaultDimensions.map(String)
@@ -119,6 +121,15 @@ export function StandaloneBoardAnalysisDialog({
         keyColumns: config?.keyColumns,
         excludedColumns: config?.excludedColumns,
         sourceSelection,
+          ...(isEntityPnl ? {
+            entityPnl: {
+              asOf: `${year}-${String(months[0]).padStart(2, '0')}`,
+              comparison: scope.pnlComparison === 'yoy' ? 'yoy' : 'qoq',
+              currency: scope.currency === 'USD' ? 'USD' : 'INR',
+              entity: typeof scope.entity === 'string' ? scope.entity : '',
+              cfVersion: typeof scope.forecastScenario === 'string' ? scope.forecastScenario || undefined : undefined,
+            },
+          } : {}),
         extraContext: extraContext.trim() || undefined,
       }) as Promise<{ id: string }>;
     },
@@ -153,7 +164,9 @@ export function StandaloneBoardAnalysisDialog({
             Run {label}
           </DialogTitle>
           <DialogDescription>
-            Select the period and scope for this Board. This standalone flow does not require Actuals or Budget mappings.
+            {isEntityPnl
+              ? 'Run a deterministic P&L from the selected Enterprise cube using the board’s saved entity, comparison, currency, and forecast settings.'
+              : 'Select the period and scope for this Board. This standalone flow does not require Actuals or Budget mappings.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -215,11 +228,11 @@ export function StandaloneBoardAnalysisDialog({
             <p className="text-xs text-muted-foreground">Selected: {months.length ? months.map((month) => MONTHS[month - 1]).join(', ') : 'none'} {year}</p>
           </div>
 
-          <div className="space-y-2">
+           {!isEntityPnl && <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label className="text-sm font-medium">Group results by</Label>
               <button type="button" className="text-xs text-muted-foreground hover:text-foreground" onClick={() => setDimensions(configuredDimensions)}>Reset</button>
-            </div>
+           </div>}
             <div className="flex flex-wrap gap-1.5">
               {DIMENSIONS.map((dimension) => {
                 const selected = dimensions.includes(dimension);

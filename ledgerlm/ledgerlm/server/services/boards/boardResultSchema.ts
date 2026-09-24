@@ -96,6 +96,31 @@ export const boardAnalysisResultSchema = z.object({
     entity: z.string().max(200),
     currency: z.string().max(20),
     metrics: boundedRecord(z.number().finite().nullable(), 100).default({}),
+    asOf: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/).optional(),
+    comparison: z.enum(["qoq", "yoy"]).optional(),
+    units: z.string().max(20).optional(),
+    columns: z.array(z.string().max(100)).max(10).optional(),
+    currentLabel: z.string().max(100).optional(),
+    comparisonLabel: z.string().max(100).optional(),
+    forecastLabel: z.string().max(100).optional(),
+    yearEndLabel: z.string().max(100).optional(),
+    lines: z.array(z.object({
+      label: z.string().max(200),
+      values: boundedRecord(z.number().finite().nullable(), 10),
+      variance: z.number().finite().nullable(),
+      variancePercent: z.number().finite().nullable(),
+    }).strict()).max(30).optional(),
+    evidence: z.array(z.string().max(1_000)).max(20).optional(),
+    chart: z.object({
+      title: z.string().max(200),
+      series: z.array(z.object({
+        name: z.string().max(100),
+        values: z.array(z.object({
+          period: z.string().max(100),
+          value: z.number().finite().nullable(),
+        }).strict()).max(10),
+      }).strict()).max(10),
+    }).strict().optional(),
     warnings: z.array(z.string().max(1_000)).max(100).default([]),
   }).strict().optional(),
   kpiReport: z.object({
