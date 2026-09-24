@@ -220,9 +220,11 @@ function totalsForRows(rows: Array<{
     if (categoryHas(row.category, "cash", "cash equivalent")) totals.cash += row.value;
     if (categoryHas(row.category, "receivable", "accounts receivable", "trade debtor")) totals.receivables += row.value;
     if (categoryHas(row.category, "inventor")) totals.inventory += row.value;
-    if (categoryHas(row.category, "debt", "borrow", "loan", "bond")) totals.debt += row.value;
     if (categoryHas(row.category, "payable", "accounts payable", "trade creditor")) totals.payables += row.value;
   }
+  // This Board's debt-to-equity metric follows the reference report: total
+  // liabilities divided by equity, rather than borrowings-only debt.
+  totals.debt = totals.liabilities;
   totals.liabilitiesAndEquity = totals.liabilities + totals.equity;
   totals.balanceDifference = totals.assets - totals.liabilitiesAndEquity;
   totals.workingCapital = totals.currentAssets - totals.currentLiabilities;
@@ -273,9 +275,14 @@ function firstSummaryAmount(rows: BalanceSheetSourceRow[], labels: string[]): nu
   return null;
 }
 
-function totalsForPeriod(rows: BalanceSheetSourceRow[]): BalanceSheetTotals {
+export function totalsForPeriod(rows: BalanceSheetSourceRow[]): BalanceSheetTotals {
   const detailRows = rows.filter((row) => !isSummaryRow(row));
-  const fallback = totalsForRows(detailRows.length ? detailRows : rows);
+  const fallbackRows = detailRows.length ? detailRows : rows;
+  const fallback = totalsForRows(fallbackRows.map((row) => ({
+    section: row.section,
+    category: row.category,
+    value: reportValue(row.section, row.amountReporting),
+  })));
   const assets = summaryAmount(rows, ["Total: Assets"]) ?? fallback.assets;
   const equity = summaryAmount(rows, ["Total: Equity"]) ?? fallback.equity;
   const liabilitiesAndEquity = summaryAmount(rows, ["Total: Liabilities and equity"]) ?? fallback.liabilitiesAndEquity;
@@ -293,6 +300,7 @@ function totalsForPeriod(rows: BalanceSheetSourceRow[]): BalanceSheetTotals {
     assets: round(assets),
     liabilities: round(liabilities),
     equity: round(equity),
+    debt: round(liabilities),
     liabilitiesAndEquity: round(liabilitiesAndEquity),
     balanceDifference: round(assets - liabilitiesAndEquity),
     currentAssets: round(currentAssets),
@@ -702,6 +710,7 @@ export async function runBalanceSheetReport(request: BalanceSheetReportRequest):
     periodLabel: periodLabel(reportYear, currentMonth, currentRows[0]?.periodLabel),
     comparisonPeriodLabel: previousPeriod ? periodLabel(previousPeriod.year, previousPeriod.month, previousRows[0]?.periodLabel) : null,
     totals,
+    comparisonTotals: previousRows.length ? previousTotals : null,
     ratios,
     periods,
     lineItems,

@@ -69,6 +69,7 @@ export const balanceSheetReportSchema = z.object({
   periodLabel: z.string().max(100),
   comparisonPeriodLabel: z.string().max(100).nullable().optional(),
   totals: balanceSheetTotalsSchema,
+  comparisonTotals: balanceSheetTotalsSchema.nullable().optional(),
   ratios: balanceSheetRatiosSchema,
   periods: z.array(balanceSheetPeriodSchema).max(24).default([]),
   lineItems: z.array(balanceSheetLineItemSchema).max(500).default([]),

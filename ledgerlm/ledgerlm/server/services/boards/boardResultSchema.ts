@@ -76,6 +76,7 @@ export const boardAnalysisResultSchema = z.object({
     balanced: z.boolean(),
     difference: z.number().finite(),
     totals: boundedRecord(z.number().finite(), 100).default({}),
+    comparisonTotals: balanceSheetReportSchema.shape.comparisonTotals,
     ratios: boundedRecord(z.number().finite().nullable(), 100).default({}),
     unmappedRows: z.array(z.string().max(500)).max(500).default([]),
     tolerance: z.number().finite().optional(),

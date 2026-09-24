@@ -100,6 +100,43 @@ function topMovements(balanceSheet: BalanceSheetReport, section: "assets" | "lia
     .slice(0, 2);
 }
 
+export function leverageTrendPointer(
+  balanceSheet: Pick<BalanceSheetReport, "totals" | "comparisonTotals" | "periodLabel" | "comparisonPeriodLabel">,
+): string | null {
+  const previous = balanceSheet.comparisonTotals;
+  if (!previous) return null;
+
+  const previousDebtToEquity = previous.equity === 0 ? null : previous.debt / previous.equity;
+  const currentDebtToEquity = balanceSheet.totals.equity === 0
+    ? null
+    : balanceSheet.totals.debt / balanceSheet.totals.equity;
+  const previousEquityRatio = previous.assets === 0 ? null : previous.equity / previous.assets;
+  const currentEquityRatio = balanceSheet.totals.assets === 0
+    ? null
+    : balanceSheet.totals.equity / balanceSheet.totals.assets;
+  if (
+    previousDebtToEquity === null
+    || currentDebtToEquity === null
+    || previousEquityRatio === null
+    || currentEquityRatio === null
+  ) return null;
+
+  const worsened = currentDebtToEquity > previousDebtToEquity || currentEquityRatio < previousEquityRatio;
+  const improved = currentDebtToEquity < previousDebtToEquity || currentEquityRatio > previousEquityRatio;
+  const direction = worsened === improved ? "was mixed vs baseline" : worsened ? "worsened vs baseline" : "improved vs baseline";
+  const debtVerb = currentDebtToEquity > previousDebtToEquity
+    ? "increased"
+    : currentDebtToEquity < previousDebtToEquity ? "fell" : "held steady";
+  const equityVerb = currentEquityRatio < previousEquityRatio
+    ? "fell"
+    : currentEquityRatio > previousEquityRatio ? "increased" : "held steady";
+  const currentLabel = compactPeriodLabel(balanceSheet.periodLabel);
+  const previousLabel = compactPeriodLabel(balanceSheet.comparisonPeriodLabel || "prior loaded period");
+  const caution = worsened ? "—still strong, but a watch item if the trend continues" : "";
+
+  return `• Leverage direction of travel ${direction}: debt-to-equity ${debtVerb} from ${previousDebtToEquity.toFixed(2)} (${previousLabel}) to ${currentDebtToEquity.toFixed(2)} (${currentLabel}) and equity ratio ${equityVerb} from ${(previousEquityRatio * 100).toFixed(1)}% to ${(currentEquityRatio * 100).toFixed(1)}%${caution}.`;
+}
+
 function narrativeText(
   balanceSheet: BalanceSheetReport,
   sections: ReportSection[],
@@ -125,16 +162,20 @@ function oldBalancePointers(
   balanceSheet: BalanceSheetReport,
   sections: ReportSection[],
 ) {
+  const leveragePointer = sections.includes("liabilities")
+    ? leverageTrendPointer(balanceSheet)
+    : null;
   const candidates = categoryBreakdowns(balanceSheet)
     .filter((item) => sections.includes(item.section) && Math.abs(item.previousValue) > 0)
     .sort((a, b) => Math.abs(b.change) - Math.abs(a.change))
-    .slice(0, 2);
-  if (!candidates.length) return "• Nothing flagged from the data — add from supporting schedules.";
+    .slice(0, leveragePointer ? 1 : 2);
+  if (!candidates.length && !leveragePointer) return "• Nothing flagged from the data — add from supporting schedules.";
   const currentLabel = compactPeriodLabel(balanceSheet.periodLabel);
-  return candidates.map((item) => {
+  const categoryPointers = candidates.map((item) => {
     const share = balanceSheet.totals.assets === 0 ? null : (item.value / balanceSheet.totals.assets) * 100;
     return `• ${item.label} remains ${amount(item.value, balanceSheet)} ${displayUnit(balanceSheet)} at ${currentLabel}${share === null ? "" : ` (${share.toFixed(1)}% of total assets)`}; validate the underlying account mix and any reclassification behind the ${signedAmount(item.change, balanceSheet)} ${displayUnit(balanceSheet)} movement.`;
-  }).join("\n");
+  });
+  return [leveragePointer, ...categoryPointers].filter((line): line is string => Boolean(line)).join("\n");
 }
 
 function addSectionSlide(
