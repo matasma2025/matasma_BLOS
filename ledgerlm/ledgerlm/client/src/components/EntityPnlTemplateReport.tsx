@@ -77,6 +77,12 @@ function formatCell(line: EntityPnlLine, value: number | null | undefined, curre
   return new Intl.NumberFormat("en-US", { maximumFractionDigits: 1 }).format(value);
 }
 
+function formatVariance(line: EntityPnlLine, currency: "USD" | "INR") {
+  if (line.variance === null) return "—";
+  if (line.label === "EBIT%") return `${line.variance.toFixed(1)} pp`;
+  return formatCell(line, line.variance, currency);
+}
+
 export function EntityPnlTemplateReport({
   title,
   periodLabel,
@@ -189,7 +195,7 @@ export function EntityPnlTemplateReport({
                         </td>
                       ))}
                       <td className="border px-3 py-2 text-right tabular-nums">
-                        {formatCell(line, line.variance, report.currency)}
+                        {formatVariance(line, report.currency)}
                       </td>
                       <td className="border px-3 py-2 text-right tabular-nums">
                         {line.variancePercent === null ? "—" : `${line.variancePercent.toFixed(1)}%`}
