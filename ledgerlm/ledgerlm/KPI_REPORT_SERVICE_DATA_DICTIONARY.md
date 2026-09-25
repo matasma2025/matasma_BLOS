@@ -132,9 +132,9 @@ Each metric result includes:
 
 `valueOrNull()` returns null when the query reports zero matching rows. A zero numeric value with matching rows remains zero.
 
-## Confirmed query/data discrepancies
+## Confirmed fixes and remaining data discrepancies
 
-1. **Top-line Forecast uses Actual rows first.** The aggregate forecast SQL applies `COALESCE(Actual-plan sum, selected-scenario sum)`. In July, Worldwide Actual plan rows sum to 115 HC and BGSW Actual plan rows sum to −27 HC, replacing the selected forecast.
+1. **Forecast capacity row selection is fixed.** The report reads `cost_value` from the selected forecast scenario and does not let Actual/Actuals plan rows override it. This corrected Worldwide from 115 HC to 31,440.77 HC and India from negative 27 HC to 26,352.97 HC.
 2. **India forecast includes onsite.** The entity scenario total is 26,445.33 HC; its onsite component is 92.36 HC. Removing onsite gives 26,352.97 HC, the screenshot's 26,353 HC. The MS/MM detail forecast currently includes onsite too.
 3. **Utilization does not match the reference calculation.** The values above reproduce the current service's formula and source rows; the screenshot's alternative formula/population is not encoded in this service.
 4. **Historical utilization inputs are absent.** The selected cube has no fact rows for July 2025 or June 2026, so the service returns null for those comparisons.
