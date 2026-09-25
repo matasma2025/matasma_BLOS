@@ -15,8 +15,8 @@ For forecast capacity, select the requested scenario's `cost_value`; do not let 
 
 **How to apply:** Keep scenario selection separate from Actual-plan adjustments, and preserve the Worldwide-versus-entity onsite distinction in both total and breakdown queries.
 
-Keep monthly `Billing Utilization` data distinct from YTD `Billing Utilization Summary` data. Do not assume the export's `month` field identifies the utilization measurement period when rows also carry `rdate`, and do not alter filters or denominators solely to force a screenshot match.
+Keep monthly `Billing Utilization` data distinct from YTD `Billing Utilization Summary` data. The authoritative utilization workbook uses `Billing Utilization Summary`, the standard internal capacity denominator (allocated + not allocated + M/S + VKM - nonlinear), and payable-capacity fields for external utilization.
 
-**Why:** The same export can contain separate MTD and YTD populations, and neither a screenshot nor a close numerical match establishes which rows or formula produced its utilization values.
+**Why:** A supplied workbook can establish the formula and filters while its reference values still disagree with the selected cube under that exact SQL; this is a source-data mismatch, not evidence that the formula should be retuned.
 
-**How to apply:** Confirm the authoritative workbook formula, row population, and `rdate` rule before changing utilization SQL or adding screenshot-backed assertions.
+**How to apply:** Verify the selected cube was ingested from the same source export and uses the same period population before changing utilization SQL or adding screenshot-backed assertions. Never coerce formula/filter choices to match a target when the underlying rows are unverified.
