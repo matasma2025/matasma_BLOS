@@ -15,8 +15,8 @@ For forecast capacity, select the requested scenario's `cost_value`; do not let 
 
 **How to apply:** Keep scenario selection separate from Actual-plan adjustments, and preserve the Worldwide-versus-entity onsite distinction in both total and breakdown queries.
 
-Keep monthly `Billing Utilization` data distinct from YTD `Billing Utilization Summary` data. The authoritative utilization workbook uses `Billing Utilization Summary`, the standard internal capacity denominator (allocated + not allocated + M/S + VKM - nonlinear), and payable-capacity fields for external utilization.
+Keep monthly `Billing Utilization` data distinct from YTD `Billing Utilization Summary` data. The authoritative utilization workbook uses `Billing Utilization Summary`, the standard internal capacity denominator (allocated + not allocated + M/S + VKM - nonlinear), payable-capacity fields for external utilization, and a `Project Type` exclusion for `FixedPrice`.
 
-**Why:** A supplied workbook can establish the formula and filters while its reference values still disagree with the selected cube under that exact SQL; this is a source-data mismatch, not evidence that the formula should be retuned.
+**Why:** The selected cube contained the same source rows and formula, but ingestion had dropped `Project Type`; blank database values let `FixedPrice` rows through and created a false formula mismatch.
 
-**How to apply:** Verify the selected cube was ingested from the same source export and uses the same period population before changing utilization SQL or adding screenshot-backed assertions. Never coerce formula/filter choices to match a target when the underlying rows are unverified.
+**How to apply:** Before changing utilization SQL, confirm the cube uses the same source export and period and that every filter field survived ingestion. Compare source and database aggregates; do not retune formulas to compensate for missing mapped fields or unverified targets.
