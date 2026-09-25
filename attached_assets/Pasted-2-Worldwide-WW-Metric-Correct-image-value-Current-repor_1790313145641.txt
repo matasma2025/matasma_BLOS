@@ -1,0 +1,572 @@
+2. Worldwide (WW)
+Metric
+	
+Correct image value
+	
+Current report
+	
+Assessment
+
+
+Budget / Revenue
+	
+916 mUSD actual vs 892 mUSD forecast
+	
+915.9 vs 892.3 mUSD
+	
+Rounding only
+
+
+MS Budget
+	
+612 actual vs 605 forecast
+	
+612.3 vs 605.4
+	
+Rounding only
+
+
+MM Budget
+	
+56 actual vs 54 forecast
+	
+56.4 vs 54.4
+	
+Rounding only
+
+
+SDS Budget
+	
+59 actual vs 55 forecast
+	
+58.9 vs 54.7
+	
+Rounding / presentation
+
+
+MS-External Budget
+	
+19 actual vs 20 forecast
+	
+19.1 vs 19.9
+	
+Rounding only
+
+
+Integrated Service Budget
+	
+167 actual vs 155 forecast
+	
+166.7 vs 154.5
+	
+Rounding only
+
+
+Internal Utilization – WW
+	
+95.1%
+	
+94.7%
+	
+MISMATCH
+
+
+Internal Utilization – MS
+	
+95.2%
+	
+94.7%
+	
+MISMATCH
+
+
+Internal Utilization – MM
+	
+92.5%
+	
+94.2%
+	
+MISMATCH
+
+
+External Utilization – WW
+	
+100.7%
+	
+100.8%
+	
+0.1 pp
+
+
+External Utilization – MS
+	
+100.8%
+	
+100.6%
+	
+0.2 pp
+
+
+External Utilization – MM
+	
+99.5%
+	
+102.3%
+	
+MISMATCH
+
+
+Total Capacity – Actual
+	
+31,542 HC
+	
+31,541.6 HC
+	
+Rounding only
+
+
+Total Capacity – Forecast
+	
+31,441 HC
+	
+115 HC
+	
+MAJOR MISMATCH
+
+
+MS Capacity – Actual / Forecast
+	
+20,088 / 20,201 HC
+	
+20,088.2 / 20,200.9 HC
+	
+Rounding only
+
+
+MM Capacity – Actual / Forecast
+	
+1,870 / 1,843 HC
+	
+1,870.5 / 1,843.1 HC
+	
+Rounding only
+
+
+SDS Capacity – Actual / Forecast
+	
+2,158 / 2,071 HC
+	
+2,158.5 / 2,071.0 HC
+	
+Rounding only
+
+
+Integrated Service Capacity – Actual / Forecast
+	
+7,142 / 7,030 HC
+	
+7,141.5 / 7,030.1 HC
+	
+Rounding only
+3. BGSW India (IN)
+Metric
+	
+Correct image value
+	
+Current report
+	
+Assessment
+
+
+Budget / Revenue
+	
+743 vs 722 mUSD
+	
+742.5 vs 721.9
+	
+Rounding
+
+
+MS Budget
+	
+507 vs 499 mUSD
+	
+507 vs 499.3
+	
+Rounding
+
+
+MM Budget
+	
+43 vs 41 mUSD
+	
+42.6 vs 40.9
+	
+Rounding
+
+
+SDS Budget
+	
+37 vs 36 mUSD
+	
+37.7 vs 36.5
+	
+Rounding
+
+
+Internal Utilization – WW
+	
+95.1%
+	
+94.6%
+	
+MISMATCH
+
+
+Internal Utilization – MS
+	
+95.2%
+	
+94.6%
+	
+MISMATCH
+
+
+Internal Utilization – MM
+	
+93.5%
+	
+93.8%
+	
+0.3 pp
+
+
+External Utilization – WW
+	
+100.3%
+	
+100.2%
+	
+0.1 pp
+
+
+External Utilization – MS
+	
+100.3%
+	
+100.1%
+	
+0.2 pp
+
+
+External Utilization – MM
+	
+100.1%
+	
+101.4%
+	
+MISMATCH
+
+
+Total Capacity – Actual
+	
+26,569 HC
+	
+26,616.6 HC
+	
+47.6 HC mismatch
+
+
+MS Capacity – Actual
+	
+16,949 HC
+	
+16,948.9 HC
+	
+Rounding
+
+
+MM Capacity – Actual
+	
+1,428 HC
+	
+1,428.3 HC
+	
+Rounding
+
+
+SDS Capacity – Actual
+	
+1,948 HC
+	
+8,252.1 HC
+	
+MAJOR MISMATCH
+
+
+Integrated Service Capacity – Actual
+	
+5,961 HC
+	
+34,745.4 HC
+	
+MAJOR MISMATCH
+4. BGSV Vietnam (VN)
+Metric
+	
+Correct image value
+	
+Current report
+	
+Assessment
+
+
+Budget / Revenue
+	
+112.4 mUSD actual vs 111.9 mUSD forecast
+	
+Same
+	
+Match
+
+
+MS Budget
+	
+74.8 vs 74.9 mUSD
+	
+74.8 vs 74.9
+	
+Match
+
+
+MM Budget
+	
+6.7 vs 6.9 mUSD
+	
+6.7 vs 6.9
+	
+Match
+
+
+SDS Budget
+	
+2.3 vs 2.5 mUSD
+	
+2.3 vs 2.5
+	
+Match
+
+
+Integrated Service
+	
+28.6 vs 27.6 mUSD
+	
+28.6 vs 27.6
+	
+Match
+
+
+Internal Utilization – WW
+	
+95.7%
+	
+95.8%
+	
+0.1 pp
+
+
+Internal Utilization – MS
+	
+95.8%
+	
+95.7%
+	
+0.1 pp
+
+
+Internal Utilization – MM
+	
+93.9%
+	
+96.9%
+	
+MISMATCH
+
+
+External Utilization – WW
+	
+103.3%
+	
+103.7%
+	
+0.4 pp
+
+
+External Utilization – MS
+	
+108.3%
+	
+103.8%
+	
+MISMATCH
+
+
+External Utilization – MM
+	
+96.7%
+	
+103.2%
+	
+MISMATCH
+
+
+Total Capacity – Actual
+	
+4,034 HC
+	
+4,033.9 HC
+	
+Rounding
+
+
+MS Capacity – Actual
+	
+2,504 HC
+	
+2,504.2 HC
+	
+Rounding
+
+
+MM Capacity – Actual
+	
+244 HC
+	
+243.8 HC
+	
+Rounding
+
+
+SDS Capacity – Actual
+	
+111 HC
+	
+6,415.2 HC
+	
+MAJOR MISMATCH
+
+
+Integrated Service Capacity – Actual
+	
+1,175 HC
+	
+30,007.7 HC
+	
+MAJOR MISMATCH
+5. NE-MX / Mexico (MX)
+Metric
+	
+Correct image value
+	
+Current report
+	
+Assessment
+
+
+Budget / Revenue
+	
+30 vs 29 mUSD
+	
+29.9 vs 28.8
+	
+Rounding
+
+
+MS Budget
+	
+21.7 vs 21.9 mUSD
+	
+21.7 vs 21.9
+	
+Match
+
+
+MM Budget
+	
+7.5 vs 5.9 mUSD
+	
+7.5 vs 5.9
+	
+Match
+
+
+SDS Budget
+	
+0.7 vs 1.0 mUSD
+	
+0.7 vs 1.0
+	
+Match
+
+
+Internal Utilization – Entity
+	
+92.2%
+	
+92.2%
+	
+Match
+
+
+Internal Utilization – MS
+	
+92.0%
+	
+91.8%
+	
+0.2 pp
+
+
+Internal Utilization – MM
+	
+93.3%
+	
+94.0%
+	
+0.7 pp
+
+
+Total Capacity – Actual
+	
+635 HC
+	
+634.8 HC
+	
+Rounding
+
+
+MS Capacity – Actual
+	
+454 HC
+	
+454.5 HC
+	
+Rounding
+
+
+MM Capacity – Actual
+	
+160 HC
+	
+160.5 HC
+	
+Rounding
+
+
+SDS Capacity – Actual
+	
+21 HC
+	
+6,326 HC
+	
+MAJOR MISMATCH
