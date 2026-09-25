@@ -57,3 +57,17 @@ mtime_ms = 1789981399957
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:027ac7ba-e96f-4c01-8f27-5aa658c0d710/9f22de05-1f2b-4163-9b7d-442c45579191/dfbfaff1-f7dc-474f-b07b-55f5af4d3597"
 storage_version_token = "1789981520332019"
 content_type = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+
+[[outputs]]
+id = "k9_ZF7ai1ccqCO9K5IGeh"
+uri = "file://ledgerlm/ledgerlm/KPI_REPORT_SERVICE_DATA_DICTIONARY.md"
+type = "text"
+title = "KPI Report Service Data Dictionary"
+description = "Full service reference with source columns, SQL logic, and July 2026 metric values for Worldwide, India, Vietnam, and Mexico."
+logical_id = "6d5b9925-7a96-414a-ac57-5d1bf58dd083"
+content_hash = "sha256:f2d3d5c9e40d4ccd728ff9d11247a7cbb2f9213fc2a0a59a60ac2d9c960f06d8"
+size = 14322
+mtime_ms = 1790323758365
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:027ac7ba-e96f-4c01-8f27-5aa658c0d710/6d5b9925-7a96-414a-ac57-5d1bf58dd083/7ff994dd-db51-4cd2-b82a-b9c9c55de86c"
+storage_version_token = "1790323808949963"
+content_type = "text/markdown"
