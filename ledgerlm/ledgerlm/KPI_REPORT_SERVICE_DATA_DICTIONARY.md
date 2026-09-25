@@ -140,4 +140,6 @@ Each metric result includes:
 4. **Historical utilization inputs are absent.** The selected cube has no billing-utilization fact rows for July 2025 or June 2026, and the other available cube has no July 2026 billing-utilization rows. Those comparisons remain `NULL`.
 5. **Revenue totals match at the displayed precision.** July 2026 actual and forecast totals align with the screenshot after rounding. Some category-level narrative values are rounded more coarsely than the raw source.
 
+Run the regression check with `node_modules/.bin/tsx --test server/services/kpiReportService.test.ts`. It verifies revenue totals and actual/forecast capacity totals and breakdowns for Worldwide, India, Vietnam, and Mexico. Utilization and historical comparisons remain outside the matching claim because their source values are unresolved.
+
 This file documents the current service and the observed July 2026 output. No application SQL or behavior was changed while preparing it.
