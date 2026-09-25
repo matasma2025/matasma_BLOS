@@ -147,12 +147,6 @@ function forecastRevenuePagePredicate(entity?: string) {
     : sql`upper(regexp_replace(trim(coalesce(page, '')), '\\s+', ' ', 'g')) = 'ENTITY'`;
 }
 
-function forecastCapacityPagePredicate(entity?: string) {
-  return isWorldWideEntity(entity)
-    ? sql`upper(regexp_replace(trim(coalesce(page, '')), '\\s+', ' ', 'g')) = 'WORLD WIDE'`
-    : sql`upper(regexp_replace(trim(coalesce(page, '')), '\\s+', ' ', 'g')) = 'ENTITY VIEW'`;
-}
-
 function forecastScenarioPredicate(scenario: string) {
   if (scenario === "YTD Forecast") {
     return sql`lower(trim(plan_type)) = 'ytd forecast'`;
@@ -402,33 +396,45 @@ async function runKpiMetricSnapshot(request: KpiReportRequest) {
         NULL::numeric AS external_value,
         0 AS external_rows,
         COALESCE(
-          SUM(${numericCapacityPlanValue()}) FILTER (
-            WHERE upper(trim(coalesce(plan_type, ''))) IN ('ACTUAL', 'ACTUALS')
-              AND ${forecastCapacityPage}
-              AND lower(trim(coalesce(particulars, ''))) = 'total capacity'
-              AND lower(trim(coalesce(sub_category, ''))) = 'end'
-          ),
-          SUM(${numericCapacityPlanValue()}) FILTER (
+          SUM(${numericText("cost_value")}) FILTER (
             WHERE ${scenario}
               AND ${forecastRevenuePage}
               AND lower(trim(coalesce(particulars, ''))) = 'total capacity'
               AND lower(trim(coalesce(sub_category, ''))) = 'end'
+          ),
+          SUM(${numericText("cost_value")}) FILTER (
+            WHERE ${scenario}
+              AND ${forecastRevenuePage}
+              AND lower(trim(coalesce(particulars, ''))) IN (
+                'offshore capacity', 'onsite capacity', 'outsourcing capacity'
+              )
+              AND lower(trim(coalesce(sub_category, ''))) = 'end'
           )
-        ) AS capacity_value,
+        ) - CASE
+          WHEN ${worldWide} THEN 0
+          ELSE COALESCE(SUM(${numericText("cost_value")}) FILTER (
+            WHERE ${scenario}
+              AND ${forecastRevenuePage}
+              AND lower(trim(coalesce(particulars, ''))) = 'onsite capacity'
+              AND lower(trim(coalesce(sub_category, ''))) = 'end'
+          ), 0)
+        END AS capacity_value,
         COALESCE(
           NULLIF(COUNT(*) FILTER (
-            WHERE upper(trim(coalesce(plan_type, ''))) IN ('ACTUAL', 'ACTUALS')
-              AND ${forecastCapacityPage}
+            WHERE ${scenario}
+              AND ${forecastRevenuePage}
               AND lower(trim(coalesce(particulars, ''))) = 'total capacity'
               AND lower(trim(coalesce(sub_category, ''))) = 'end'
-              AND ${numericCapacityPlanValue()} IS NOT NULL
+              AND ${numericText("cost_value")} IS NOT NULL
           ), 0),
           COUNT(*) FILTER (
             WHERE ${scenario}
               AND ${forecastRevenuePage}
-              AND lower(trim(coalesce(particulars, ''))) = 'total capacity'
+              AND lower(trim(coalesce(particulars, ''))) IN (
+                'offshore capacity', 'onsite capacity', 'outsourcing capacity'
+              )
               AND lower(trim(coalesce(sub_category, ''))) = 'end'
-              AND ${numericCapacityPlanValue()} IS NOT NULL
+              AND ${numericText("cost_value")} IS NOT NULL
           )
         ) AS capacity_rows
       FROM cube_plan_data
@@ -501,6 +507,9 @@ async function runKpiBreakdownSnapshot(request: KpiReportRequest) {
   const actualPlanEntity = actualPlanEntityPredicate(request.entity);
   const forecastEntity = forecastEntityPredicate(request.entity);
   const scenario = forecastScenarioPredicate(request.forecastScenario);
+  const forecastCapacityDetailParticulars = worldWide
+    ? sql`particulars_name IN ('offshore capacity', 'onsite capacity', 'outsourcing capacity')`
+    : sql`particulars_name IN ('offshore capacity', 'outsourcing capacity')`;
 
   const [actualResult, actualCapacityPlanResult, forecastResult] = await Promise.all([
     db.execute(sql`
@@ -785,7 +794,7 @@ async function runKpiBreakdownSnapshot(request: KpiReportRequest) {
               AND sub_category_name = 'end'
           ) AS capacity_detail,
           COUNT(numeric_value) FILTER (
-            WHERE particulars_name IN ('offshore capacity', 'onsite capacity', 'outsourcing capacity')
+            WHERE ${forecastCapacityDetailParticulars}
               AND sub_category_name = 'end'
           ) AS capacity_detail_rows
         FROM mapped
