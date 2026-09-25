@@ -1079,6 +1079,7 @@ _COLUMN_MAPPING = {
     'RELEASED_STATUS': 'released_status',
     'Section': 'section',
     'Project/NonProject': 'project_nonproject',
+    'Project Type': 'project_type',
     'Effort Type': 'effort_type',
     'ResBU': 'res_bu',
     'ResSection': 'res_section',

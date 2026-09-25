@@ -98,3 +98,53 @@ test(
     }
   },
 );
+
+test(
+  "July 2026 internal and external utilization exclude FixedPrice source rows",
+  { skip: !hasDatabaseUrl },
+  async () => {
+    const { runKpiReport } = await import("./kpiReportService");
+    const report = await runKpiReport({
+      cubeId,
+      year: 2026,
+      month: 7,
+      forecastScenario: "YTD Forecast",
+    });
+
+    const expected = {
+      "World Wide": {
+        internal_utilization: [95.0913, 95.1889, 93.5721],
+        external_utilization: [100.7461, 100.8456, 99.5253],
+      },
+      India: {
+        internal_utilization: [95.1038, 95.1998, 93.4731],
+        external_utilization: [100.2854, 100.3004, 100.0706],
+      },
+      Vietnam: {
+        internal_utilization: [95.7369, 95.839, 93.9253],
+        external_utilization: [103.2652, 104.2796, 96.7838],
+      },
+      Mexico: {
+        internal_utilization: [92.2327, 91.7742, 93.9097],
+      },
+    } as const;
+
+    for (const [entity, metrics] of Object.entries(expected)) {
+      const scope = report.scopeBadges.find((item) => item.label === entity);
+      assert.ok(scope, `missing report scope: ${entity}`);
+
+      for (const [metricId, [overall, ms, sx]] of Object.entries(metrics)) {
+        const metric = scope.metrics.find((item) => item.id === metricId);
+        assert.ok(metric, `missing ${metricId} for ${entity}`);
+        assertClose(metric.actual === null ? null : metric.actual * 100, overall, `${entity} ${metricId}`);
+
+        const msBreakdown = metric.breakdowns?.find((item) => item.label === "MS");
+        const sxBreakdown = metric.breakdowns?.find((item) => item.label === "MM");
+        assert.ok(msBreakdown, `missing MS ${metricId} breakdown for ${entity}`);
+        assert.ok(sxBreakdown, `missing SX ${metricId} breakdown for ${entity}`);
+        assertClose(msBreakdown.actual === null ? null : msBreakdown.actual * 100, ms, `${entity} MS ${metricId}`);
+        assertClose(sxBreakdown.actual === null ? null : sxBreakdown.actual * 100, sx, `${entity} SX ${metricId}`);
+      }
+    }
+  },
+);
