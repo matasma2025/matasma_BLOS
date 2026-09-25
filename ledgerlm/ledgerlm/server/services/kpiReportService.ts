@@ -237,7 +237,6 @@ async function runKpiMetricSnapshot(request: KpiReportRequest) {
   const actualPlanEntity = actualPlanEntityPredicate(request.entity);
   const forecastEntity = forecastEntityPredicate(request.entity);
   const forecastRevenuePage = forecastRevenuePagePredicate(request.entity);
-  const forecastCapacityPage = forecastCapacityPagePredicate(request.entity);
   const scenario = forecastScenarioPredicate(request.forecastScenario);
   const actualPeriod = sql`month = ${request.month}`;
   const internalActualFilter = workbookActuals
@@ -790,7 +789,7 @@ async function runKpiBreakdownSnapshot(request: KpiReportRequest) {
             WHERE particulars_name = 'total capacity' AND sub_category_name = 'end'
           ) AS capacity_total_rows,
           SUM(numeric_value) FILTER (
-            WHERE particulars_name IN ('offshore capacity', 'onsite capacity', 'outsourcing capacity')
+            WHERE ${forecastCapacityDetailParticulars}
               AND sub_category_name = 'end'
           ) AS capacity_detail,
           COUNT(numeric_value) FILTER (
