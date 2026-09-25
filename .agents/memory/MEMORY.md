@@ -6,7 +6,7 @@
 - [Boards Phase 2 compatibility boundary](boards-phase2-compatibility.md) — governed Enterprise runs preserve the legacy renderer; unsupported metric semantics must fail closed until Phase 3
 - [Standalone Board journey](standalone-board-journey.md) — new Boards do not require Actuals/Budget; retain legacy variance only for existing mapped boards
 - [Uploaded PPTX fidelity](pptx-template-fidelity.md) — preserve original template bytes; extracted slide text cannot reproduce uploaded layout, theme, or placeholders
-- [KPI source normalization](kpi-source-normalization.md) — normalize plan labels/counts; selected-scenario capacity keeps separate Worldwide and regional onsite bases
+- [KPI source normalization](kpi-source-normalization.md) — normalize export labels, capacity bases, and utilization period populations
 - [Plan Delta capacity](plan-delta-capacity.md) — Actual capacity adjustments come from the workbook Delta column, with Cost value only as a legacy fallback
 - [Balance Sheet cube isolation](balance-sheet-cube-isolation.md) — Balance Sheet boards use point-in-time account data in their own cube/table, never the KPI planning fact path
 - [Balance Sheet PPTX exports](balance-sheet-pptx-exports.md) — generate standalone two-slide decks dynamically from dedicated cube data; generic uploaded templates cannot express live narratives/charts
