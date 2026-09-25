@@ -142,4 +142,6 @@ Each metric result includes:
 
 Run the regression check with `node_modules/.bin/tsx --test server/services/kpiReportService.test.ts`. It verifies revenue totals and actual/forecast capacity totals and breakdowns for Worldwide, India, Vietnam, and Mexico. Utilization and historical comparisons remain outside the matching claim because their source values are unresolved.
 
+The closing note below describes the original documentation-only capture; the capacity query fixes were made afterward and are reflected in this revision.
+
 This file documents the current service and the observed July 2026 output. No application SQL or behavior was changed while preparing it.
