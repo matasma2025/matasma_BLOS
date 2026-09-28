@@ -71,3 +71,17 @@ mtime_ms = 1790323758365
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:027ac7ba-e96f-4c01-8f27-5aa658c0d710/6d5b9925-7a96-414a-ac57-5d1bf58dd083/7ff994dd-db51-4cd2-b82a-b9c9c55de86c"
 storage_version_token = "1790323808949963"
 content_type = "text/markdown"
+
+[[outputs]]
+id = "HIfdGT13C9OJ9RPAbh9sy"
+uri = "file://ledgerlm/ledgerlm/exports/LedgerLM-Balance-Sheet-Jun-2026.pptx"
+type = "slides"
+title = "LedgerLM Balance Sheet — Jun 2026"
+description = "Two-slide PowerPoint with asset and liabilities/equity charts, generated from the dedicated Balance Sheet cube."
+logical_id = "30278d55-250d-496d-8ec6-b0a3f6162c07"
+content_hash = "sha256:572f0345b941c79e1febc91804dab3a8f80fb493ec38c78da20dfa526ea1ee90"
+size = 129518
+mtime_ms = 1790623083686
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:027ac7ba-e96f-4c01-8f27-5aa658c0d710/30278d55-250d-496d-8ec6-b0a3f6162c07/e9d2f327-0226-485c-a4be-7acc09350869"
+storage_version_token = "1790623120855852"
+content_type = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
