@@ -9,8 +9,8 @@ Standalone Balance Sheet exports should be generated dynamically from the dedica
 
 **How to apply:** Keep Balance Sheet source data isolated from KPI/planning facts, normalize presentation values and units before export, include equity/reserves on the liabilities slide, and validate both slide count and embedded chart structure in export regressions.
 
-For dense clustered category charts, keep the bars unlabeled and place exact current/prior/change values in an aligned comparison table.
+For full-width clustered Balance Sheet charts, show small value labels above the bars and retain an aligned exact-value comparison table.
 
-**Why:** Side-by-side values above neighboring bars collide when categories are close, and label-position workarounds do not solve limited slide space.
+**Why:** Users need chart values without hover, but labels collide when the chart is too narrow; the full-width layout creates room while the table preserves precise readable figures.
 
-**How to apply:** Build both the chart and table from the same normalized category data; use the chart for shape and the table for precise values, then keep narrative callouts short and inside the slide bounds.
+**How to apply:** Build labels and table from the same normalized category data; use compact labels on the wide chart, patch PptxGenJS clustered-label XML to `outEnd`, and keep narrative callouts short and inside the slide bounds.
