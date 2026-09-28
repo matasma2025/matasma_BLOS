@@ -1,30 +1,16 @@
 [
-	{
-		"id": "338e58c2-73f8-45c1-873c-fcd310da3175",
-		"position": 1,
-		"filepath": "attached_assets/imported_slides/kpi_business_metrics_four_entity_template_3_1790633143889/Slide1.tsx",
-		"title": "Slide 1",
-		"description": ""
-	},
-	{
-		"id": "44f2f41b-ec84-468f-bf9c-fb10b6cb2c04",
-		"position": 2,
-		"filepath": "attached_assets/imported_slides/kpi_business_metrics_four_entity_template_3_1790633143889/Slide2.tsx",
-		"title": "Slide 2",
-		"description": ""
-	},
-	{
-		"id": "475a3fd9-b905-4182-b5c9-0176d6dca124",
-		"position": 3,
-		"filepath": "attached_assets/imported_slides/kpi_business_metrics_four_entity_template_3_1790633143889/Slide3.tsx",
-		"title": "Slide 3",
-		"description": ""
-	},
-	{
-		"id": "0983a7d0-229a-4f5d-b61d-a2119fdcd3f9",
-		"position": 4,
-		"filepath": "attached_assets/imported_slides/kpi_business_metrics_four_entity_template_3_1790633143889/Slide4.tsx",
-		"title": "Slide 4",
-		"description": ""
-	}
+{
+"id": "a68225bd-cf08-4e06-942a-504a3a0f04ab",
+"position": 1,
+"filepath": "attached_assets/imported_slides/balance_sheet_analysis_9_22_26_5_32_pm_1790616193030/Slide1.tsx",
+"title": "Slide 1",
+"description": ""
+},
+{
+"id": "40d364a7-b624-46bb-aff6-49eafd2c7045",
+"position": 2,
+"filepath": "attached_assets/imported_slides/balance_sheet_analysis_9_22_26_5_32_pm_1790616193030/Slide2.tsx",
+"title": "Slide 2",
+"description": ""
+}
 ]
