@@ -9,11 +9,10 @@ interface BalanceSheetExportReport {
 }
 
 const PptxConstructor = ((PptxGenJS as unknown as { default?: typeof PptxGenJS }).default ?? PptxGenJS);
-const CURRENT_COLOR = "147D78";
-const PRIOR_COLOR = "78879A";
-const NAVY = "102A43";
-const TEXT = "243B53";
-const MUTED = "627D98";
+const CURRENT_COLOR = "439798";
+const PRIOR_COLOR = "BC4096";
+const TEXT = "333333";
+const MUTED = "666666";
 type ReportSection = "assets" | "liabilities" | "equity";
 
 function displayUnit(balanceSheet: BalanceSheetReport) {
@@ -199,7 +198,7 @@ function addSectionSlide(
       options: {
         bold: true,
         color: "FFFFFF",
-        fill: { color: NAVY },
+        fill: { color: CURRENT_COLOR },
         align: index === 0 ? "left" as const : "right" as const,
       },
     })),
@@ -215,26 +214,18 @@ function addSectionSlide(
   const attentionItems = oldBalancePointers(balanceSheet, includedSections);
   const movementItems = largestAccountMovements(balanceSheet, includedSections);
 
-  slide.background = { color: "F5F7FA" };
-  slide.addShape(pptx.ShapeType.rect, {
-    x: 0, y: 0, w: 13.333, h: 1.14,
-    fill: { color: NAVY }, line: { color: NAVY },
-  });
-  slide.addShape(pptx.ShapeType.rect, {
-    x: 0, y: 1.14, w: 13.333, h: 0.07,
-    fill: { color: CURRENT_COLOR }, line: { color: CURRENT_COLOR },
-  });
+  slide.background = { color: "FFFFFF" };
   slide.addText(`BALANCE SHEET  /  ${sectionName}`, {
     x: 0.58, y: 0.2, w: 7.8, h: 0.16,
-    fontFace: "Aptos", fontSize: 8, bold: true, charSpacing: 1.25, color: "B8D8D6", margin: 0,
+    fontFace: "Aptos", fontSize: 8, bold: true, charSpacing: 1.25, color: CURRENT_COLOR, margin: 0,
   });
   slide.addText(title, {
     x: 0.58, y: 0.46, w: 10.8, h: 0.42,
-    fontFace: "Aptos Display", fontSize: 23, bold: true, color: "FFFFFF", margin: 0, fit: "shrink",
+    fontFace: "Aptos Display", fontSize: 23, bold: true, color: "000000", margin: 0, fit: "shrink",
   });
   slide.addText(`${currentLabel} compared with ${priorLabel}  ·  Values in ${displayUnit(balanceSheet)}`, {
     x: 0.6, y: 0.91, w: 9.5, h: 0.16,
-    fontFace: "Aptos", fontSize: 8.5, color: "D9E2EC", margin: 0, fit: "shrink",
+    fontFace: "Aptos", fontSize: 8.5, color: MUTED, margin: 0, fit: "shrink",
   });
 
   slide.addShape(pptx.ShapeType.roundRect, {
@@ -250,7 +241,7 @@ function addSectionSlide(
     catAxisLabelColor: TEXT, valAxisLabelFontFace: "Aptos", valAxisLabelFontSize: 8,
     valAxisLabelColor: MUTED, valAxisLabelFormatCode: "#,##0",
     valAxisMaxVal: maxChartValue > 0 ? maxChartValue * 1.18 : 1,
-    valGridLine: { color: "E7EDF3" }, chartColors: [CURRENT_COLOR, PRIOR_COLOR],
+    valGridLine: { color: "D9E1E2" }, chartColors: [CURRENT_COLOR, PRIOR_COLOR],
     showLegend: true, legendPos: "b", showTitle: false, showValue: false,
     showSerName: false, showLabel: false,
   });
@@ -279,7 +270,7 @@ function addSectionSlide(
   });
   slide.addText("Old-balance checks", {
     x: 8.62, y: 5.17, w: 3.95, h: 0.17,
-    fontFace: "Aptos", fontSize: 9, bold: true, color: NAVY, margin: 0,
+    fontFace: "Aptos", fontSize: 9, bold: true, color: TEXT, margin: 0,
   });
   slide.addText(attentionItems || "• No material old-balance items flagged.", {
     x: 8.62, y: 5.39, w: 3.95, h: 0.53,
@@ -288,7 +279,7 @@ function addSectionSlide(
   });
   slide.addText("Largest account movements", {
     x: 8.62, y: 5.99, w: 3.95, h: 0.17,
-    fontFace: "Aptos", fontSize: 9, bold: true, color: NAVY, margin: 0,
+    fontFace: "Aptos", fontSize: 9, bold: true, color: TEXT, margin: 0,
   });
   slide.addText(movementItems.length ? movementItems.join("\n") : "• No material account movements.", {
     x: 8.62, y: 6.21, w: 3.95, h: 0.46,

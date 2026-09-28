@@ -201,6 +201,7 @@ test("exports two chart slides from caption-rollup categories", async () => {
   assert.equal(charts.length, 2);
   assert.ok(charts.some((xml) => xml.includes("Trade Receivables")));
   assert.ok(charts.some((xml) => xml.includes("Trade Payables")));
+  assert.ok(charts.every((xml) => xml.includes("439798") && xml.includes("BC4096")));
   assert.ok(charts.every((xml) => !/<c:showVal val="1"\/>/.test(xml)));
   assert.ok(slideXml.some((xml) => xml.includes("CATEGORY COMPARISON")));
   assert.ok(slideXml.some((xml) => xml.includes("MANAGEMENT ATTENTION")));
