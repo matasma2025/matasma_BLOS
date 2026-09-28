@@ -256,9 +256,9 @@ function addSectionSlide(
     colW: [2.55, 1.18, 1.18, 1.48, 1.18],
     fontFace: "Aptos", fontSize: categories.length > 8 ? 7.2 : 8.2,
     color: TEXT, border: { type: "solid", color: "DCE4EC", pt: 0.45 },
-    margin: 0.04, autoFit: false, valign: "mid", rowH: tableRowHeight,
+    margin: 0.04, autoFit: false, valign: "middle", rowH: tableRowHeight,
     showHeader: true, headerRows: 1, autoPage: false,
-    fill: "FFFFFF", align: "right",
+    fill: { color: "FFFFFF" }, align: "right",
   });
 
   slide.addShape(pptx.ShapeType.roundRect, {
