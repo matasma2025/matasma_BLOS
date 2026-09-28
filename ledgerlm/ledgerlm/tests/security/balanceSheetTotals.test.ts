@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { unzipSync } from "fflate";
+import { rollUpBalanceSheetDetailRows } from "../../server/services/balanceSheetRollup";
 import { totalsForPeriod } from "../../server/services/balanceSheetService";
-import { leverageTrendPointer } from "../../server/services/boards/balanceSheetPptxExportService";
+import { exportBalanceSheetPptx, leverageTrendPointer } from "../../server/services/boards/balanceSheetPptxExportService";
 import type { BalanceSheetReport } from "../../shared/boards/balanceSheet";
 
 test("calculates finite payable totals and reference debt from statement liabilities", () => {
@@ -61,4 +63,141 @@ test("includes the reference leverage trend in Balance Sheet pointers", () => {
   assert.ok(pointer);
   assert.match(pointer, /debt-to-equity increased from 0\.71 \(Mar-26\) to 0\.78 \(Jun-26\)/);
   assert.match(pointer, /equity ratio fell from 58\.6% to 56\.2%/);
+});
+
+test("rolls detail captions into current/non-current chart categories and reports unmapped captions", () => {
+  const result = rollUpBalanceSheetDetailRows([
+    {
+      section: "assets",
+      category: "Current assets | Trade receivables",
+      accountName: "Trade receivables ≤ 1 y",
+      value: 120,
+    },
+    {
+      section: "assets",
+      category: "Other non-current financial assets > 1 y | Investments (wo B-a)",
+      accountName: "Shares in group entities",
+      value: 200,
+    },
+    {
+      section: "liabilities",
+      category: "Trade payables | Trade payables",
+      accountName: "Trade payables - 3rd parties",
+      value: 80,
+    },
+    {
+      section: "liabilities",
+      category: "Lease liabilities (lessee) > 1 y",
+      accountName: "Lease liability",
+      value: 20,
+    },
+    { section: "equity", category: "Equity", accountName: "Subscribed capital", value: 50 },
+    { section: "assets", category: "Unusual assets", accountName: "Unclassified caption", value: 7 },
+  ]);
+
+  const line = (label: string) => result.lines.find((candidate) => candidate.label === label);
+  assert.equal(line("Trade Receivables")?.value, 120);
+  assert.equal(line("Investments in Group Entities")?.value, 200);
+  assert.equal(line("Trade Payables")?.value, 80);
+  assert.equal(line("Lease liabilities")?.value, 20);
+  assert.equal(line("Equity & reserves")?.value, 50);
+  assert.deepEqual(line("Trade Receivables")?.sources, [
+    "Current assets | Trade receivables",
+    "Trade receivables ≤ 1 y",
+  ]);
+  assert.deepEqual(result.unmapped, [{
+    item: "Unclassified caption",
+    section: "assets",
+    category: "Unusual assets",
+  }]);
+});
+
+test("exports two chart slides from caption-rollup categories", async () => {
+  const rollup = rollUpBalanceSheetDetailRows([
+    {
+      section: "assets",
+      category: "Current assets | Trade receivables",
+      accountName: "Trade receivables ≤ 1 y",
+      value: 120_000_000,
+    },
+    {
+      section: "liabilities",
+      category: "Trade payables | Trade payables",
+      accountName: "Trade payables - 3rd parties",
+      value: 80_000_000,
+    },
+    { section: "equity", category: "Equity", accountName: "Subscribed capital", value: 40_000_000 },
+  ]);
+  const categoryBreakdowns = rollup.lines.map((item) => ({
+    label: item.label,
+    section: item.section,
+    value: item.value,
+    previousValue: item.value / 2,
+    change: item.value / 2,
+    changePercent: 1,
+    sourceCaptions: item.sources,
+  }));
+  const balanceSheet = {
+    currency: "INR",
+    unitLabel: "INR",
+    periodLabel: "Jun 2026",
+    comparisonPeriodLabel: "Mar 2026",
+    totals: {
+      assets: 120_000_000,
+      liabilities: 80_000_000,
+      equity: 40_000_000,
+      liabilitiesAndEquity: 120_000_000,
+      balanceDifference: 0,
+      currentAssets: 120_000_000,
+      currentLiabilities: 80_000_000,
+      workingCapital: 40_000_000,
+      cash: 0,
+      receivables: 120_000_000,
+      inventory: 0,
+      debt: 80_000_000,
+      payables: 80_000_000,
+    },
+    comparisonTotals: {
+      assets: 60_000_000,
+      liabilities: 40_000_000,
+      equity: 20_000_000,
+      liabilitiesAndEquity: 60_000_000,
+      balanceDifference: 0,
+      currentAssets: 60_000_000,
+      currentLiabilities: 40_000_000,
+      workingCapital: 20_000_000,
+      cash: 0,
+      receivables: 60_000_000,
+      inventory: 0,
+      debt: 40_000_000,
+      payables: 40_000_000,
+    },
+    ratios: { currentRatio: 1.5, quickRatio: 1.5, debtToEquity: 2, equityRatio: 1 / 3 },
+    periods: [],
+    lineItems: [],
+    movements: [],
+    categoryBreakdowns,
+    unmappedRows: [],
+    warnings: [],
+    insights: [],
+    risks: [],
+    actions: [],
+    balanced: true,
+    difference: 0,
+    tolerance: 0.01,
+  } as BalanceSheetReport;
+
+  const pptx = await exportBalanceSheetPptx({
+    title: "Balance Sheet",
+    result: { balanceSheet },
+  });
+  const archive = unzipSync(pptx);
+  const slides = Object.keys(archive).filter((path) => /^ppt\/slides\/slide\d+\.xml$/.test(path));
+  const charts = Object.entries(archive)
+    .filter(([path]) => /^ppt\/charts\/chart\d+\.xml$/.test(path))
+    .map(([, bytes]) => new TextDecoder().decode(bytes));
+  assert.equal(slides.length, 2);
+  assert.equal(charts.length, 2);
+  assert.ok(charts.some((xml) => xml.includes("Trade Receivables")));
+  assert.ok(charts.some((xml) => xml.includes("Trade Payables")));
 });

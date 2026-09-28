@@ -92,6 +92,35 @@ export function BalanceSheetTemplateReport({
         </div>
       )}
 
+      {report.categoryBreakdowns.length > 0 && (
+        <div className="overflow-x-auto">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Chart categories and source captions</p>
+          <table className="w-full text-xs border-collapse">
+            <thead><tr>{["Chart line", "Section", "Value", "Source captions"].map((label) => <th key={label} className="border px-2 py-1 text-left bg-muted">{label}</th>)}</tr></thead>
+            <tbody>{report.categoryBreakdowns.slice(0, 12).map((item) => <tr key={`${item.section}-${item.label}`}>
+              <td className="border px-2 py-1 font-medium">{item.label}</td>
+              <td className="border px-2 py-1 capitalize">{item.section}</td>
+              <td className="border px-2 py-1">{money(item.value, report.currency)}</td>
+              <td className="border px-2 py-1 text-muted-foreground">
+                {item.sourceCaptions?.length
+                  ? `${item.sourceCaptions.slice(0, 4).join(" · ")}${item.sourceCaptions.length > 4 ? ` · +${item.sourceCaptions.length - 4} more` : ""}`
+                  : "Statement subtotals"}
+              </td>
+            </tr>)}</tbody>
+          </table>
+        </div>
+      )}
+
+      {report.unmappedRows.length > 0 && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
+          <p className="font-semibold">Unmapped source rows ({report.unmappedRows.length})</p>
+          <ul className="mt-1 list-inside list-disc space-y-1 text-xs">
+            {report.unmappedRows.slice(0, 10).map((row) => <li key={row}>{row}</li>)}
+          </ul>
+          {report.unmappedRows.length > 10 && <p className="mt-1 text-xs">Showing 10 of {report.unmappedRows.length} rows.</p>}
+        </div>
+      )}
+
       <div className="overflow-x-auto">
         <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Material account movements</p>
         <table className="w-full text-xs border-collapse">
