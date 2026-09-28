@@ -1,5 +1,4 @@
 import PptxGenJS from "pptxgenjs";
-import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 import type { BalanceSheetCategoryBreakdown, BalanceSheetLineItem, BalanceSheetReport } from "@shared/boards/balanceSheet";
 
 interface BalanceSheetExportReport {
@@ -95,13 +94,6 @@ function chartCategories(
       ? item.section === "assets"
       : item.section === "liabilities" || item.section === "equity"))
     .sort((a, b) => (rank.get(a.label) ?? order.length) - (rank.get(b.label) ?? order.length));
-}
-
-function topMovements(balanceSheet: BalanceSheetReport, section: "assets" | "liabilities" | "equity", label: string) {
-  return balanceSheet.lineItems
-    .filter((item) => item.section === section && item.category === label)
-    .sort((a, b) => Math.abs(b.change) - Math.abs(a.change))
-    .slice(0, 2);
 }
 
 export function leverageTrendPointer(
