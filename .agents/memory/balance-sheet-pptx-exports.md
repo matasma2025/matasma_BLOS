@@ -8,3 +8,9 @@ Standalone Balance Sheet exports should be generated dynamically from the dedica
 **Why:** A placeholder template cannot reliably represent dynamic category-level chart data and narrative content, while the Balance Sheet comparison period may be the latest earlier loaded period rather than the previous calendar month.
 
 **How to apply:** Keep Balance Sheet source data isolated from KPI/planning facts, normalize presentation values and units before export, include equity/reserves on the liabilities slide, and validate both slide count and embedded chart structure in export regressions.
+
+For clustered column charts, PptxGenJS filters data-label positions by chart grouping; `outEnd` is silently removed, while `inEnd` is supported.
+
+**Why:** A chart can keep its values hidden or in an unintended default position if it receives a label position that the library rejects for clustered columns.
+
+**How to apply:** When adding visible chart values, use a supported position such as `inEnd` and assert the generated chart XML contains enabled values and the expected position.
