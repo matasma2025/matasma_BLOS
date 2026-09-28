@@ -1,5 +1,4 @@
 import PptxGenJS from "pptxgenjs";
-import type { TableRow } from "pptxgenjs";
 import type { BalanceSheetCategoryBreakdown, BalanceSheetLineItem, BalanceSheetReport } from "@shared/boards/balanceSheet";
 
 interface BalanceSheetExportReport {
@@ -194,7 +193,7 @@ function addSectionSlide(
   const priorValues = categories.map((item) => item.previousValue / scaleFor(balanceSheet));
   const maxChartValue = Math.max(0, ...chartValues, ...priorValues);
   const sectionName = section === "assets" ? "ASSETS" : "LIABILITIES & EQUITY";
-  const tableRows: TableRow[] = [
+  const tableRows = [
     ["Category", currentLabel, priorLabel, "Change", "Change %"].map((text, index) => ({
       text,
       options: {
@@ -260,7 +259,7 @@ function addSectionSlide(
     x: 0.62, y: 4.75, w: 4.1, h: 0.15,
     fontFace: "Aptos", fontSize: 8, bold: true, charSpacing: 0.7, color: MUTED, margin: 0,
   });
-  slide.addTable(tableRows, {
+  slide.addTable(tableRows as any, {
     x: 0.58, y: 4.96, w: 7.57, h: tableRowHeight * tableRows.length,
     colW: [2.55, 1.18, 1.18, 1.48, 1.18],
     fontFace: "Aptos", fontSize: categories.length > 8 ? 7.2 : 8.2,
