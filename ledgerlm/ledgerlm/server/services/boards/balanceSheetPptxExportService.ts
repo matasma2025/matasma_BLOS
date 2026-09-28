@@ -1,4 +1,5 @@
 import PptxGenJS from "pptxgenjs";
+import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 import type { BalanceSheetCategoryBreakdown, BalanceSheetLineItem, BalanceSheetReport } from "@shared/boards/balanceSheet";
 
 interface BalanceSheetExportReport {
@@ -193,6 +194,7 @@ function addSectionSlide(
   const chartLabels = categories.map((item) => item.label);
   const chartValues = categories.map((item) => item.value / scaleFor(balanceSheet));
   const priorValues = categories.map((item) => item.previousValue / scaleFor(balanceSheet));
+  const maxChartValue = Math.max(0, ...chartValues, ...priorValues);
 
   slide.background = { color: "FFFFFF" };
   slide.addText(title, {
@@ -208,10 +210,13 @@ function addSectionSlide(
     catAxisLabelColor: "333333", valAxisLabelFontFace: "Aptos", valAxisLabelFontSize: 8,
     valAxisLabelColor: "666666", valAxisLabelFormatCode: "#,##0", valAxisTitle: displayUnit(balanceSheet),
     valAxisTitleFontFace: "Aptos", valAxisTitleFontSize: 8, valAxisTitleColor: "666666",
+    valAxisMaxVal: maxChartValue > 0 ? maxChartValue * 1.18 : 1,
     valGridLine: { color: "D9E1E2" }, chartColors: [CURRENT_COLOR, PRIOR_COLOR],
     showLegend: true, legendPos: "b", showTitle: false, showValue: true,
-    dataLabelPosition: "inEnd", dataLabelColor: "FFFFFF", dataLabelFontFace: "Aptos",
-    dataLabelFontBold: true, dataLabelFontSize: 7, dataLabelFormatCode: "#,##0",
+    // PptxGenJS permits only inEnd for clustered columns; the export postprocessor
+    // changes the generated chart XML to outEnd for readable labels above bars.
+    dataLabelPosition: "inEnd", dataLabelColor: "222222", dataLabelFontFace: "Aptos",
+    dataLabelFontSize: 8, dataLabelFormatCode: "#,##0",
     showSerName: false, showLabel: false,
   });
   slide.addText(narrativeText(balanceSheet, includedSections, currentLabel, priorLabel), {
@@ -238,6 +243,27 @@ function addSectionSlide(
   });
 }
 
+function moveChartValueLabelsAboveBars(pptxBytes: Buffer): Buffer {
+  const files = unzipSync(pptxBytes);
+  const chartPaths = Object.keys(files).filter((path) => /^ppt\/charts\/chart\d+\.xml$/.test(path));
+  if (!chartPaths.length) throw new Error("Balance Sheet export did not contain chart XML.");
+
+  for (const path of chartPaths) {
+    const xml = strFromU8(files[path]);
+    if (!/<c:showVal\b[^>]*val="1"/.test(xml)) {
+      throw new Error(`Chart ${path} is missing visible value labels.`);
+    }
+    const positions = xml.match(/<c:dLblPos\b[^>]*\/>/g) ?? [];
+    if (!positions.length) {
+      throw new Error(`Chart ${path} is missing data-label positioning.`);
+    }
+    const updatedXml = xml.replace(/<c:dLblPos\b[^>]*\/>/g, '<c:dLblPos val="outEnd"/>');
+    files[path] = strToU8(updatedXml);
+  }
+
+  return Buffer.from(zipSync(files));
+}
+
 export async function exportBalanceSheetPptx(
   report: BalanceSheetExportReport,
   templateBytesBase64?: string,
@@ -258,5 +284,6 @@ export async function exportBalanceSheetPptx(
   addSectionSlide(pptx, report, balanceSheet, "assets", `Balance Sheet – Assets as of ${periodLabel}`);
   addSectionSlide(pptx, report, balanceSheet, "liabilities", `Balance Sheet – Liabilities as of ${periodLabel}`);
   const output = await pptx.write({ outputType: "nodebuffer" });
-  return Buffer.isBuffer(output) ? output : Buffer.from(output as Uint8Array);
+  const pptxBytes = Buffer.isBuffer(output) ? output : Buffer.from(output as Uint8Array);
+  return moveChartValueLabelsAboveBars(pptxBytes);
 }
