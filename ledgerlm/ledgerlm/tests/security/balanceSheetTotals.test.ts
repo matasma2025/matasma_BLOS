@@ -205,4 +205,8 @@ test("exports two chart slides from caption-rollup categories", async () => {
   assert.ok(slideXml.some((xml) => xml.includes("CATEGORY COMPARISON")));
   assert.ok(slideXml.some((xml) => xml.includes("MANAGEMENT ATTENTION")));
   assert.ok(slideXml.some((xml) => xml.includes("Trade Receivables")));
+  assert.ok(slideXml.some((xml) => xml.includes("<a:t>120</a:t>")));
+  assert.ok(slideXml.some((xml) => xml.includes("<a:t>60</a:t>")));
+  assert.ok(slideXml.some((xml) => xml.includes("<a:t>+60</a:t>")));
+  assert.ok(slideXml.some((xml) => xml.includes("<a:t>+100.0%</a:t>")));
 });
