@@ -194,13 +194,21 @@ function addSectionSlide(
   const maxChartValue = Math.max(0, ...chartValues, ...priorValues);
   const sectionName = section === "assets" ? "ASSETS" : "LIABILITIES & EQUITY";
   const tableRows = [
-    ["Category", currentLabel, priorLabel, "Change", "Change %"],
+    ["Category", currentLabel, priorLabel, "Change", "Change %"].map((text, index) => ({
+      text,
+      options: {
+        bold: true,
+        color: "FFFFFF",
+        fill: { color: NAVY },
+        align: index === 0 ? "left" as const : "right" as const,
+      },
+    })),
     ...categories.map((item) => [
-      item.label,
-      amount(item.value, balanceSheet),
-      amount(item.previousValue, balanceSheet),
-      signedAmount(item.change, balanceSheet),
-      percentage(item.changePercent),
+      { text: item.label, options: { align: "left" as const } },
+      { text: amount(item.value, balanceSheet), options: { align: "right" as const } },
+      { text: amount(item.previousValue, balanceSheet), options: { align: "right" as const } },
+      { text: signedAmount(item.change, balanceSheet), options: { align: "right" as const } },
+      { text: percentage(item.changePercent), options: { align: "right" as const } },
     ]),
   ];
   const tableRowHeight = Math.min(0.245, 1.84 / tableRows.length);
@@ -257,7 +265,7 @@ function addSectionSlide(
     fontFace: "Aptos", fontSize: categories.length > 8 ? 7.2 : 8.2,
     color: TEXT, border: { type: "solid", color: "DCE4EC", pt: 0.45 },
     margin: 0.04, valign: "middle", rowH: tableRowHeight,
-    showHeader: true, headerRows: 1, autoPage: false,
+    autoPage: false,
     fill: { color: "FFFFFF" }, align: "right",
   });
 
