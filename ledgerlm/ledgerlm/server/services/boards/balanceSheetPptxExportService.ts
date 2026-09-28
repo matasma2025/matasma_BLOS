@@ -10,8 +10,11 @@ interface BalanceSheetExportReport {
 }
 
 const PptxConstructor = ((PptxGenJS as unknown as { default?: typeof PptxGenJS }).default ?? PptxGenJS);
-const CURRENT_COLOR = "439798";
-const PRIOR_COLOR = "BC4096";
+const CURRENT_COLOR = "147D78";
+const PRIOR_COLOR = "78879A";
+const NAVY = "102A43";
+const TEXT = "243B53";
+const MUTED = "627D98";
 type ReportSection = "assets" | "liabilities" | "equity";
 
 function displayUnit(balanceSheet: BalanceSheetReport) {
@@ -138,33 +141,19 @@ export function leverageTrendPointer(
   return `• Leverage direction of travel ${direction}: debt-to-equity ${debtVerb} from ${previousDebtToEquity.toFixed(2)} (${previousLabel}) to ${currentDebtToEquity.toFixed(2)} (${currentLabel}) and equity ratio ${equityVerb} from ${(previousEquityRatio * 100).toFixed(1)}% to ${(currentEquityRatio * 100).toFixed(1)}%${caution}.`;
 }
 
-function narrativeText(
-  balanceSheet: BalanceSheetReport,
-  sections: ReportSection[],
-  currentLabel: string,
-  priorLabel: string,
-) {
-  const categories = categoryBreakdowns(balanceSheet).filter((item) => sections.includes(item.section));
-  const lines: string[] = [];
-  for (const item of categories) {
-    const movement = topMovements(balanceSheet, item.section, item.label);
-    const detail = movement[0];
-    lines.push(`${item.label}:`);
-    lines.push(`• ${amount(item.value, balanceSheet)} ${displayUnit(balanceSheet)} at ${currentLabel} vs ${amount(item.previousValue, balanceSheet)} ${displayUnit(balanceSheet)} at ${priorLabel}: ${signedAmount(item.change, balanceSheet)} (${percentage(item.changePercent)}).`);
-    if (detail && Math.abs(detail.change) > 0) {
-      lines.push(`• Main account movement: ${detail.accountName} changed by ${signedAmount(detail.change, balanceSheet)} ${displayUnit(balanceSheet)} (${percentage(detail.changePercent)}).`);
-    }
-  }
-  if (!lines.length) lines.push("• No category-level movement was available for this section.");
-  return lines.join("\n");
-}
-
 function oldBalancePointers(
   balanceSheet: BalanceSheetReport,
   sections: ReportSection[],
 ) {
-  const leveragePointer = sections.includes("liabilities")
-    ? leverageTrendPointer(balanceSheet)
+  const previous = balanceSheet.comparisonTotals;
+  const leveragePointer = sections.includes("liabilities") && previous
+    && previous.equity !== 0 && balanceSheet.totals.equity !== 0
+    && previous.assets !== 0 && balanceSheet.totals.assets !== 0
+    ? `• Debt/equity ${(
+      balanceSheet.totals.debt / balanceSheet.totals.equity
+    ).toFixed(2)} vs ${(previous.debt / previous.equity).toFixed(2)}; equity ratio ${(
+      (balanceSheet.totals.equity / balanceSheet.totals.assets) * 100
+    ).toFixed(1)}% vs ${((previous.equity / previous.assets) * 100).toFixed(1)}%.`
     : null;
   const candidates = categoryBreakdowns(balanceSheet)
     .filter((item) => sections.includes(item.section) && Math.abs(item.previousValue) > 0)
@@ -174,9 +163,25 @@ function oldBalancePointers(
   const currentLabel = compactPeriodLabel(balanceSheet.periodLabel);
   const categoryPointers = candidates.map((item) => {
     const share = balanceSheet.totals.assets === 0 ? null : (item.value / balanceSheet.totals.assets) * 100;
-    return `• ${item.label} remains ${amount(item.value, balanceSheet)} ${displayUnit(balanceSheet)} at ${currentLabel}${share === null ? "" : ` (${share.toFixed(1)}% of total assets)`}; validate the underlying account mix and any reclassification behind the ${signedAmount(item.change, balanceSheet)} ${displayUnit(balanceSheet)} movement.`;
+    return `• ${item.label}: ${amount(item.value, balanceSheet)} ${displayUnit(balanceSheet)} at ${currentLabel}${share === null ? "" : ` (${share.toFixed(1)}% of assets)`}; change ${signedAmount(item.change, balanceSheet)}.`;
   });
   return [leveragePointer, ...categoryPointers].filter((line): line is string => Boolean(line)).join("\n");
+}
+
+function largestAccountMovements(
+  balanceSheet: BalanceSheetReport,
+  sections: ReportSection[],
+) {
+  return balanceSheet.lineItems
+    .filter((item) => sections.includes(item.section) && Math.abs(item.change) > 0)
+    .sort((a, b) => Math.abs(b.change) - Math.abs(a.change))
+    .slice(0, 2)
+    .map((item) => {
+      const accountName = item.accountName.length > 44
+        ? `${item.accountName.slice(0, 41).trimEnd()}…`
+        : item.accountName;
+      return `• ${item.category}: ${accountName} · ${signedAmount(item.change, balanceSheet)} ${displayUnit(balanceSheet)} (${percentage(item.changePercent)}).`;
+    });
 }
 
 function addSectionSlide(
@@ -195,73 +200,105 @@ function addSectionSlide(
   const chartValues = categories.map((item) => item.value / scaleFor(balanceSheet));
   const priorValues = categories.map((item) => item.previousValue / scaleFor(balanceSheet));
   const maxChartValue = Math.max(0, ...chartValues, ...priorValues);
+  const sectionName = section === "assets" ? "ASSETS" : "LIABILITIES & EQUITY";
+  const tableRows = [
+    ["Category", currentLabel, priorLabel, "Change", "Change %"],
+    ...categories.map((item) => [
+      item.label,
+      amount(item.value, balanceSheet),
+      amount(item.previousValue, balanceSheet),
+      signedAmount(item.change, balanceSheet),
+      percentage(item.changePercent),
+    ]),
+  ];
+  const tableRowHeight = Math.min(0.245, 1.84 / tableRows.length);
+  const attentionItems = oldBalancePointers(balanceSheet, includedSections);
+  const movementItems = largestAccountMovements(balanceSheet, includedSections);
 
-  slide.background = { color: "FFFFFF" };
+  slide.background = { color: "F5F7FA" };
+  slide.addShape(pptx.ShapeType.rect, {
+    x: 0, y: 0, w: 13.333, h: 1.14,
+    fill: { color: NAVY }, line: { color: NAVY },
+  });
+  slide.addShape(pptx.ShapeType.rect, {
+    x: 0, y: 1.14, w: 13.333, h: 0.07,
+    fill: { color: CURRENT_COLOR }, line: { color: CURRENT_COLOR },
+  });
+  slide.addText(`BALANCE SHEET  /  ${sectionName}`, {
+    x: 0.58, y: 0.2, w: 7.8, h: 0.16,
+    fontFace: "Aptos", fontSize: 8, bold: true, charSpacing: 1.25, color: "B8D8D6", margin: 0,
+  });
   slide.addText(title, {
-    x: 0.28, y: 0.29, w: 11.43, h: 0.43,
-    fontFace: "Aptos Display", fontSize: 28, bold: true, color: "000000", margin: 0.1, fit: "shrink",
+    x: 0.58, y: 0.46, w: 10.8, h: 0.42,
+    fontFace: "Aptos Display", fontSize: 23, bold: true, color: "FFFFFF", margin: 0, fit: "shrink",
+  });
+  slide.addText(`${currentLabel} compared with ${priorLabel}  ·  Values in ${displayUnit(balanceSheet)}`, {
+    x: 0.6, y: 0.91, w: 9.5, h: 0.16,
+    fontFace: "Aptos", fontSize: 8.5, color: "D9E2EC", margin: 0, fit: "shrink",
+  });
+
+  slide.addShape(pptx.ShapeType.roundRect, {
+    x: 0.52, y: 1.42, w: 12.29, h: 3.16, rectRadius: 0.06,
+    fill: { color: "FFFFFF" }, line: { color: "E1E8EF", width: 0.8 },
   });
   slide.addChart(pptx.ChartType.bar, [
     { name: currentLabel, labels: chartLabels, values: chartValues },
     { name: priorLabel, labels: chartLabels, values: priorValues },
   ], {
-    x: 0.47, y: 1.09, w: 5.35, h: 2.98,
-    barDir: "col", catAxisLabelRotate: -35, catAxisLabelFontFace: "Aptos", catAxisLabelFontSize: 8,
-    catAxisLabelColor: "333333", valAxisLabelFontFace: "Aptos", valAxisLabelFontSize: 8,
-    valAxisLabelColor: "666666", valAxisLabelFormatCode: "#,##0", valAxisTitle: displayUnit(balanceSheet),
-    valAxisTitleFontFace: "Aptos", valAxisTitleFontSize: 8, valAxisTitleColor: "666666",
+    x: 0.62, y: 1.48, w: 12.08, h: 3.02,
+    barDir: "col", catAxisLabelRotate: -28, catAxisLabelFontFace: "Aptos", catAxisLabelFontSize: 8,
+    catAxisLabelColor: TEXT, valAxisLabelFontFace: "Aptos", valAxisLabelFontSize: 8,
+    valAxisLabelColor: MUTED, valAxisLabelFormatCode: "#,##0",
     valAxisMaxVal: maxChartValue > 0 ? maxChartValue * 1.18 : 1,
-    valGridLine: { color: "D9E1E2" }, chartColors: [CURRENT_COLOR, PRIOR_COLOR],
-    showLegend: true, legendPos: "b", showTitle: false, showValue: true,
-    // PptxGenJS permits only inEnd for clustered columns; the export postprocessor
-    // changes the generated chart XML to outEnd for readable labels above bars.
-    dataLabelPosition: "inEnd", dataLabelColor: "222222", dataLabelFontFace: "Aptos",
-    dataLabelFontSize: 8, dataLabelFormatCode: "#,##0",
-    showSerName: false, showLabel: false,
+    valGridLine: { color: "E7EDF3" }, chartColors: [CURRENT_COLOR, PRIOR_COLOR],
+    showLegend: true, legendPos: "b", showTitle: false, showValue: false,
+    showSerName: false, showLabel: false, showCatName: false,
   });
-  slide.addText(narrativeText(balanceSheet, includedSections, currentLabel, priorLabel), {
-    x: 6.51, y: 0.91, w: 6.42, h: 5.67,
-    fontFace: "Aptos", fontSize: 10, color: "000000", margin: 0.07,
-    breakLine: false, fit: "shrink", valign: "top", paraSpaceAfter: 3,
+
+  slide.addText("CATEGORY COMPARISON", {
+    x: 0.62, y: 4.75, w: 4.1, h: 0.15,
+    fontFace: "Aptos", fontSize: 8, bold: true, charSpacing: 0.7, color: MUTED, margin: 0,
   });
-  slide.addText("All figures in " + displayUnit(balanceSheet) + ".", {
-    x: 0.28, y: 4.33, w: 3, h: 0.18,
-    fontFace: "Aptos", fontSize: 6, italic: true, color: "000000", margin: 0.1,
+  slide.addTable(tableRows, {
+    x: 0.58, y: 4.96, w: 7.57, h: tableRowHeight * tableRows.length,
+    colW: [2.55, 1.18, 1.18, 1.48, 1.18],
+    fontFace: "Aptos", fontSize: categories.length > 8 ? 7.2 : 8.2,
+    color: TEXT, border: { type: "solid", color: "DCE4EC", pt: 0.45 },
+    margin: 0.04, autoFit: false, valign: "mid", rowH: tableRowHeight,
+    showHeader: true, headerRows: 1, autoPage: false,
+    fill: "FFFFFF", align: "right",
   });
-  slide.addText("Key pointers on old balances:", {
-    x: 0.28, y: 4.66, w: 5.97, h: 0.2,
-    fontFace: "Aptos", fontSize: 8.5, bold: true, color: "000000", margin: 0.1,
+
+  slide.addShape(pptx.ShapeType.roundRect, {
+    x: 8.4, y: 4.75, w: 4.4, h: 2.06, rectRadius: 0.06,
+    fill: { color: "FFFFFF" }, line: { color: "E1E8EF", width: 0.8 },
   });
-  slide.addText(oldBalancePointers(balanceSheet, includedSections), {
-    x: 0.28, y: 4.86, w: 5.97, h: 1.98,
-    fontFace: "Aptos", fontSize: 8.5, color: "000000", margin: 0.1,
-    breakLine: false, fit: "shrink", valign: "top", paraSpaceAfter: 3,
+  slide.addText("MANAGEMENT ATTENTION", {
+    x: 8.62, y: 4.94, w: 3.95, h: 0.15,
+    fontFace: "Aptos", fontSize: 8, bold: true, charSpacing: 0.7, color: MUTED, margin: 0,
+  });
+  slide.addText("Old-balance checks", {
+    x: 8.62, y: 5.17, w: 3.95, h: 0.17,
+    fontFace: "Aptos", fontSize: 9, bold: true, color: NAVY, margin: 0,
+  });
+  slide.addText(attentionItems || "• No material old-balance items flagged.", {
+    x: 8.62, y: 5.39, w: 3.95, h: 0.53,
+    fontFace: "Aptos", fontSize: 8, color: TEXT, margin: 0,
+    fit: "shrink", valign: "top",
+  });
+  slide.addText("Largest account movements", {
+    x: 8.62, y: 5.99, w: 3.95, h: 0.17,
+    fontFace: "Aptos", fontSize: 9, bold: true, color: NAVY, margin: 0,
+  });
+  slide.addText(movementItems.length ? movementItems.join("\n") : "• No material account movements.", {
+    x: 8.62, y: 6.21, w: 3.95, h: 0.46,
+    fontFace: "Aptos", fontSize: 8, color: TEXT, margin: 0,
+    fit: "shrink", valign: "top",
   });
   slide.addText(`Source: ${report.sourceSnapshot?.name ?? "Dedicated Balance Sheet cube"} · comparison uses the latest earlier loaded period`, {
-    x: 0.47, y: 7.18, w: 12.35, h: 0.13,
-    fontFace: "Aptos", fontSize: 6.5, color: "667085", margin: 0, align: "right",
+    x: 0.58, y: 7.12, w: 12.2, h: 0.14,
+    fontFace: "Aptos", fontSize: 7, color: MUTED, margin: 0, align: "right", fit: "shrink",
   });
-}
-
-function moveChartValueLabelsAboveBars(pptxBytes: Buffer): Buffer {
-  const files = unzipSync(pptxBytes);
-  const chartPaths = Object.keys(files).filter((path) => /^ppt\/charts\/chart\d+\.xml$/.test(path));
-  if (!chartPaths.length) throw new Error("Balance Sheet export did not contain chart XML.");
-
-  for (const path of chartPaths) {
-    const xml = strFromU8(files[path]);
-    if (!/<c:showVal\b[^>]*val="1"/.test(xml)) {
-      throw new Error(`Chart ${path} is missing visible value labels.`);
-    }
-    const positions = xml.match(/<c:dLblPos\b[^>]*\/>/g) ?? [];
-    if (!positions.length) {
-      throw new Error(`Chart ${path} is missing data-label positioning.`);
-    }
-    const updatedXml = xml.replace(/<c:dLblPos\b[^>]*\/>/g, '<c:dLblPos val="outEnd"/>');
-    files[path] = strToU8(updatedXml);
-  }
-
-  return Buffer.from(zipSync(files));
 }
 
 export async function exportBalanceSheetPptx(
@@ -284,6 +321,5 @@ export async function exportBalanceSheetPptx(
   addSectionSlide(pptx, report, balanceSheet, "assets", `Balance Sheet – Assets as of ${periodLabel}`);
   addSectionSlide(pptx, report, balanceSheet, "liabilities", `Balance Sheet – Liabilities as of ${periodLabel}`);
   const output = await pptx.write({ outputType: "nodebuffer" });
-  const pptxBytes = Buffer.isBuffer(output) ? output : Buffer.from(output as Uint8Array);
-  return moveChartValueLabelsAboveBars(pptxBytes);
+  return Buffer.isBuffer(output) ? output : Buffer.from(output as Uint8Array);
 }
