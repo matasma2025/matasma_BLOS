@@ -9,8 +9,8 @@ Standalone Balance Sheet exports should be generated dynamically from the dedica
 
 **How to apply:** Keep Balance Sheet source data isolated from KPI/planning facts, normalize presentation values and units before export, include equity/reserves on the liabilities slide, and validate both slide count and embedded chart structure in export regressions.
 
-For clustered column charts, PptxGenJS filters data-label positions by chart grouping; `outEnd` is silently removed, while `inEnd` is supported.
+For dense clustered category charts, keep the bars unlabeled and place exact current/prior/change values in an aligned comparison table.
 
-**Why:** A chart can keep its values hidden or in an unintended default position if it receives a label position that the library rejects for clustered columns.
+**Why:** Side-by-side values above neighboring bars collide when categories are close, and label-position workarounds do not solve limited slide space.
 
-**How to apply:** To place values above clustered columns, emit labels with supported `inEnd`, then patch chart XML to `outEnd`; assert the final XML keeps value labels enabled at that position.
+**How to apply:** Build both the chart and table from the same normalized category data; use the chart for shape and the table for precise values, then keep narrative callouts short and inside the slide bounds.
