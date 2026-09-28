@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type Chat, type InsertChat, type Message, type InsertMessage, type Document, type InsertDocument, type Board, type InsertBoard, type BoardTemplate, type InsertBoardTemplate, type BoardThread, type InsertBoardThread, type BoardDocument, type InsertBoardDocument, type BoardDataSource, type InsertBoardDataSource, type InsertQueryAudit, type QueryAudit, type Company, type InsertCompany, type CompanyMembership, type InsertCompanyMembership, type UserSettings, type InsertUserSettings, type TermsAcceptance, type InsertTermsAcceptance, type EnterpriseDocument, type InsertEnterpriseDocument, type OtpCode, type InsertOtpCode, type DeviceTrust, type InsertDeviceTrust, type UserDeviceCredential, type InsertUserDeviceCredential, type DeviceProofNonce, type InsertDeviceProofNonce, type SchedulerConfig, type InsertSchedulerConfig, type Domain, type InsertDomain, type DomainUser, type InsertDomainUser, type DomainSchedulerConfig, type InsertDomainSchedulerConfig, type KioskFaqDocument, type InsertKioskFaqDocument, type KioskChat, type InsertKioskChat, type KioskMessage, type InsertKioskMessage, type KioskFaqEntry, type InsertKioskFaqEntry, type DomainApiConnector, type InsertDomainApiConnector, type Cube, type InsertCube, type CubeUserAccess, type InsertCubeUserAccess, type CubeMetadata, type InsertCubeMetadata, type AzureBlobFileRegistry, users, chats, messages, documents, boards, boardTemplates, boardThreads, boardDocuments, boardDataSources, chatDocuments, queryAudit, companies, companyMemberships, userSettings, termsAcceptances, enterpriseDocuments, enterpriseDocumentProcessing, otpCodes, deviceTrust, userDeviceCredentials, deviceProofNonces, schedulerConfig, domains, domainUsers, domainSchedulerConfig, kioskFaqDocuments, kioskChats, kioskMessages, kioskFaqEntries, domainApiConnectors, cubes, cubeUserAccess, cubeMetadata, azureBlobFileRegistry } from "@shared/schema";
+import { type User, type InsertUser, type Chat, type InsertChat, type Message, type InsertMessage, type Document, type InsertDocument, type Board, type InsertBoard, type BoardTemplate, type InsertBoardTemplate, type BoardThread, type InsertBoardThread, type BoardDocument, type InsertBoardDocument, type BoardDataSource, type InsertBoardDataSource, type InsertQueryAudit, type QueryAudit, type Company, type InsertCompany, type CompanyMembership, type InsertCompanyMembership, type UserSettings, type InsertUserSettings, type TermsAcceptance, type InsertTermsAcceptance, type EnterpriseDocument, type InsertEnterpriseDocument, type OtpCode, type InsertOtpCode, type DeviceTrust, type InsertDeviceTrust, type UserDeviceCredential, type InsertUserDeviceCredential, type DeviceProofNonce, type InsertDeviceProofNonce, type SchedulerConfig, type InsertSchedulerConfig, type Domain, type InsertDomain, type DomainUser, type InsertDomainUser, type DomainSchedulerConfig, type InsertDomainSchedulerConfig, type KioskFaqDocument, type InsertKioskFaqDocument, type KioskChat, type InsertKioskChat, type KioskMessage, type InsertKioskMessage, type KioskFaqEntry, type InsertKioskFaqEntry, type DomainApiConnector, type InsertDomainApiConnector, type Cube, type InsertCube, type CubeUserAccess, type InsertCubeUserAccess, type CubeMetadata, type InsertCubeMetadata, type AzureBlobFileRegistry, users, chats, messages, documents, boards, boardTemplates, boardThreads, boardDocuments, boardDataSources, chatDocuments, queryAudit, companies, companyMemberships, userSettings, termsAcceptances, enterpriseDocuments, enterpriseDocumentProcessing, otpCodes, deviceTrust, userDeviceCredentials, deviceProofNonces, schedulerConfig, domains, domainUsers, domainSchedulerConfig, kioskFaqDocuments, kioskChats, kioskMessages, kioskFaqEntries, domainApiConnectors, cubes, cubeBalanceSheetData, cubeUserAccess, cubeMetadata, azureBlobFileRegistry } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, asc, count, and, isNull, sql as sqlOp, inArray } from "drizzle-orm";
 import bcrypt from "bcryptjs";
@@ -18,6 +18,19 @@ export interface EnterpriseDocumentListItem {
   errorMessage?: string | null;
   cubeId?: string | null;
 }
+
+const enterpriseDocumentProcessingStatus = sqlOp<EnterpriseDocumentListItem["processingStatus"]>`CASE
+  WHEN EXISTS (
+    SELECT 1
+    FROM ${cubes}
+    INNER JOIN ${cubeBalanceSheetData}
+      ON ${cubeBalanceSheetData.cubeId} = ${cubes.id}
+    WHERE ${cubes.id} = ${enterpriseDocuments.cubeId}
+      AND ${cubes.schemaType} = 'balance_sheet'
+      AND ${cubeBalanceSheetData.sourceFile} = ${enterpriseDocuments.name}
+  ) THEN 'completed'
+  ELSE COALESCE(${enterpriseDocumentProcessing.status}, 'pending')
+END`;
 
 export interface IStorage {
   db: typeof db;
@@ -662,7 +675,7 @@ export class DbStorage implements IStorage {
         fileType: enterpriseDocuments.fileType,
         source: enterpriseDocuments.source,
         uploadedAt: enterpriseDocuments.uploadedAt,
-        processingStatus: sqlOp<'pending' | 'processing' | 'completed' | 'failed'>`COALESCE(${enterpriseDocumentProcessing.status}, 'pending')`,
+        processingStatus: enterpriseDocumentProcessingStatus,
         chunkCount: sqlOp<number>`COALESCE(${enterpriseDocumentProcessing.totalChunks}, 0)`,
         errorMessage: enterpriseDocumentProcessing.errorMessage,
       })
@@ -692,7 +705,7 @@ export class DbStorage implements IStorage {
         fileType: enterpriseDocuments.fileType,
         source: enterpriseDocuments.source,
         uploadedAt: enterpriseDocuments.uploadedAt,
-        processingStatus: sqlOp<'pending' | 'processing' | 'completed' | 'failed'>`COALESCE(${enterpriseDocumentProcessing.status}, 'pending')`,
+        processingStatus: enterpriseDocumentProcessingStatus,
         chunkCount: sqlOp<number>`COALESCE(${enterpriseDocumentProcessing.totalChunks}, 0)`,
         errorMessage: enterpriseDocumentProcessing.errorMessage,
         cubeId: enterpriseDocuments.cubeId,
