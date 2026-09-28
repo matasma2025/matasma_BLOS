@@ -1,8 +1,12 @@
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import ExcelJS from "exceljs";
+import { readFile } from "node:fs/promises";
+import { posix as pathPosix } from "node:path";
+import { unzipSync } from "fflate";
 import { db } from "../db";
 import { cubeBalanceSheetData, cubes } from "@shared/schema";
+import { rollUpBalanceSheetDetailRows } from "./balanceSheetRollup";
 import type {
   BalanceSheetLineItem,
   BalanceSheetPeriod,
@@ -57,10 +61,94 @@ function cellText(value: unknown): string {
 
 function cellNumber(value: unknown): number | null {
   if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  if (value && typeof value === "object" && "result" in value) {
+    const result = cellNumber((value as { result?: unknown }).result);
+    return result;
+  }
   const normalized = cellText(value).replace(/,/g, "").replace(/^\((.*)\)$/, "-$1");
   if (!normalized || normalized === "-" || /^#/.test(normalized)) return null;
   const parsed = Number(normalized.replace(/%$/, ""));
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function decodeXml(value: string): string {
+  return value
+    .replace(/&quot;/g, "\"")
+    .replace(/&apos;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&amp;/g, "&");
+}
+
+function xmlAttributes(source: string): Map<string, string> {
+  const attributes = new Map<string, string>();
+  for (const match of source.matchAll(/([A-Za-z_][\w:.-]*)\s*=\s*"([^"]*)"/g)) {
+    attributes.set(match[1], decodeXml(match[2]));
+  }
+  return attributes;
+}
+
+/**
+ * ExcelJS 4.x drops a cached formula result when its numeric value is zero
+ * because its XLSX reader tests the parsed value for truthiness. Recover only
+ * those results from the worksheet XML; a missing or nonnumeric cache remains
+ * an import error rather than being silently converted to zero.
+ */
+function cachedNumericCellsFromXlsx(file: Uint8Array): Map<string, Map<string, number>> {
+  const archive = unzipSync(file);
+  const readText = (path: string) => {
+    const content = archive[path];
+    return content ? new TextDecoder().decode(content) : null;
+  };
+  const workbookXml = readText("xl/workbook.xml");
+  const relationshipsXml = readText("xl/_rels/workbook.xml.rels");
+  if (!workbookXml || !relationshipsXml) return new Map();
+
+  const relationships = new Map<string, string>();
+  for (const match of relationshipsXml.matchAll(/<Relationship\b([^>]*)\/?>/g)) {
+    const attributes = xmlAttributes(match[1]);
+    const id = attributes.get("Id");
+    const target = attributes.get("Target");
+    if (id && target) relationships.set(id, target);
+  }
+
+  const results = new Map<string, Map<string, number>>();
+  for (const match of workbookXml.matchAll(/<sheet\b([^>]*)\/?>/g)) {
+    const attributes = xmlAttributes(match[1]);
+    const sheetName = attributes.get("name");
+    const relationshipId = attributes.get("r:id");
+    const target = relationshipId ? relationships.get(relationshipId) : null;
+    if (!sheetName || !target) continue;
+
+    const sheetPath = target.startsWith("/")
+      ? target.replace(/^\/+/, "")
+      : pathPosix.normalize(pathPosix.join("xl", target));
+    const sheetXml = readText(sheetPath);
+    if (!sheetXml) continue;
+
+    const values = new Map<string, number>();
+    const cellPattern = /<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c\s*>)/g;
+    for (const cellMatch of sheetXml.matchAll(cellPattern)) {
+      const cellAttributes = xmlAttributes(cellMatch[1]);
+      const address = cellAttributes.get("r");
+      if (!address || cellAttributes.get("t") === "e") continue;
+      const valueMatch = (cellMatch[2] ?? "").match(/<v\b[^>]*>([\s\S]*?)<\/v\s*>/);
+      const text = valueMatch?.[1]?.trim();
+      if (!text) continue;
+      const value = Number(decodeXml(text));
+      if (Number.isFinite(value)) values.set(address, value);
+    }
+    results.set(sheetName, values);
+  }
+  return results;
+}
+
+function isFormulaValue(value: unknown): boolean {
+  return Boolean(
+    value
+    && typeof value === "object"
+    && ("formula" in value || "sharedFormula" in value),
+  );
 }
 
 function periodFromCell(value: unknown): { fiscalYear: number; month: number; periodLabel: string } | null {
@@ -88,10 +176,10 @@ function periodFromCell(value: unknown): { fiscalYear: number; month: number; pe
 
 function classifyWorkbookRow(section: "assets" | "liabilities" | "equity", category: string, accountName: string) {
   if (section !== "liabilities") return section;
-  const categoryText = category.trim().toLowerCase();
+  const categoryParts = category.split("|").map((part) => part.trim().toLowerCase());
   const accountText = accountName.trim().toLowerCase();
   if (
-    categoryText === "equity"
+    categoryParts.includes("equity")
     || /^total:\s*equity\b/.test(accountText)
     || /^(subscribed capital|capital surplus|earned surplus reserves|unappropriate earnings\/losses|non-controlling interests)\b/.test(accountText)
   ) return "equity" as const;
@@ -111,9 +199,12 @@ function classifyWorkbookRow(section: "assets" | "liabilities" | "equity", categ
  * asset and liability presentation without double-counting.
  */
 export async function parseBalanceSheetWorkbook(filePath: string, sourceFile: string): Promise<BalanceSheetImportRow[]> {
+  const workbookBytes = await readFile(filePath);
+  const cachedCells = cachedNumericCellsFromXlsx(workbookBytes);
   const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.readFile(filePath);
+  await workbook.xlsx.load(workbookBytes);
   const rows: BalanceSheetImportRow[] = [];
+  const unresolvedFormulaCells: string[] = [];
 
   for (const worksheet of workbook.worksheets) {
     const sheetName = worksheet.name.toLowerCase();
@@ -140,11 +231,23 @@ export async function parseBalanceSheetWorkbook(filePath: string, sourceFile: st
       const accountName = cellText(row.getCell(4).value);
       if (!accountName) continue;
       const accountCode = cellText(row.getCell(5).value) || null;
-      const category = cellText(row.getCell(3).value) || cellText(row.getCell(2).value) || section;
+      const mainCategory = cellText(row.getCell(2).value);
+      const subCategory = cellText(row.getCell(3).value);
+      const categoryParts = Array.from(new Set([mainCategory, subCategory].filter(Boolean)));
+      const category = categoryParts.join(" | ") || section;
+      if (category.length > 255) {
+        throw new Error(`${worksheet.name} row ${rowNumber} has category captions longer than 255 characters.`);
+      }
       const rowSection = classifyWorkbookRow(section, category, accountName);
       for (const { column, period } of periodColumns) {
-        const amountReporting = cellNumber(row.getCell(column).value);
-        if (amountReporting === null) continue;
+        const cell = row.getCell(column);
+        const cellValue = cell.value;
+        const cachedValue = cachedCells.get(worksheet.name)?.get(cell.address);
+        const amountReporting = cellNumber(cellValue) ?? cachedValue ?? null;
+        if (amountReporting === null) {
+          if (isFormulaValue(cellValue)) unresolvedFormulaCells.push(`${worksheet.name}!${cell.address}`);
+          continue;
+        }
         rows.push({
           fiscalYear: period.fiscalYear,
           month: period.month,
@@ -165,6 +268,13 @@ export async function parseBalanceSheetWorkbook(filePath: string, sourceFile: st
         });
       }
     }
+  }
+
+  if (unresolvedFormulaCells.length) {
+    const examples = unresolvedFormulaCells.slice(0, 8).join(", ");
+    throw new Error(
+      `Could not read numeric cached results for ${unresolvedFormulaCells.length} Balance Sheet formula cells (${examples}). Recalculate and save the workbook, or upload a copy with the period columns pasted as values.`,
+    );
   }
 
   if (!rows.length) {
