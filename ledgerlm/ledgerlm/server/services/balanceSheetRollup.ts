@@ -214,8 +214,9 @@ export function rollUpBalanceSheetDetailRows(
       lines.set(key, line);
     }
     line.value += item.value;
-    const source = category || caption;
-    if (source && !line.sources.includes(source)) line.sources.push(source);
+    for (const source of [category, caption]) {
+      if (source && !line.sources.includes(source)) line.sources.push(source);
+    }
   }
 
   const ordered: BalanceSheetRollupLine[] = [];

@@ -785,8 +785,51 @@ export async function runBalanceSheetReport(request: BalanceSheetReportRequest):
     const sectionOrder = { assets: 0, liabilities: 1, equity: 2 };
     return sectionOrder[a.section] - sectionOrder[b.section] || Math.abs(b.value) - Math.abs(a.value);
   }).slice(0, 50);
+  const currentRollup = rollUpBalanceSheetDetailRows(currentDetailRows.map((row) => ({
+    section: row.section,
+    category: row.category,
+    accountName: row.accountName,
+    value: reportValue(row.section, row.amountReporting),
+  })));
+  const previousRollup = rollUpBalanceSheetDetailRows(previousDetailRows.map((row) => ({
+    section: row.section,
+    category: row.category,
+    accountName: row.accountName,
+    value: reportValue(row.section, row.amountReporting),
+  })));
+  const previousRollupLines = new Map(
+    previousRollup.lines.map((line) => [`${line.section}|${line.label}`, line]),
+  );
+  const currentRollupLines = new Map(
+    currentRollup.lines.map((line) => [`${line.section}|${line.label}`, line]),
+  );
+  const rollupCategoryBreakdowns = Array.from(new Set([
+    ...currentRollupLines.keys(),
+    ...previousRollupLines.keys(),
+  ])).map((key) => {
+    const current = currentRollupLines.get(key);
+    const previous = previousRollupLines.get(key);
+    const value = round(current?.value ?? 0);
+    const previousValue = round(previous?.value ?? 0);
+    const change = round(value - previousValue);
+    return {
+      label: current?.label ?? previous!.label,
+      section: (current?.section ?? previous!.section) as "assets" | "liabilities" | "equity",
+      value,
+      previousValue,
+      change,
+      changePercent: previousValue === 0 ? null : round(change / Math.abs(previousValue)),
+      sourceCaptions: (current?.sources ?? []).slice(0, 50),
+    };
+  }).sort((a, b) => {
+    const sectionOrder = { assets: 0, liabilities: 1, equity: 2 };
+    return sectionOrder[a.section] - sectionOrder[b.section] || Math.abs(b.value) - Math.abs(a.value);
+  }).slice(0, 50);
   const categoryBreakdowns = referenceCategoryBreakdowns(currentRows, previousRows, totals, previousTotals)
-    ?? legacyCategoryBreakdowns;
+    ?? (rollupCategoryBreakdowns.length ? rollupCategoryBreakdowns : legacyCategoryBreakdowns);
+  const unmappedRows = currentRollup.unmapped
+    .map((row) => `${row.section}: ${row.item}${row.category ? ` — ${row.category}` : ""}`)
+    .slice(0, 500);
   const balanced = Math.abs(totals.balanceDifference) <= tolerance;
   const periodWasAdjusted = reportYear !== request.year
     || reportMonths.length !== months.length
@@ -797,6 +840,9 @@ export async function runBalanceSheetReport(request: BalanceSheetReportRequest):
       : []),
     ...(!balanced ? [`Balance Sheet is out of balance by ${totals.balanceDifference.toFixed(2)} ${currency}.`] : []),
     ...(previousRows.length ? [] : ["No prior-period Balance Sheet rows were available; movement comparisons use zero only where a current account is new."]),
+    ...(unmappedRows.length
+      ? [`${unmappedRows.length} detail captions could not be classified for category charts; review the unmapped rows.`]
+      : []),
   ];
   const insights = [
     `Assets total ${totals.assets.toFixed(2)} ${currency}; liabilities and equity total ${totals.liabilitiesAndEquity.toFixed(2)} ${currency}.`,
@@ -826,7 +872,7 @@ export async function runBalanceSheetReport(request: BalanceSheetReportRequest):
     lineItems,
     movements,
     categoryBreakdowns,
-    unmappedRows: [],
+    unmappedRows,
     warnings,
     insights,
     risks,

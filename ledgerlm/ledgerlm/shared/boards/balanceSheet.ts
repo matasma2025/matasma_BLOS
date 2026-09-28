@@ -58,6 +58,7 @@ export const balanceSheetCategoryBreakdownSchema = z.object({
   previousValue: z.number().finite(),
   change: z.number().finite(),
   changePercent: z.number().finite().nullable(),
+  sourceCaptions: z.array(z.string().max(500)).max(50).optional(),
 }).strict();
 
 export const balanceSheetReportSchema = z.object({
