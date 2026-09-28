@@ -210,7 +210,7 @@ function addSectionSlide(
     valAxisTitleFontFace: "Aptos", valAxisTitleFontSize: 8, valAxisTitleColor: "666666",
     valGridLine: { color: "D9E1E2" }, chartColors: [CURRENT_COLOR, PRIOR_COLOR],
     showLegend: true, legendPos: "b", showTitle: false, showValue: false,
-    showCatName: false, showSerName: false, showLabel: false, showBorder: false,
+    showSerName: false, showLabel: false,
   });
   slide.addText(narrativeText(balanceSheet, includedSections, currentLabel, priorLabel), {
     x: 6.51, y: 0.91, w: 6.42, h: 5.67,

@@ -82,7 +82,7 @@ function decodeXml(value: string): string {
 
 function xmlAttributes(source: string): Map<string, string> {
   const attributes = new Map<string, string>();
-  for (const match of source.matchAll(/([A-Za-z_][\w:.-]*)\s*=\s*"([^"]*)"/g)) {
+  for (const match of Array.from(source.matchAll(/([A-Za-z_][\w:.-]*)\s*=\s*"([^"]*)"/g))) {
     attributes.set(match[1], decodeXml(match[2]));
   }
   return attributes;
@@ -105,7 +105,7 @@ function cachedNumericCellsFromXlsx(file: Uint8Array): Map<string, Map<string, n
   if (!workbookXml || !relationshipsXml) return new Map();
 
   const relationships = new Map<string, string>();
-  for (const match of relationshipsXml.matchAll(/<Relationship\b([^>]*)\/?>/g)) {
+  for (const match of Array.from(relationshipsXml.matchAll(/<Relationship\b([^>]*)\/?>/g))) {
     const attributes = xmlAttributes(match[1]);
     const id = attributes.get("Id");
     const target = attributes.get("Target");
@@ -113,7 +113,7 @@ function cachedNumericCellsFromXlsx(file: Uint8Array): Map<string, Map<string, n
   }
 
   const results = new Map<string, Map<string, number>>();
-  for (const match of workbookXml.matchAll(/<sheet\b([^>]*)\/?>/g)) {
+  for (const match of Array.from(workbookXml.matchAll(/<sheet\b([^>]*)\/?>/g))) {
     const attributes = xmlAttributes(match[1]);
     const sheetName = attributes.get("name");
     const relationshipId = attributes.get("r:id");
@@ -128,7 +128,7 @@ function cachedNumericCellsFromXlsx(file: Uint8Array): Map<string, Map<string, n
 
     const values = new Map<string, number>();
     const cellPattern = /<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c\s*>)/g;
-    for (const cellMatch of sheetXml.matchAll(cellPattern)) {
+    for (const cellMatch of Array.from(sheetXml.matchAll(cellPattern))) {
       const cellAttributes = xmlAttributes(cellMatch[1]);
       const address = cellAttributes.get("r");
       if (!address || cellAttributes.get("t") === "e") continue;
@@ -803,10 +803,11 @@ export async function runBalanceSheetReport(request: BalanceSheetReportRequest):
   const currentRollupLines = new Map(
     currentRollup.lines.map((line) => [`${line.section}|${line.label}`, line]),
   );
-  const rollupCategoryBreakdowns = Array.from(new Set([
-    ...currentRollupLines.keys(),
-    ...previousRollupLines.keys(),
-  ])).map((key) => {
+  const rollupKeys = new Set([
+    ...Array.from(currentRollupLines.keys()),
+    ...Array.from(previousRollupLines.keys()),
+  ]);
+  const rollupCategoryBreakdowns = Array.from(rollupKeys).map((key) => {
     const current = currentRollupLines.get(key);
     const previous = previousRollupLines.get(key);
     const value = round(current?.value ?? 0);
