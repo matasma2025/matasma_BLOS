@@ -13,4 +13,4 @@ For clustered column charts, PptxGenJS filters data-label positions by chart gro
 
 **Why:** A chart can keep its values hidden or in an unintended default position if it receives a label position that the library rejects for clustered columns.
 
-**How to apply:** When adding visible chart values, use a supported position such as `inEnd` and assert the generated chart XML contains enabled values and the expected position.
+**How to apply:** To place values above clustered columns, emit labels with supported `inEnd`, then patch chart XML to `outEnd`; assert the final XML keeps value labels enabled at that position.
