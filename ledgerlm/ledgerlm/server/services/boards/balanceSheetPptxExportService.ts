@@ -165,7 +165,7 @@ function largestAccountMovements(
   sections: ReportSection[],
 ) {
   return balanceSheet.lineItems
-    .filter((item) => sections.includes(item.section) && Math.abs(item.change) > 0)
+    .filter((item) => sections.includes(item.section as ReportSection) && Math.abs(item.change) > 0)
     .sort((a, b) => Math.abs(b.change) - Math.abs(a.change))
     .slice(0, 2)
     .map((item) => {
@@ -244,14 +244,14 @@ function addSectionSlide(
     valAxisMaxVal: maxChartValue > 0 ? maxChartValue * 1.18 : 1,
     valGridLine: { color: "E7EDF3" }, chartColors: [CURRENT_COLOR, PRIOR_COLOR],
     showLegend: true, legendPos: "b", showTitle: false, showValue: false,
-    showSerName: false, showLabel: false, showCatName: false,
+    showSerName: false, showLabel: false,
   });
 
   slide.addText("CATEGORY COMPARISON", {
     x: 0.62, y: 4.75, w: 4.1, h: 0.15,
     fontFace: "Aptos", fontSize: 8, bold: true, charSpacing: 0.7, color: MUTED, margin: 0,
   });
-  slide.addTable(tableRows, {
+  slide.addTable(tableRows as any, {
     x: 0.58, y: 4.96, w: 7.57, h: tableRowHeight * tableRows.length,
     colW: [2.55, 1.18, 1.18, 1.48, 1.18],
     fontFace: "Aptos", fontSize: categories.length > 8 ? 7.2 : 8.2,
