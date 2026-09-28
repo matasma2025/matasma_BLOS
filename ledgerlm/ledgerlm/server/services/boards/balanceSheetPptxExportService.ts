@@ -193,7 +193,6 @@ function addSectionSlide(
   const chartLabels = categories.map((item) => item.label);
   const chartValues = categories.map((item) => item.value / scaleFor(balanceSheet));
   const priorValues = categories.map((item) => item.previousValue / scaleFor(balanceSheet));
-  const maxChartValue = Math.max(0, ...chartValues, ...priorValues);
 
   slide.background = { color: "FFFFFF" };
   slide.addText(title, {
@@ -209,11 +208,10 @@ function addSectionSlide(
     catAxisLabelColor: "333333", valAxisLabelFontFace: "Aptos", valAxisLabelFontSize: 8,
     valAxisLabelColor: "666666", valAxisLabelFormatCode: "#,##0", valAxisTitle: displayUnit(balanceSheet),
     valAxisTitleFontFace: "Aptos", valAxisTitleFontSize: 8, valAxisTitleColor: "666666",
-    valAxisMaxVal: maxChartValue > 0 ? maxChartValue * 1.18 : 1,
     valGridLine: { color: "D9E1E2" }, chartColors: [CURRENT_COLOR, PRIOR_COLOR],
     showLegend: true, legendPos: "b", showTitle: false, showValue: true,
-    dataLabelPosition: "outEnd", dataLabelColor: "344054", dataLabelFontFace: "Aptos",
-    dataLabelFontSize: 7, dataLabelFormatCode: "#,##0",
+    dataLabelPosition: "inEnd", dataLabelColor: "FFFFFF", dataLabelFontFace: "Aptos",
+    dataLabelFontBold: true, dataLabelFontSize: 7, dataLabelFormatCode: "#,##0",
     showSerName: false, showLabel: false,
   });
   slide.addText(narrativeText(balanceSheet, includedSections, currentLabel, priorLabel), {
