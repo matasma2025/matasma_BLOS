@@ -330,16 +330,29 @@ export function buildEntityPnlReport(rows: AggregateRow[], request: EntityPnlRep
     { point: yearEndPoint, label: yearEndLabel, scenario: "actual" },
   ];
   if (request.cfVersion && forecastLabel) capacityPoints.push({ point: currentPoint, label: forecastLabel, scenario: request.cfVersion });
+  const missingCapacitySnapshots = new Set<string>();
+  const incompleteCapacityAverages = new Map<string, string[]>();
   for (const { point, label, scenario } of capacityPoints) {
-    const [onRollEnd, onRollAverage] = capacityForPeriod(capacity, point, scenario, "on_roll");
-    const [outsourcingEnd, outsourcingAverage] = capacityForPeriod(capacity, point, scenario, "outsourcing");
+    const periodKey = snapshotKey(point, scenario);
+    if (!capacityCoverage.has(periodKey)) missingCapacitySnapshots.add(label);
+    const missingYtdMonths = Array.from({ length: point[1] }, (_, index) => index + 1)
+      .filter((monthNumber) => !capacityCoverage.has(snapshotKey([point[0], monthNumber], scenario)));
+    if (missingYtdMonths.length) {
+      incompleteCapacityAverages.set(
+        label,
+        missingYtdMonths.map((monthNumber) => `${MONTH_ABBREVIATIONS[monthNumber - 1]} ${point[0]}`),
+      );
+    }
+
+    const [onRollEnd, onRollAverage] = capacityForPeriod(capacity, capacityCoverage, point, scenario, "on_roll");
+    const [outsourcingEnd, outsourcingAverage] = capacityForPeriod(capacity, capacityCoverage, point, scenario, "outsourcing");
     const lineValues: Record<string, number | null> = {
       "End Capacity On-roll": onRollEnd,
       "End Capacity Outsourcing": outsourcingEnd,
-      "Total End": onRollEnd + outsourcingEnd,
-      "Avg Capacity Overall": onRollAverage,
+      "Total End": onRollEnd === null || outsourcingEnd === null ? null : onRollEnd + outsourcingEnd,
+      "Avg Capacity Overall": onRollAverage === null || outsourcingAverage === null ? null : onRollAverage + outsourcingAverage,
       "Avg Capacity Outsourcing": outsourcingAverage,
-      "Total Average": onRollAverage + outsourcingAverage,
+      "Total Average": onRollAverage === null || outsourcingAverage === null ? null : onRollAverage + outsourcingAverage,
     };
     for (const capacityLabel of CAPACITY_LINES) {
       const values = valuesByLine.get(capacityLabel) ?? {};
