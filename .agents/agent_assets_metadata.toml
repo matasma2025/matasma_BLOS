@@ -183,3 +183,17 @@ mtime_ms = 1790695404918
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:027ac7ba-e96f-4c01-8f27-5aa658c0d710/a0e57305-c1d3-44c2-95b3-d9ba8183a60e/346d490f-ba25-44b1-b01b-849dffcce081"
 storage_version_token = "1790695442605593"
 content_type = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+
+[[outputs]]
+id = "Pts103e04oKgcBm4ldCK8"
+uri = "file://attached_assets/ledgerlm-entity-pnl-shape-export-test.pptx"
+type = "slides"
+title = "Entity P&L PowerPoint compatibility test"
+description = "Fresh file from the updated LedgerLM export function. The table is rendered as standard slide shapes and text, not a native PowerPoint table."
+logical_id = "0d43a455-635a-4471-ab7f-22d2af71076f"
+content_hash = "sha256:14d5a2b444aff27d8bd0f839361c781ad52be1bb270d1b4803eb2e951624ddfa"
+size = 172991
+mtime_ms = 1790696126723
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:027ac7ba-e96f-4c01-8f27-5aa658c0d710/0d43a455-635a-4471-ab7f-22d2af71076f/4dee0a65-a1ba-4587-9c4d-d979a205a83e"
+storage_version_token = "1790696137603966"
+content_type = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
