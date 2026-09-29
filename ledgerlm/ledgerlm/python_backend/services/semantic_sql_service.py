@@ -8047,6 +8047,243 @@ Return a JSON object with:
             'calculation_type': intent.get('calculation_type', 'entity_pl_summary'),
         }
 
+    def _build_entity_pl_cost_sql(
+            self, intent: Dict[str, Any], cube_id: str) -> Dict[str, Any]:
+        """Entity P&L cost detail with board-compatible absolute cost amounts."""
+        where_parts, params = self._build_calculation_where_clause(
+            intent.get('filters', []), cube_id
+        )
+        where_parts.append("lower(trim(coalesce(cost_category, ''))) = 'cost summary'")
+        scenario_predicate = "upper(trim(coalesce(version, ''))) IN ('', 'ACTUAL', 'ACT')"
+        version = intent.get('scenario_version')
+        if version:
+            version_where = self._embed_params_in_where(
+                ["lower(trim(coalesce(version, ''))) = %s"], [version.lower()]
+            )
+            scenario_predicate = f"({scenario_predicate} OR {version_where})"
+        where_parts.append(scenario_predicate)
+        where_clause = self._embed_params_in_where(where_parts, params)
+
+        allowed = {
+            'region_entity', 'entity_category', 'entity_sub_category', 'year', 'month',
+            'sector', 'project_gb', 'planning_gb', 'proj_bu', 'proj_section',
+            'proj_dept', 'proj_group', 'proj_top_bu', 'proj_top_section',
+        }
+        group_cols = [
+            col for col in intent.get('group_by', [])
+            if col in allowed
+        ]
+        if not group_cols:
+            group_cols = ['region_entity', 'entity_category', 'entity_sub_category']
+        # Each month is a separate cumulative snapshot. Keep period columns in
+        # the grouping whenever the intent contains a period constraint.
+        filters = intent.get('filters', [])
+        has_period = any(f.get('column') in ('year', 'month') for f in filters)
+        if has_period:
+            for col in ('year', 'month'):
+                if col not in group_cols:
+                    group_cols.append(col)
+        select_cols = ', '.join(group_cols)
+        amount_column = 'amount_inr' if intent.get('currency') == 'inr' else 'amount_usd'
+        sql = f"""
+            SELECT
+                {select_cols},
+                CASE WHEN upper(trim(coalesce(version, ''))) IN ('', 'ACTUAL', 'ACT')
+                     THEN 'actual' ELSE trim(coalesce(version, '')) END AS scenario,
+                ROUND(SUM(abs(coalesce({amount_column}, 0)))::numeric, 2) AS total_cost
+            FROM cube_fact_data
+            WHERE {where_clause}
+            GROUP BY {select_cols},
+                CASE WHEN upper(trim(coalesce(version, ''))) IN ('', 'ACTUAL', 'ACT')
+                     THEN 'actual' ELSE trim(coalesce(version, '')) END
+            ORDER BY year, month, total_cost DESC
+        """
+        return {
+            'success': True,
+            'sql': sql,
+            'params': [],
+            'calculation_type': 'entity_pl_cost',
+        }
+
+    def _build_entity_pl_capacity_sql(
+            self, intent: Dict[str, Any], cube_id: str) -> Dict[str, Any]:
+        """Entity P&L capacity endpoints and complete Jan-to-endpoint averages."""
+        year, month = self._entity_pl_period_from_intent(intent)
+        comparison = intent.get('entity_pl_comparison')
+        comparison_point = None
+        if comparison == 'qoq':
+            comparison_point = self._entity_pl_previous_month(year, month, 3)
+        elif comparison == 'yoy':
+            comparison_point = (year - 1, month)
+        year_end = (year - 1, 12)
+
+        point_specs = [
+            ('current', year, month, 'actual'),
+            ('year_end', year_end[0], year_end[1], 'actual'),
+        ]
+        if comparison_point:
+            point_specs.append(
+                ('comparison', comparison_point[0], comparison_point[1], 'actual')
+            )
+        version = intent.get('scenario_version')
+        if version:
+            point_specs.append(('forecast', year, month, version.lower()))
+
+        needed_periods = set()
+        for _, point_year, point_month, _ in point_specs:
+            needed_periods.update(
+                (point_year, candidate_month)
+                for candidate_month in range(1, point_month + 1)
+            )
+        period_sql = ' OR '.join(
+            f'(year::int = {point_year} AND month::int = {point_month})'
+            for point_year, point_month in sorted(needed_periods)
+        )
+        base_parts = ['cube_id = %s']
+        base_params: List[Any] = [cube_id]
+        entity_filter = next(
+            (f for f in intent.get('filters', []) if f.get('column') == 'region_entity'),
+            None,
+        )
+        if entity_filter:
+            entities = entity_filter.get('value')
+            if isinstance(entities, list) and entities:
+                base_parts.append(
+                    'region_entity IN (' + ', '.join(['%s'] * len(entities)) + ')'
+                )
+                base_params.extend(entities)
+            elif entities:
+                base_parts.append('region_entity = %s')
+                base_params.append(entities)
+        base_where = self._embed_params_in_where(base_parts, base_params)
+        actual_predicate = "upper(trim(coalesce(version, ''))) IN ('', 'ACTUAL', 'ACT')"
+        if version:
+            version_where = self._embed_params_in_where(
+                ["lower(trim(coalesce(version, ''))) = %s"], [version.lower()]
+            )
+            scenario_predicate = f"({actual_predicate} OR {version_where})"
+        else:
+            scenario_predicate = actual_predicate
+        version_literals = ',\n'.join(
+            "('{}', {}, {}, '{}')".format(
+                label, point_year, point_month, scenario.replace("'", "''")
+            )
+            for label, point_year, point_month, scenario in point_specs
+        )
+        sql = f"""
+            WITH monthly_capacity AS (
+                SELECT
+                    year::int AS year,
+                    month::int AS month,
+                    CASE WHEN {actual_predicate} THEN 'actual'
+                         ELSE lower(trim(coalesce(version, ''))) END AS scenario,
+                    SUM(CASE
+                        WHEN lower(replace(trim(coalesce(row_data ->> 'source_sub_category', '')), '-', ' '))
+                             IN ('internal', 'on roll', 'onroll')
+                          OR lower(replace(trim(coalesce(resource_type, '')), '-', ' '))
+                             IN ('internal', 'on roll', 'onroll')
+                        THEN coalesce(capacity, 0) ELSE 0 END) AS on_roll,
+                    SUM(CASE
+                        WHEN lower(replace(trim(coalesce(row_data ->> 'source_sub_category', '')), '-', ' '))
+                             IN ('outsourcing', 'external')
+                          OR lower(replace(trim(coalesce(resource_type, '')), '-', ' '))
+                             IN ('outsourcing', 'external')
+                        THEN coalesce(capacity, 0) ELSE 0 END) AS outsourcing,
+                    COUNT(*) FILTER (WHERE
+                        lower(replace(trim(coalesce(row_data ->> 'source_sub_category', '')), '-', ' '))
+                            IN ('internal', 'on roll', 'onroll', 'outsourcing', 'external')
+                        OR lower(replace(trim(coalesce(resource_type, '')), '-', ' '))
+                            IN ('internal', 'on roll', 'onroll', 'outsourcing', 'external')
+                    ) AS classified_rows
+                FROM cube_fact_data
+                WHERE {base_where}
+                  AND ({period_sql})
+                  AND {scenario_predicate}
+                  AND lower(trim(coalesce(cost_category, ''))) LIKE '%end capacity%'
+                GROUP BY year::int, month::int,
+                    CASE WHEN {actual_predicate} THEN 'actual'
+                         ELSE lower(trim(coalesce(version, ''))) END
+            ),
+            report_points(point_label, year, month, scenario) AS (
+                VALUES {version_literals}
+            ),
+            period_capacity AS (
+                SELECT
+                    p.point_label,
+                    CASE WHEN c.classified_rows > 0 THEN c.on_roll END AS on_roll_end,
+                    CASE WHEN c.classified_rows > 0 THEN c.outsourcing END AS outsourcing_end,
+                    CASE WHEN y.covered_months = p.month THEN y.on_roll_average END AS on_roll_average,
+                    CASE WHEN y.covered_months = p.month THEN y.outsourcing_average END AS outsourcing_average
+                FROM report_points p
+                LEFT JOIN monthly_capacity c
+                  ON c.year = p.year AND c.month = p.month AND c.scenario = p.scenario
+                LEFT JOIN LATERAL (
+                    SELECT
+                        COUNT(*) FILTER (WHERE classified_rows > 0) AS covered_months,
+                        AVG(on_roll) AS on_roll_average,
+                        AVG(outsourcing) AS outsourcing_average
+                    FROM monthly_capacity ytd
+                    WHERE ytd.year = p.year
+                      AND ytd.month <= p.month
+                      AND ytd.scenario = p.scenario
+                ) y ON TRUE
+            )
+            SELECT 'End Capacity On-roll' AS metric,
+                MAX(CASE WHEN point_label = 'current' THEN on_roll_end END) AS current_value,
+                MAX(CASE WHEN point_label = 'comparison' THEN on_roll_end END) AS comparison_value,
+                MAX(CASE WHEN point_label = 'forecast' THEN on_roll_end END) AS forecast_value,
+                MAX(CASE WHEN point_label = 'year_end' THEN on_roll_end END) AS year_end_value
+            FROM period_capacity
+            UNION ALL
+            SELECT 'End Capacity Outsourcing',
+                MAX(CASE WHEN point_label = 'current' THEN outsourcing_end END),
+                MAX(CASE WHEN point_label = 'comparison' THEN outsourcing_end END),
+                MAX(CASE WHEN point_label = 'forecast' THEN outsourcing_end END),
+                MAX(CASE WHEN point_label = 'year_end' THEN outsourcing_end END)
+            FROM period_capacity
+            UNION ALL
+            SELECT 'Total End',
+                MAX(CASE WHEN point_label = 'current' THEN on_roll_end + outsourcing_end END),
+                MAX(CASE WHEN point_label = 'comparison' THEN on_roll_end + outsourcing_end END),
+                MAX(CASE WHEN point_label = 'forecast' THEN on_roll_end + outsourcing_end END),
+                MAX(CASE WHEN point_label = 'year_end' THEN on_roll_end + outsourcing_end END)
+            FROM period_capacity
+            UNION ALL
+            SELECT 'Avg Capacity On-roll',
+                MAX(CASE WHEN point_label = 'current' THEN on_roll_average END),
+                MAX(CASE WHEN point_label = 'comparison' THEN on_roll_average END),
+                MAX(CASE WHEN point_label = 'forecast' THEN on_roll_average END),
+                MAX(CASE WHEN point_label = 'year_end' THEN on_roll_average END)
+            FROM period_capacity
+            UNION ALL
+            SELECT 'Avg Capacity Outsourcing',
+                MAX(CASE WHEN point_label = 'current' THEN outsourcing_average END),
+                MAX(CASE WHEN point_label = 'comparison' THEN outsourcing_average END),
+                MAX(CASE WHEN point_label = 'forecast' THEN outsourcing_average END),
+                MAX(CASE WHEN point_label = 'year_end' THEN outsourcing_average END)
+            FROM period_capacity
+            UNION ALL
+            SELECT 'Avg Capacity Overall',
+                MAX(CASE WHEN point_label = 'current' THEN on_roll_average + outsourcing_average END),
+                MAX(CASE WHEN point_label = 'comparison' THEN on_roll_average + outsourcing_average END),
+                MAX(CASE WHEN point_label = 'forecast' THEN on_roll_average + outsourcing_average END),
+                MAX(CASE WHEN point_label = 'year_end' THEN on_roll_average + outsourcing_average END)
+            FROM period_capacity
+            UNION ALL
+            SELECT 'Total Average',
+                MAX(CASE WHEN point_label = 'current' THEN on_roll_average + outsourcing_average END),
+                MAX(CASE WHEN point_label = 'comparison' THEN on_roll_average + outsourcing_average END),
+                MAX(CASE WHEN point_label = 'forecast' THEN on_roll_average + outsourcing_average END),
+                MAX(CASE WHEN point_label = 'year_end' THEN on_roll_average + outsourcing_average END)
+            FROM period_capacity
+        """
+        return {
+            'success': True,
+            'sql': sql,
+            'params': [],
+            'calculation_type': 'entity_pl_capacity',
+        }
+
     def _expand_month_range_from_query(self, intent: Dict[str, Any],
                                       query: str) -> Dict[str, Any]:
         """
