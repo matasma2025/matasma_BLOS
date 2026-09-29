@@ -1,0 +1,20 @@
+1. Standalone board: select and request
+In BoardModal.tsx [blocked], the user selects an accessible Enterprise cube, an optional entity, an as-of month, QoQ or YoY comparison, USD or INR, and an optional CF version. The entity choices come from LedgerLM’s cube-specific entity endpoint.
+
+When the board runs, runAnalysis.ts [blocked] sends those selections only to POST /api/v2/entity-pnl/report-data, with the sign-in session and a CSRF token. It receives the calculated report, adds it to the board’s reports and conversation thread, and saves the board. That board storage is currently browser localStorage via store.ts [blocked].
+
+2. LedgerLM: authorize and read data
+server/routes.ts [blocked] handles the entity-list and report endpoints. Before either reads the cube, it checks the signed-in user, their domain membership, and whether that cube ID is in their accessible cubes.
+
+The calculation is in entityPnlReportService.ts [blocked], beside the KPI report service. It reads cube_fact_data for the selected cube, periods, entity and scenarios. Leaving entity blank includes all entity rows, including blank entity values. Actual and the selected CF version are kept separate.
+
+3. LedgerLM: derive the P&L
+The service calculates:
+
+QoQ MTD: each quarter-end month’s cumulative value minus its preceding month’s value; the comparison point is three months earlier.
+YoY YTD: the selected cumulative value versus the same month in the prior year.
+Revenue: qualifying Revenue Summary rows.
+Total Expenses: all Cost Summary rows, using absolute amounts. The named expense lines are a visible subset, so they need not add up to every category shown in Total Expenses.
+EBIT: Revenue − Total Expenses; EBIT%: EBIT ÷ Revenue × 100 when revenue is nonzero.
+Capacity: on-roll and outsourcing are reported separately. End capacity is the selected month’s snapshot; average capacity uses nonzero month-end snapshots year-to-date. INDIRECT is excluded from those capacity lines.
+It returns the report lines, columns, summary, KPIs, chart data and evidence in the response the standalone board expects. The board renders and exports those returned figures; it does not recalculate them. The former Python Entity P&L route is not mounted. A comment in runAnalysis.ts still calls it a Python calculation service, but the live route now calls the LedgerLM TypeScript service.
