@@ -245,7 +245,9 @@ function lineForBoschTemplate(payload: EntityPnlExportPayload, sourceLabel: stri
     label: sourceLabel,
     values,
     variance,
-    variancePercent: variance === null || prior === 0 ? null : (variance / Math.abs(prior)) * 100,
+    variancePercent: variance === null || prior === null || prior === 0
+      ? null
+      : (variance / Math.abs(prior)) * 100,
   };
 }
 
