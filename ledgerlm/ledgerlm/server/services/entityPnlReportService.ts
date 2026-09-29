@@ -372,24 +372,94 @@ export function buildEntityPnlReport(rows: AggregateRow[], request: EntityPnlRep
     return { label, values, variance, variancePercent };
   });
 
-  const currentRevenue = valuesByLine.get("Revenue")?.[currentLabel] ?? 0;
-  const priorRevenue = valuesByLine.get("Revenue")?.[comparisonLabel] ?? 0;
-  const currentEbit = valuesByLine.get("EBIT")?.[currentLabel] ?? 0;
-  const priorEbit = valuesByLine.get("EBIT")?.[comparisonLabel] ?? 0;
+  const currentRevenue = valuesByLine.get("Revenue")?.[currentLabel] ?? null;
+  const priorRevenue = valuesByLine.get("Revenue")?.[comparisonLabel] ?? null;
+  const currentEbit = valuesByLine.get("EBIT")?.[currentLabel] ?? null;
+  const priorEbit = valuesByLine.get("EBIT")?.[comparisonLabel] ?? null;
   const currentEbitPercent = valuesByLine.get("EBIT%")?.[currentLabel] ?? null;
   const priorEbitPercent = valuesByLine.get("EBIT%")?.[comparisonLabel] ?? null;
-  const totalEnd = valuesByLine.get("Total End")?.[currentLabel] ?? 0;
-  const totalAverage = valuesByLine.get("Total Average")?.[currentLabel] ?? 0;
-  const ebitDelta = currentEbit - priorEbit;
+  const totalEnd = valuesByLine.get("Total End")?.[currentLabel] ?? null;
+  const totalAverage = valuesByLine.get("Total Average")?.[currentLabel] ?? null;
+  const revenueDelta = difference(currentRevenue, priorRevenue);
+  const ebitDelta = difference(currentEbit, priorEbit);
   const mode = request.comparison === "qoq" ? "quarter-end MTD" : "YTD";
   const summary = `${entity} reported ${money(currentRevenue, request.currency)} revenue and ${money(currentEbit, request.currency)} EBIT in ${currentLabel}. EBIT moved ${money(ebitDelta, request.currency)} from ${comparisonLabel}.`;
   const warnings: string[] = [];
   if ((rowCounts.get("actual") ?? 0) === 0) warnings.push("No Actual Entity P&L rows were found for the selected period and entity scope.");
-  if (request.cfVersion && (rowCounts.get(request.cfVersion) ?? 0) === 0) {
+  if (request.cfVersion && (rowCounts.get(normalizedScenario(request.cfVersion)) ?? 0) === 0) {
     warnings.push(`No rows were found for the selected forecast scenario ${request.cfVersion}.`);
   }
-  if (!lines.some((line) => line.label === "End Capacity On-roll" && Object.values(line.values).some((value) => value !== 0))) {
+
+  const requiredSnapshotChecks: Array<{
+    point: [number, number];
+    scenario: string;
+    category: FinancialSnapshotCategory;
+  }> = [];
+  const requireFinancialSnapshots = (
+    point: [number, number],
+    scenario: string,
+    comparison: EntityPnlComparison,
+  ) => {
+    const points = comparison === "qoq" ? [point, previousMonth(...point)] : [point];
+    for (const requiredPoint of points) {
+      requiredSnapshotChecks.push(
+        { point: requiredPoint, scenario, category: "revenue" },
+        { point: requiredPoint, scenario, category: "cost" },
+      );
+    }
+  };
+  requireFinancialSnapshots(currentPoint, "actual", request.comparison);
+  requireFinancialSnapshots(comparisonPoint, "actual", request.comparison);
+  requireFinancialSnapshots(yearEndPoint, "actual", "yoy");
+  if (request.cfVersion) requireFinancialSnapshots(currentPoint, request.cfVersion, request.comparison);
+
+  const missingSnapshotsByPeriod = new Map<string, {
+    scenario: string;
+    point: [number, number];
+    categories: Set<FinancialSnapshotCategory>;
+  }>();
+  for (const check of requiredSnapshotChecks) {
+    if (financialCoverage.has(`${snapshotKey(check.point, check.scenario)}:${check.category}`)) continue;
+    const periodKey = snapshotKey(check.point, check.scenario);
+    const missing = missingSnapshotsByPeriod.get(periodKey) ?? {
+      scenario: check.scenario,
+      point: check.point,
+      categories: new Set<FinancialSnapshotCategory>(),
+    };
+    missing.categories.add(check.category);
+    missingSnapshotsByPeriod.set(periodKey, missing);
+  }
+  const missingSnapshotsByScenario = new Map<string, string[]>();
+  for (const missing of missingSnapshotsByPeriod.values()) {
+    const categoryLabels = (["revenue", "cost"] as const)
+      .filter((category) => missing.categories.has(category))
+      .map((category) => category === "revenue" ? "Revenue Summary" : "Cost Summary");
+    const details = `${MONTH_ABBREVIATIONS[missing.point[1] - 1]} ${missing.point[0]}: ${categoryLabels.join(" and ")}`;
+    const scenarioDetails = missingSnapshotsByScenario.get(missing.scenario) ?? [];
+    scenarioDetails.push(details);
+    missingSnapshotsByScenario.set(missing.scenario, scenarioDetails);
+  }
+  for (const [scenario, missingPeriods] of missingSnapshotsByScenario) {
+    const scenarioLabel = scenario === "actual" ? "Actual" : scenario;
+    warnings.push(
+      `${scenarioLabel} source snapshots are missing (${missingPeriods.join("; ")}); affected P&L values are shown as —, not zero.`,
+    );
+  }
+
+  if (capacityCoverage.size === 0) {
     warnings.push("No on-roll or outsourcing capacity rows were found for this scope.");
+  } else {
+    if (missingCapacitySnapshots.size) {
+      warnings.push(
+        `Capacity snapshots are missing for ${[...missingCapacitySnapshots].join(", ")}; affected end-capacity values are shown as —.`,
+      );
+    }
+    if (incompleteCapacityAverages.size) {
+      const details = [...incompleteCapacityAverages]
+        .map(([label, months]) => `${label} (missing ${months.join(", ")})`)
+        .join("; ");
+      warnings.push(`YTD capacity averages are unavailable because monthly capacity snapshots are incomplete: ${details}.`);
+    }
   }
   const insights = [
     `Revenue changed by ${money(currentRevenue - priorRevenue, request.currency)} between the selected ${mode} periods.`,
