@@ -23,7 +23,13 @@ function aggregateRow(values: {
   scenario?: string;
   costCategory: string;
   entityCategory?: string;
+  entitySubCategory?: string;
+  orderReason?: string;
+  glAccount?: string;
   resourceType?: string;
+  onsiteOffshore?: string;
+  sector?: string;
+  serviceArea?: string;
   sourceSubCategory?: string;
   amount?: number;
   capacity?: number;
@@ -34,8 +40,13 @@ function aggregateRow(values: {
     scenario: values.scenario ?? "actual",
     cost_category: values.costCategory,
     entity_category: values.entityCategory ?? "",
+    entity_sub_category: values.entitySubCategory ?? (values.costCategory === "Cost Summary" ? "Mapped cost" : ""),
+    order_reason: values.orderReason ?? "",
+    gl_account: values.glAccount ?? "",
     resource_type: values.resourceType ?? "",
-    source_sub_category: values.sourceSubCategory ?? "",
+    onsite_offshore: values.onsiteOffshore ?? "Offshore",
+    sector: values.sector ?? "BBM",
+    service_area: values.serviceArea ?? "Engineering",
     amount: values.amount ?? 0,
     capacity: values.capacity ?? 0,
     source_rows: 1,
@@ -56,7 +67,7 @@ function sampleRows() {
     rows.push(aggregateRow({
       year: 2025,
       month,
-      costCategory: "End Capacity",
+      costCategory: "GB Wise END Capacity",
       resourceType: "Internal",
       sourceSubCategory: "Internal",
       capacity: 20 + month,
@@ -87,6 +98,57 @@ test("Entity P&L derives QoQ MTD, full cost totals, and separate forecast", () =
   assert.ok(report.evidence.some((item) => item.includes("blank entity values")));
 });
 
+test("Entity P&L applies Semantic SQL revenue exclusions and signed eligible costs", () => {
+  const rows = [
+    aggregateRow({ year: 2025, month: 7, costCategory: "Revenue Summary", amount: 100 }),
+    aggregateRow({ year: 2025, month: 7, costCategory: "Revenue Summary", entityCategory: "Other revenue", amount: 20 }),
+    aggregateRow({ year: 2025, month: 7, costCategory: "Revenue Summary", orderReason: "YEH", amount: 50 }),
+    aggregateRow({ year: 2025, month: 7, costCategory: "Revenue Summary", glAccount: "1391234", amount: 60 }),
+    aggregateRow({ year: 2025, month: 7, costCategory: "Cost Summary", entityCategory: "Employee Benefits", entitySubCategory: "Salary", amount: 30 }),
+    aggregateRow({ year: 2025, month: 7, costCategory: "Cost Summary", entityCategory: "Other Expenses", entitySubCategory: "-", amount: 40 }),
+    aggregateRow({ year: 2025, month: 7, costCategory: "Cost Summary", entityCategory: "", entitySubCategory: "Mapped cost", amount: 100 }),
+    aggregateRow({ year: 2025, month: 7, costCategory: "Cost Summary", entityCategory: "Employee Benefits", entitySubCategory: "", amount: 100 }),
+    aggregateRow({ year: 2025, month: 7, costCategory: "Cost Summary", entityCategory: "Employee Benefits", entitySubCategory: "Salary", amount: -10 }),
+  ];
+  const yoyRequest = validateEntityPnlReportRequest({
+    cubeId: "authorized-cube",
+    entity: "",
+    asOf: "2025-07",
+    comparison: "yoy",
+    currency: "USD",
+  });
+  const report = buildEntityPnlReport(rows, yoyRequest);
+  const revenue = report.lines.find((line) => line.label === "Revenue")!;
+  const expenses = report.lines.find((line) => line.label === "Total Expenses")!;
+  const employeeBenefits = report.lines.find((line) => line.label === "Employee Benefits")!;
+  const ebit = report.lines.find((line) => line.label === "EBIT")!;
+  const ebitPct = report.lines.find((line) => line.label === "EBIT%")!;
+
+  assert.equal(revenue.values[report.currentLabel], 120);
+  assert.equal(expenses.values[report.currentLabel], 60);
+  assert.equal(employeeBenefits.values[report.currentLabel], 20);
+  assert.equal(ebit.values[report.currentLabel], 60);
+  assert.equal(ebitPct.values[report.currentLabel], 50);
+});
+
+test("Entity P&L capacity follows Semantic SQL resource and location filters", () => {
+  const rows = sampleRows();
+  rows.push(
+    aggregateRow({ year: 2025, month: 7, costCategory: "GB Wise END Capacity", resourceType: "Internal", onsiteOffshore: "Onsite", capacity: 3 }),
+    aggregateRow({ year: 2025, month: 7, costCategory: "GB Wise END Capacity", resourceType: "External", onsiteOffshore: "Offshore", capacity: 4 }),
+    aggregateRow({ year: 2025, month: 7, costCategory: "GB Wise END Capacity", resourceType: "External", onsiteOffshore: "Onsite", capacity: 100 }),
+    aggregateRow({ year: 2025, month: 7, costCategory: "GB Wise END Capacity", resourceType: "Internal", onsiteOffshore: "Offshore", sector: "Internal", capacity: 100 }),
+    aggregateRow({ year: 2025, month: 7, costCategory: "GB Wise END Capacity", resourceType: "Internal", onsiteOffshore: "Offshore", serviceArea: "Corporate", capacity: 100 }),
+  );
+  const report = buildEntityPnlReport(rows, request);
+  const end = report.lines.find((line) => line.label === "End Capacity On-roll")!;
+  const outsourcing = report.lines.find((line) => line.label === "End Capacity Outsourcing")!;
+  const totalEnd = report.lines.find((line) => line.label === "Total End")!;
+  assert.equal(end.values[report.currentLabel], 30);
+  assert.equal(outsourcing.values[report.currentLabel], 4);
+  assert.equal(totalEnd.values[report.currentLabel], 34);
+});
+
 test("Entity P&L capacity uses end values and a YTD average, not snapshot sums", () => {
   const report = buildEntityPnlReport(sampleRows(), request);
   const end = report.lines.find((line) => line.label === "End Capacity On-roll")!;
@@ -104,7 +166,7 @@ test("Entity P&L marks missing comparison snapshots and incomplete YTD capacity 
     aggregateRow({
       year: 2026,
       month: 7,
-      costCategory: "End Capacity",
+      costCategory: "GB Wise END Capacity",
       resourceType: "Internal",
       sourceSubCategory: "Internal",
       capacity: 24,
@@ -179,7 +241,7 @@ test("Bosch Entity P&L export preserves its template and follows the selected co
     rows.push(aggregateRow({
       year: 2025,
       month,
-      costCategory: "End Capacity",
+      costCategory: "GB Wise END Capacity",
       resourceType: "Outsourcing",
       sourceSubCategory: "Outsourcing",
       capacity: month + 5,
