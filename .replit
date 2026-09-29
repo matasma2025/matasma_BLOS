@@ -42,7 +42,7 @@ timeoutMs = 20000
 
 [nix]
 channel = "stable-25_05"
-packages = ["cargo", "freetype", "glibcLocales", "gumbo", "harfbuzz", "jbig2dec", "lcms2", "libiconv", "libimagequant", "libjpeg", "libjpeg_turbo", "libtiff", "libwebp", "libxcrypt", "mupdf", "openjpeg", "pkg-config", "poppler_utils", "rustc", "swig", "tcl", "tesseract", "tk", "xcbuild", "xcodebuild", "xsimd", "zlib", "libreoffice"]
+packages = ["cargo", "freetype", "glibcLocales", "gumbo", "harfbuzz", "jbig2dec", "lcms2", "libiconv", "libimagequant", "libjpeg", "libjpeg_turbo", "libtiff", "libwebp", "libxcrypt", "mupdf", "openjpeg", "pkg-config", "poppler_utils", "rustc", "swig", "tcl", "tesseract", "tk", "xcbuild", "xcodebuild", "xsimd", "zlib"]
 
 [userenv]
 
