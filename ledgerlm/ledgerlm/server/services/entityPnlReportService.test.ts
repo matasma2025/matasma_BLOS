@@ -30,7 +30,6 @@ function aggregateRow(values: {
   onsiteOffshore?: string;
   sector?: string;
   serviceArea?: string;
-  sourceSubCategory?: string;
   amount?: number;
   capacity?: number;
 }): Parameters<typeof buildEntityPnlReport>[0][number] {
@@ -69,7 +68,6 @@ function sampleRows() {
       month,
       costCategory: "GB Wise END Capacity",
       resourceType: "Internal",
-      sourceSubCategory: "Internal",
       capacity: 20 + month,
     }));
     if (month >= 6) {
@@ -168,7 +166,6 @@ test("Entity P&L marks missing comparison snapshots and incomplete YTD capacity 
       month: 7,
       costCategory: "GB Wise END Capacity",
       resourceType: "Internal",
-      sourceSubCategory: "Internal",
       capacity: 24,
     }),
   ];
@@ -243,7 +240,6 @@ test("Bosch Entity P&L export preserves its template and follows the selected co
       month,
       costCategory: "GB Wise END Capacity",
       resourceType: "Outsourcing",
-      sourceSubCategory: "Outsourcing",
       capacity: month + 5,
     }));
   }
