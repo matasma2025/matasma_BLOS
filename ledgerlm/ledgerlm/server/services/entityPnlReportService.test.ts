@@ -170,6 +170,11 @@ test("Entity P&L export services produce readable PDF and PowerPoint files", asy
 test("Bosch Entity P&L export preserves its template and follows the selected comparison", async () => {
   const templateBytes = await readFile(new URL("../../../../attached_assets/entity_pnl_bosch_template_fixed_1790671130261.pptx", import.meta.url));
   const rows = sampleRows();
+  for (const row of rows) {
+    if (!String(row.cost_category ?? "").toLowerCase().includes("capacity")) {
+      row.amount = Number(row.amount ?? 0) * 1_000_000;
+    }
+  }
   for (let month = 1; month <= 7; month += 1) {
     rows.push(aggregateRow({
       year: 2025,
@@ -200,15 +205,38 @@ test("Bosch Entity P&L export preserves its template and follows the selected co
         commentary: report.commentary,
       },
     }, templateBytes.toString("base64"));
-    const slideXml = strFromU8(unzipSync(pptx)["ppt/slides/slide1.xml"]);
+    const files = unzipSync(pptx);
+    const slideXml = strFromU8(files["ppt/slides/slide1.xml"]);
+    const tableXml = slideXml.match(/<a:tbl\b[\s\S]*?<\/a:tbl>/)?.[0];
+    assert.ok(tableXml, "Bosch template table should remain in the exported slide");
+    const tableRows = Array.from(tableXml.matchAll(/<a:tr\b[\s\S]*?<\/a:tr>/g), (rowMatch) =>
+      Array.from(rowMatch[0].matchAll(/<a:tc\b[\s\S]*?<\/a:tc>/g), (cellMatch) =>
+        Array.from(cellMatch[0].matchAll(/<a:t\b[^>]*>([\s\S]*?)<\/a:t>/g), (textMatch) =>
+          textMatch[1].replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">"),
+        ).join(""),
+      ),
+    );
 
-    assert.match(slideXml, /<a:tbl>/);
     assert.match(slideXml, /Key movements from the selected comparison/);
     assert.match(slideXml, comparison === "yoy" ? /P&amp;L YTD'25 – YOY/ : /P&amp;L Q3'25 – QOQ/);
-    assert.match(slideXml, comparison === "yoy" ? /YTD07'25/ : /Jul'25/);
+    assert.deepEqual(tableRows[0], [
+      "BGSW India",
+      "YE 2024",
+      "CF02.2025",
+      comparison === "yoy" ? "YTD07'25" : "July'25",
+      comparison === "yoy" ? "YTD07'24" : "Apr'25",
+      "Variance",
+      "%",
+    ]);
+    assert.equal(tableRows[1]?.[3], comparison === "yoy" ? "1,100" : "200");
+    assert.equal(tableRows[1]?.[4], comparison === "yoy" ? "—" : "150");
     assert.match(slideXml, /Avg Capacity onroll/);
     assert.doesNotMatch(slideXml, /Rate increase \+1%|Employee benefit increase is primarily/);
     assert.doesNotMatch(slideXml, /\{\{value\}\}|\{\{entity\}\}|\{\{evidence_note\}\}/);
-    assert.equal(unzipSync(pptx)["ppt/slides/slide1.xml"] !== undefined, true);
+    assert.equal(
+      Object.keys(files).filter((name) => /^ppt\/slides\/slide\d+\.xml$/i.test(name)).length,
+      1,
+      "the export should contain exactly one selected comparison slide",
+    );
   }
 });
