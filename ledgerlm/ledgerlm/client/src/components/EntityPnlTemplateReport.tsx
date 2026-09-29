@@ -149,9 +149,14 @@ export function EntityPnlTemplateReport({
                   <div key={series.name} className="contents">
                     <p className="self-center text-xs font-medium">{series.name}</p>
                     {chartPeriods.map((period) => {
-                      const value = series.values.find((item) => item.period === period)?.value ?? 0;
-                      const barWidth = `${Math.min(46, Math.abs(value) / chartScale * 46)}%`;
-                      const compactValue = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(value);
+                      const value = series.values.find((item) => item.period === period)?.value;
+                      const numericValue = value ?? 0;
+                      const barWidth = value === null || value === undefined
+                        ? "0%"
+                        : `${Math.min(46, Math.abs(value) / chartScale * 46)}%`;
+                      const compactValue = value === null || value === undefined
+                        ? "—"
+                        : new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(value);
                       return (
                         <div key={`${series.name}-${period}`} className="flex min-w-0 items-center gap-2">
                           <div className="relative h-5 min-w-0 flex-1">
@@ -161,8 +166,8 @@ export function EntityPnlTemplateReport({
                               style={{
                                 backgroundColor: chartColors[series.name] || "#64748b",
                                 width: barWidth,
-                                left: value >= 0 ? "50%" : undefined,
-                                right: value < 0 ? "50%" : undefined,
+                                left: numericValue >= 0 ? "50%" : undefined,
+                                right: numericValue < 0 ? "50%" : undefined,
                               }}
                             />
                           </div>

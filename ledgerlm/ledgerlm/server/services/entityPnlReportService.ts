@@ -532,7 +532,7 @@ export function buildEntityPnlReport(rows: AggregateRow[], request: EntityPnlRep
     "Actual and CF are queried as separate scenarios and are never combined.",
   ];
   if (request.cfVersion) {
-    evidence.push(`Read ${rowCounts.get(request.cfVersion) ?? 0} source rows for ${request.cfVersion}; forecast amounts remain separate from Actual.`);
+    evidence.push(`Read ${rowCounts.get(normalizedScenario(request.cfVersion)) ?? 0} source rows for ${request.cfVersion}; forecast amounts remain separate from Actual.`);
   }
   const chart = {
     title: "Revenue, Expenses and EBIT",
@@ -559,7 +559,7 @@ export function buildEntityPnlReport(rows: AggregateRow[], request: EntityPnlRep
     lines,
     metrics,
     sourceRowCount: rowCounts.get("actual") ?? 0,
-    forecastSourceRowCount: request.cfVersion ? rowCounts.get(request.cfVersion) ?? 0 : 0,
+    forecastSourceRowCount: request.cfVersion ? rowCounts.get(normalizedScenario(request.cfVersion)) ?? 0 : 0,
     evidence,
     warnings,
     summary,
