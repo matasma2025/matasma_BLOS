@@ -141,3 +141,17 @@ mtime_ms = 1790695003179
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:027ac7ba-e96f-4c01-8f27-5aa658c0d710/c4417a3c-403c-4c14-9f90-552bbc97db9d/9def023a-381f-4e46-b8ce-76aa7fb1943d"
 storage_version_token = "1790695142044172"
 content_type = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+
+[[outputs]]
+id = "R_W9MD9OTHvOdnmSbrUjg"
+uri = "file://attached_assets/ledgerlm-entity-pnl-table-control.pptx"
+type = "slides"
+title = "Synthetic Entity P&L table control"
+description = "A one-slide deck produced by the exact Entity P&L export function, with synthetic values and the same 17-row table geometry. If this opens, the original report's specific content is the remaining suspect; if not, the table-generation path is."
+logical_id = "cc4ae182-f70a-437f-be9b-ed06b90de946"
+content_hash = "sha256:effd7523c182159ac0b2370b266d5656a2dfc530d76f8088a7bf9940ce68c0b0"
+size = 215311
+mtime_ms = 1790695209583
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:027ac7ba-e96f-4c01-8f27-5aa658c0d710/cc4ae182-f70a-437f-be9b-ed06b90de946/47b45d8d-fc3f-4e4d-9b2d-d24ce45c1987"
+storage_version_token = "1790695218171166"
+content_type = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
