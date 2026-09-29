@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFile } from "node:fs/promises";
 import { strFromU8, unzipSync } from "fflate";
 import {
   buildEntityPnlReport,
@@ -90,8 +91,10 @@ test("Entity P&L capacity uses end values and a YTD average, not snapshot sums",
   const report = buildEntityPnlReport(sampleRows(), request);
   const end = report.lines.find((line) => line.label === "End Capacity On-roll")!;
   const average = report.lines.find((line) => line.label === "Avg Capacity Overall")!;
+  const averageOnRoll = report.lines.find((line) => line.label === "Avg Capacity On-roll")!;
   assert.equal(end.values[report.currentLabel], 27);
   assert.equal(average.values[report.currentLabel], 24);
+  assert.equal(averageOnRoll.values[report.currentLabel], 24);
 });
 
 test("Entity P&L marks missing comparison snapshots and incomplete YTD capacity as unavailable", () => {
@@ -162,4 +165,50 @@ test("Entity P&L export services produce readable PDF and PowerPoint files", asy
   assert.doesNotMatch(slideXml, /<a:tbl(?:\s|>)/, "Entity P&L PPTX should not contain a native table");
   assert.match(slideXml, /<a:t>Line item<\/a:t>/, "Entity P&L table headers should be rendered as text");
   assert.ok((slideXml.match(/<p:sp>/g) ?? []).length > report.lines.length * 2);
+});
+
+test("Bosch Entity P&L export preserves its template and follows the selected comparison", async () => {
+  const templateBytes = await readFile(new URL("../../../../attached_assets/entity_pnl_bosch_template_fixed_1790671130261.pptx", import.meta.url));
+  const rows = sampleRows();
+  for (let month = 1; month <= 7; month += 1) {
+    rows.push(aggregateRow({
+      year: 2025,
+      month,
+      costCategory: "End Capacity",
+      resourceType: "Outsourcing",
+      sourceSubCategory: "Outsourcing",
+      capacity: month + 5,
+    }));
+  }
+
+  for (const comparison of ["yoy", "qoq"] as const) {
+    const selectedRequest = validateEntityPnlReportRequest({
+      cubeId: "authorized-cube",
+      entity: "BGSW India",
+      asOf: "2025-07",
+      comparison,
+      currency: "INR",
+      cfVersion: "CF02 2025",
+    });
+    const report = buildEntityPnlReport(rows, selectedRequest);
+    const pptx = await exportEntityPnlPptx({
+      title: "Entity P&L",
+      result: {
+        entityPnl: report,
+        summary: report.summary,
+        insights: report.insights,
+        commentary: report.commentary,
+      },
+    }, templateBytes.toString("base64"));
+    const slideXml = strFromU8(unzipSync(pptx)["ppt/slides/slide1.xml"]);
+
+    assert.match(slideXml, /<a:tbl>/);
+    assert.match(slideXml, /Key movements from the selected comparison/);
+    assert.match(slideXml, comparison === "yoy" ? /P&amp;L YTD'25 – YOY/ : /P&amp;L Q3'25 – QOQ/);
+    assert.match(slideXml, comparison === "yoy" ? /YTD07'25/ : /Jul'25/);
+    assert.match(slideXml, /Avg Capacity onroll/);
+    assert.doesNotMatch(slideXml, /Rate increase \+1%|Employee benefit increase is primarily/);
+    assert.doesNotMatch(slideXml, /\{\{value\}\}|\{\{entity\}\}|\{\{evidence_note\}\}/);
+    assert.equal(unzipSync(pptx)["ppt/slides/slide1.xml"] !== undefined, true);
+  }
 });
