@@ -123,6 +123,24 @@ function escapeXml(value: string) {
     .replace(/'/g, "&apos;");
 }
 
+export function removeEmptyPlaceholderParagraphs(xml: string, emptyTokens: readonly string[]) {
+  const emptyTokenSet = new Set(emptyTokens);
+  if (!emptyTokenSet.size) return xml;
+
+  return xml.replace(/<a:p\b[^>]*>[\s\S]*?<\/a:p>/g, (paragraph) => {
+    const paragraphText = Array.from(
+      paragraph.matchAll(/<a:t\b[^>]*>([\s\S]*?)<\/a:t>/g),
+      ([, text]) => (text ?? "")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/&quot;/g, "\"")
+        .replace(/&apos;/g, "'")
+        .replace(/&amp;/g, "&"),
+    ).join("").trim();
+    return emptyTokenSet.has(paragraphText) ? "" : paragraph;
+  });
+}
+
 function findMetric(scope: KpiScope, ...terms: string[]) {
   return scope.metrics.find((metric) => {
     const label = metric.label.toLowerCase();
@@ -246,9 +264,13 @@ function replaceTemplateTokens(xml: string, report: BoardReportForExport, kpiRep
     [`{{${prefix}_warnings}}`]: warningText,
     [`{{${prefix}_entity_label}}`]: scope.entity || scope.label,
   };
+  const emptyTokens = Object.entries(replacements)
+    .filter(([, value]) => value === "")
+    .map(([token]) => token);
+  const xmlWithoutEmptyPlaceholderParagraphs = removeEmptyPlaceholderParagraphs(xml, emptyTokens);
   const replaced = Object.entries(replacements).reduce(
     (result, [token, value]) => result.split(token).join(escapeXml(value)),
-    xml,
+    xmlWithoutEmptyPlaceholderParagraphs,
   );
   return policy.external === null
     ? replaced.replace(/<a:t>External Utilization:<\/a:t>/g, "<a:t></a:t>")
