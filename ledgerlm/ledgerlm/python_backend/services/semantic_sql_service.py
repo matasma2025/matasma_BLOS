@@ -4963,16 +4963,9 @@ Return a JSON object with:
             # Sub-path 0: Full GB P&L Summary — fires FIRST before any other sub-path
             # Triggered by: "summarise GB P&L", "GB P&L overview", "GB P&L report", etc.
             if is_gb_pl_summary_query(query):
-                _summary_is_gb = is_gb_pl_query(query)
-                logger.info(
-                    "FAST PATH: "
-                    f"{'GB' if _summary_is_gb else 'Entity'} P&L Summary query detected"
-                )
+                logger.info("FAST PATH: GB/Entity P&L Summary query detected")
                 time_scope = detect_time_scope_from_query(query)
-                if _summary_is_gb:
-                    intent = self._build_gb_pl_summary_intent(query)
-                else:
-                    intent = self._build_entity_pl_summary_intent(query)
+                intent = self._build_gb_pl_summary_intent(query)
                 intent = self.apply_default_time_filters(intent, cube_id, time_scope)
                 intent['original_query'] = query
                 return {
@@ -5052,26 +5045,6 @@ Return a JSON object with:
                         'time_scope': time_scope,
                         'view_type': detected_view_type
                     }
-
-            # Entity P&L capacity is based on its own source classification and
-            # snapshot rules. Do not route it through the generic GB capacity
-            # builders, which apply different resource and CTG rules.
-            if not is_gb_pl_query(query) and 'capacity' in query_lower_pl:
-                logger.info("FAST PATH: Entity P&L capacity query")
-                time_scope = detect_time_scope_from_query(query)
-                intent = self._build_entity_pl_summary_intent(query)
-                intent['calculation_type'] = 'entity_pl_capacity'
-                intent = self.apply_default_time_filters(intent, cube_id, time_scope)
-                intent['original_query'] = query
-                return {
-                    'success': True,
-                    'intent': intent,
-                    'raw_query': query,
-                    'matched_calculation': None,
-                    'business_logic': business_logic,
-                    'time_scope': time_scope,
-                    'view_type': detected_view_type
-                }
 
             # GB P&L helper: detect whether query is explicitly GB-level
             # (project_gb grouping) vs entity-level (region_entity grouping).
@@ -5275,8 +5248,6 @@ Return a JSON object with:
                     'limit': 100,
                     'use_calculation': _pl_rev_calc,
                 }
-                if not _is_gb_level:
-                    intent['calculation_type'] = 'entity_pl_revenue'
                 if detect_avg_monthly_intent(query):
                     intent['avg_monthly_mode'] = True
                     if 'month' not in intent['group_by']:
@@ -5311,7 +5282,6 @@ Return a JSON object with:
                 )
                 intent = self._build_entity_pl_intent(query,
                                                       detected_entity_category)
-                intent['calculation_type'] = 'entity_pl_cost'
             time_scope = detect_time_scope_from_query(query)
             intent = self.apply_default_time_filters(intent, cube_id,
                                                      time_scope)
