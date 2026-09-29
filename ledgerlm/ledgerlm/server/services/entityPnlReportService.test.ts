@@ -93,6 +93,62 @@ test("Entity P&L capacity uses end values and a YTD average, not snapshot sums",
   assert.equal(average.values[report.currentLabel], 24);
 });
 
+test("Entity P&L marks missing comparison snapshots and incomplete YTD capacity as unavailable", () => {
+  const sparseRows = [
+    aggregateRow({ year: 2026, month: 7, costCategory: "Revenue Summary", entityCategory: "Revenue", amount: 1000 }),
+    aggregateRow({ year: 2026, month: 7, costCategory: "Cost Summary", entityCategory: "Employee Benefits", amount: 400 }),
+    aggregateRow({
+      year: 2026,
+      month: 7,
+      costCategory: "End Capacity",
+      resourceType: "Internal",
+      sourceSubCategory: "Internal",
+      capacity: 24,
+    }),
+  ];
+  const qoqRequest = validateEntityPnlReportRequest({
+    cubeId: "authorized-cube",
+    entity: "",
+    asOf: "2026-07",
+    comparison: "qoq",
+    currency: "INR",
+  });
+  const qoqReport = buildEntityPnlReport(sparseRows, qoqRequest);
+  const qoqRevenue = qoqReport.lines.find((line) => line.label === "Revenue")!;
+  const qoqExpenses = qoqReport.lines.find((line) => line.label === "Total Expenses")!;
+  const qoqEbit = qoqReport.lines.find((line) => line.label === "EBIT")!;
+  const qoqEndCapacity = qoqReport.lines.find((line) => line.label === "Total End")!;
+  const qoqAverageCapacity = qoqReport.lines.find((line) => line.label === "Avg Capacity Overall")!;
+
+  assert.equal(qoqRevenue.values[qoqReport.currentLabel], null);
+  assert.equal(qoqExpenses.values[qoqReport.currentLabel], null);
+  assert.equal(qoqEbit.values[qoqReport.currentLabel], null);
+  assert.equal(qoqRevenue.values[qoqReport.comparisonLabel], null);
+  assert.equal(qoqEndCapacity.values[qoqReport.currentLabel], 24);
+  assert.equal(qoqAverageCapacity.values[qoqReport.currentLabel], null);
+  assert.equal(qoqReport.kpis.find((kpi) => kpi.label.startsWith("Revenue"))?.value, "—");
+  assert.ok(qoqReport.warnings.some((warning) => warning.includes("Jun 2026")));
+  assert.ok(qoqReport.warnings.some((warning) => warning.includes("YTD capacity averages are unavailable")));
+
+  const yoyRequest = validateEntityPnlReportRequest({
+    cubeId: "authorized-cube",
+    entity: "",
+    asOf: "2026-07",
+    comparison: "yoy",
+    currency: "INR",
+  });
+  const yoyReport = buildEntityPnlReport(sparseRows, yoyRequest);
+  const yoyRevenue = yoyReport.lines.find((line) => line.label === "Revenue")!;
+  const yoyExpenses = yoyReport.lines.find((line) => line.label === "Total Expenses")!;
+  const yoyEbit = yoyReport.lines.find((line) => line.label === "EBIT")!;
+
+  assert.equal(yoyRevenue.values[yoyReport.currentLabel], 1000);
+  assert.equal(yoyExpenses.values[yoyReport.currentLabel], 400);
+  assert.equal(yoyEbit.values[yoyReport.currentLabel], 600);
+  assert.equal(yoyRevenue.values[yoyReport.comparisonLabel], null);
+  assert.equal(yoyReport.metrics.Revenue, 1000);
+});
+
 test("Entity P&L export services produce readable PDF and PowerPoint files", async () => {
   const report = buildEntityPnlReport(sampleRows(), request);
   const exportReport = { title: "Entity P&L", periodLabel: report.periodLabel, result: { entityPnl: report, summary: report.summary } };
