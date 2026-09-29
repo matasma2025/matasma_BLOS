@@ -252,32 +252,39 @@ export function buildEntityPnlReport(rows: AggregateRow[], request: EntityPnlRep
   const snapshots = new Map<string, number>();
   const capacity = new Map<string, number>();
   const rowCounts = new Map<string, number>();
+  const financialCoverage = new Set<string>();
+  const capacityCoverage = new Set<string>();
   for (const row of rows) {
     const year = Number(row.year);
     const month = Number(row.month);
     const scenario = String(row.scenario ?? "").trim();
     if (!Number.isInteger(year) || !Number.isInteger(month) || !scenario) continue;
-    rowCounts.set(scenario, (rowCounts.get(scenario) ?? 0) + finiteNumber(row.source_rows));
+    const scenarioId = normalizedScenario(scenario);
+    const periodKey = snapshotKey([year, month], scenarioId);
+    rowCounts.set(scenarioId, (rowCounts.get(scenarioId) ?? 0) + finiteNumber(row.source_rows));
     const amount = finiteNumber(row.amount);
     const category = normalizeCategory(row.cost_category);
     if (category.includes("end capacity")) {
       const component = capacityComponent(row.resource_type, row.source_sub_category);
       if (component) {
-        const key = `${year}:${month}:${scenario}:${component}`;
+        capacityCoverage.add(periodKey);
+        const key = `${periodKey}:${component}`;
         capacity.set(key, (capacity.get(key) ?? 0) + finiteNumber(row.capacity));
       }
       continue;
     }
     const entityCategory = normalizeCategory(row.entity_category);
     if (category === "revenue summary" && (entityCategory === "" || entityCategory === "revenue")) {
-      const key = `${year}:${month}:${scenario}:Revenue`;
+      financialCoverage.add(`${periodKey}:revenue`);
+      const key = `${periodKey}:Revenue`;
       snapshots.set(key, (snapshots.get(key) ?? 0) + amount);
     } else if (category === "cost summary") {
-      const totalKey = `${year}:${month}:${scenario}:Total Expenses`;
+      financialCoverage.add(`${periodKey}:cost`);
+      const totalKey = `${periodKey}:Total Expenses`;
       snapshots.set(totalKey, (snapshots.get(totalKey) ?? 0) + Math.abs(amount));
       const visibleLine = VISIBLE_COST_LINES.find((line) => line.aliases.has(entityCategory))?.label;
       if (visibleLine) {
-        const key = `${year}:${month}:${scenario}:${visibleLine}`;
+        const key = `${periodKey}:${visibleLine}`;
         snapshots.set(key, (snapshots.get(key) ?? 0) + Math.abs(amount));
       }
     }
@@ -298,11 +305,11 @@ export function buildEntityPnlReport(rows: AggregateRow[], request: EntityPnlRep
 
   for (const label of baseLineLabels) {
     const values: Record<string, number | null> = {};
-    values[currentLabel] = valueFrom(snapshots, currentPoint, "actual", request.comparison, label);
-    values[comparisonLabel] = valueFrom(snapshots, comparisonPoint, "actual", request.comparison, label);
-    values[yearEndLabel] = valueFrom(snapshots, yearEndPoint, "actual", "yoy", label);
+    values[currentLabel] = valueFrom(snapshots, financialCoverage, currentPoint, "actual", request.comparison, label);
+    values[comparisonLabel] = valueFrom(snapshots, financialCoverage, comparisonPoint, "actual", request.comparison, label);
+    values[yearEndLabel] = valueFrom(snapshots, financialCoverage, yearEndPoint, "actual", "yoy", label);
     if (request.cfVersion && forecastLabel) {
-      values[forecastLabel] = valueFrom(snapshots, currentPoint, request.cfVersion, request.comparison, label);
+      values[forecastLabel] = valueFrom(snapshots, financialCoverage, currentPoint, request.cfVersion, request.comparison, label);
     }
     valuesByLine.set(label, values);
   }
@@ -310,11 +317,11 @@ export function buildEntityPnlReport(rows: AggregateRow[], request: EntityPnlRep
   const derivedLabels = ["EBIT", "EBIT%"];
   for (const label of derivedLabels) valuesByLine.set(label, {});
   for (const column of columns) {
-    const revenue = valuesByLine.get("Revenue")?.[column] ?? 0;
-    const expenses = valuesByLine.get("Total Expenses")?.[column] ?? 0;
-    const ebit = revenue - expenses;
+    const revenue = valuesByLine.get("Revenue")?.[column] ?? null;
+    const expenses = valuesByLine.get("Total Expenses")?.[column] ?? null;
+    const ebit = revenue === null || expenses === null ? null : revenue - expenses;
     valuesByLine.get("EBIT")![column] = ebit;
-    valuesByLine.get("EBIT%")![column] = revenue === 0 ? null : (ebit / revenue) * 100;
+    valuesByLine.get("EBIT%")![column] = ebit === null || revenue === 0 ? null : (ebit / revenue) * 100;
   }
 
   const capacityPoints: Array<{ point: [number, number]; label: string; scenario: string }> = [
