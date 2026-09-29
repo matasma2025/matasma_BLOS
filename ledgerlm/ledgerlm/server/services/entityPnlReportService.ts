@@ -321,7 +321,9 @@ export function buildEntityPnlReport(rows: AggregateRow[], request: EntityPnlRep
     const expenses = valuesByLine.get("Total Expenses")?.[column] ?? null;
     const ebit = revenue === null || expenses === null ? null : revenue - expenses;
     valuesByLine.get("EBIT")![column] = ebit;
-    valuesByLine.get("EBIT%")![column] = ebit === null || revenue === 0 ? null : (ebit / revenue) * 100;
+    valuesByLine.get("EBIT%")![column] = ebit === null || revenue === null || revenue === 0
+      ? null
+      : (ebit / revenue) * 100;
   }
 
   const capacityPoints: Array<{ point: [number, number]; label: string; scenario: string }> = [
@@ -430,7 +432,7 @@ export function buildEntityPnlReport(rows: AggregateRow[], request: EntityPnlRep
     missingSnapshotsByPeriod.set(periodKey, missing);
   }
   const missingSnapshotsByScenario = new Map<string, string[]>();
-  for (const missing of missingSnapshotsByPeriod.values()) {
+  for (const missing of Array.from(missingSnapshotsByPeriod.values())) {
     const categoryLabels = (["revenue", "cost"] as const)
       .filter((category) => missing.categories.has(category))
       .map((category) => category === "revenue" ? "Revenue Summary" : "Cost Summary");
@@ -439,7 +441,7 @@ export function buildEntityPnlReport(rows: AggregateRow[], request: EntityPnlRep
     scenarioDetails.push(details);
     missingSnapshotsByScenario.set(missing.scenario, scenarioDetails);
   }
-  for (const [scenario, missingPeriods] of missingSnapshotsByScenario) {
+  for (const [scenario, missingPeriods] of Array.from(missingSnapshotsByScenario.entries())) {
     const scenarioLabel = scenario === "actual" ? "Actual" : scenario;
     warnings.push(
       `${scenarioLabel} source snapshots are missing (${missingPeriods.join("; ")}); affected P&L values are shown as —, not zero.`,
@@ -451,11 +453,11 @@ export function buildEntityPnlReport(rows: AggregateRow[], request: EntityPnlRep
   } else {
     if (missingCapacitySnapshots.size) {
       warnings.push(
-        `Capacity snapshots are missing for ${[...missingCapacitySnapshots].join(", ")}; affected end-capacity values are shown as —.`,
+        `Capacity snapshots are missing for ${Array.from(missingCapacitySnapshots).join(", ")}; affected end-capacity values are shown as —.`,
       );
     }
     if (incompleteCapacityAverages.size) {
-      const details = [...incompleteCapacityAverages]
+      const details = Array.from(incompleteCapacityAverages.entries())
         .map(([label, months]) => `${label} (missing ${months.join(", ")})`)
         .join("; ");
       warnings.push(`YTD capacity averages are unavailable because monthly capacity snapshots are incomplete: ${details}.`);
