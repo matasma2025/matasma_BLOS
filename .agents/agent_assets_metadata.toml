@@ -99,3 +99,17 @@ mtime_ms = 1790633496896
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:027ac7ba-e96f-4c01-8f27-5aa658c0d710/a11484b5-c13c-4a8d-a141-e46650609ed7/5b448b7f-ba6e-4075-b38c-c85de9371522"
 storage_version_token = "1790633665858602"
 content_type = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+
+[[outputs]]
+id = "PFSJOaX-ghcCdympxDUtC"
+uri = "file://ledgerlm/ledgerlm/data/board-exports/KPI-Board-Export-Vertical-Spacing-Fixed.pptx"
+type = "slides"
+title = "KPI Board Export — Spacing Fixed"
+description = "The latest four-slide KPI export with empty summary paragraphs removed. Metric wording, values, template styling, and all non-slide PowerPoint parts are preserved."
+logical_id = "e27098ff-d1b2-4a98-9167-126a7c094d44"
+content_hash = "sha256:e566170ed18057fbf931898cdf2e105e7f77c491d37a27edae6c3c4bee249c32"
+size = 45010
+mtime_ms = 1790669056612
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:027ac7ba-e96f-4c01-8f27-5aa658c0d710/e27098ff-d1b2-4a98-9167-126a7c094d44/0bf7d60b-69e2-415f-ae3c-832679b4f780"
+storage_version_token = "1790669228961265"
+content_type = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
