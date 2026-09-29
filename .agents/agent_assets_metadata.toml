@@ -127,3 +127,17 @@ mtime_ms = 1790689664735
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:027ac7ba-e96f-4c01-8f27-5aa658c0d710/67e7f5cd-0035-44b0-8839-962f56869ac0/133a7179-4050-487e-99d2-aac7558e5564"
 storage_version_token = "1790689698882494"
 content_type = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+
+[[outputs]]
+id = "7m6ouj3LUY0Nucf0V3Ecd"
+uri = "file://attached_assets/ledgerlm-pptx-control-test.pptx"
+type = "slides"
+title = "Basic PowerPoint compatibility test"
+description = "A two-text-box, one-slide PPTX produced by the same PptxGenJS library as the Entity P&L export. Open this to check whether your PowerPoint accepts a minimal deck from that writer."
+logical_id = "c4417a3c-403c-4c14-9f90-552bbc97db9d"
+content_hash = "sha256:a98800a66483eca6414e2c4418498c8b17af1f399ae51ddfbef0fac36f63814e"
+size = 45798
+mtime_ms = 1790695003179
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:027ac7ba-e96f-4c01-8f27-5aa658c0d710/c4417a3c-403c-4c14-9f90-552bbc97db9d/9def023a-381f-4e46-b8ce-76aa7fb1943d"
+storage_version_token = "1790695142044172"
+content_type = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
