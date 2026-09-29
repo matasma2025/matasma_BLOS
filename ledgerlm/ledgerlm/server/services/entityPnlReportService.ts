@@ -144,34 +144,56 @@ function capacityComponent(resourceType: unknown, sourceSubCategory: unknown): "
   return undefined;
 }
 
+type FinancialSnapshotCategory = "revenue" | "cost";
+
+function normalizedScenario(scenario: string): string {
+  return scenario.trim().toLowerCase();
+}
+
+function snapshotKey(point: [number, number], scenario: string): string {
+  return `${point[0]}:${point[1]}:${normalizedScenario(scenario)}`;
+}
+
+function snapshotValueKey(point: [number, number], scenario: string, line: string): string {
+  return `${snapshotKey(point, scenario)}:${line}`;
+}
+
 function amountForPeriod(
   snapshots: Map<string, number>,
+  financialCoverage: Set<string>,
   point: [number, number],
   scenario: string,
   line: string,
   comparison: EntityPnlComparison,
-): number {
-  const [year, month] = point;
-  const current = snapshots.get(`${year}:${month}:${scenario}:${line}`) ?? 0;
+): number | null {
+  const category: FinancialSnapshotCategory = line === "Revenue" ? "revenue" : "cost";
+  if (!financialCoverage.has(`${snapshotKey(point, scenario)}:${category}`)) return null;
+  const current = snapshots.get(snapshotValueKey(point, scenario, line)) ?? 0;
   if (comparison === "yoy") return current;
-  const [priorYear, priorMonth] = previousMonth(year, month);
-  return current - (snapshots.get(`${priorYear}:${priorMonth}:${scenario}:${line}`) ?? 0);
+  const priorPoint = previousMonth(...point);
+  if (!financialCoverage.has(`${snapshotKey(priorPoint, scenario)}:${category}`)) return null;
+  return current - (snapshots.get(snapshotValueKey(priorPoint, scenario, line)) ?? 0);
 }
 
 function capacityForPeriod(
   capacity: Map<string, number>,
+  capacityCoverage: Set<string>,
   point: [number, number],
   scenario: string,
   component: "on_roll" | "outsourcing",
-): [number, number] {
+): [number | null, number | null] {
   const [year, month] = point;
-  const end = capacity.get(`${year}:${month}:${scenario}:${component}`) ?? 0;
-  const observed: number[] = [];
+  const currentKey = snapshotKey(point, scenario);
+  if (!capacityCoverage.has(currentKey)) return [null, null];
+
+  const end = capacity.get(`${currentKey}:${component}`) ?? 0;
+  const yearToDate: number[] = [];
   for (let index = 1; index <= month; index += 1) {
-    const value = capacity.get(`${year}:${index}:${scenario}:${component}`) ?? 0;
-    if (value !== 0) observed.push(value);
+    const monthKey = snapshotKey([year, index], scenario);
+    if (!capacityCoverage.has(monthKey)) return [end, null];
+    yearToDate.push(capacity.get(`${monthKey}:${component}`) ?? 0);
   }
-  return [end, observed.length ? observed.reduce((sum, value) => sum + value, 0) / observed.length : 0];
+  return [end, yearToDate.reduce((sum, value) => sum + value, 0) / yearToDate.length];
 }
 
 function money(value: number | null, currency: EntityPnlCurrency): string {
@@ -182,12 +204,17 @@ function money(value: number | null, currency: EntityPnlCurrency): string {
 
 function valueFrom(
   snapshots: Map<string, number>,
+  financialCoverage: Set<string>,
   point: [number, number],
   scenario: string,
   comparison: EntityPnlComparison,
   line: string,
-) {
-  return amountForPeriod(snapshots, point, scenario, line, comparison);
+): number | null {
+  return amountForPeriod(snapshots, financialCoverage, point, scenario, line, comparison);
+}
+
+function difference(current: number | null, prior: number | null): number | null {
+  return current === null || prior === null ? null : current - prior;
 }
 
 export function validateEntityPnlReportRequest(payload: unknown): EntityPnlReportRequest {
