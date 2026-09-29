@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { strFromU8, unzipSync } from "fflate";
 import {
   buildEntityPnlReport,
   validateEntityPnlReportRequest,
@@ -156,4 +157,9 @@ test("Entity P&L export services produce readable PDF and PowerPoint files", asy
   const pptx = await exportEntityPnlPptx(exportReport);
   assert.equal(pdf.subarray(0, 5).toString(), "%PDF-");
   assert.equal(pptx.subarray(0, 2).toString(), "PK");
+
+  const slideXml = strFromU8(unzipSync(pptx)["ppt/slides/slide1.xml"]);
+  assert.doesNotMatch(slideXml, /<a:tbl(?:\s|>)/, "Entity P&L PPTX should not contain a native table");
+  assert.match(slideXml, /<a:t>Line item<\/a:t>/, "Entity P&L table headers should be rendered as text");
+  assert.ok((slideXml.match(/<p:sp>/g) ?? []).length > report.lines.length * 2);
 });

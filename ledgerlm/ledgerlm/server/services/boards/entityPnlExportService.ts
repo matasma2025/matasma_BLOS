@@ -80,31 +80,50 @@ function addPptxTable(slide: any, payload: EntityPnlExportPayload) {
   const headers = ["Line item", ...payload.columns, "Variance", "%"];
   const rows = [headers, ...exportRows(payload)];
   const columnCount = headers.length;
+  const tableX = 0.42;
+  const tableY = 1.14;
+  const tableWidth = 12.25;
+  const tableHeight = 5.68;
   const lineColumnWidth = 2.05;
-  const remainingWidth = 12.25 - lineColumnWidth;
-  const columnWidths = [lineColumnWidth, ...Array.from({ length: columnCount - 1 }, () => remainingWidth / (columnCount - 1))];
-  slide.addTable(rows, {
-    x: 0.42,
-    y: 1.14,
-    w: 12.25,
-    h: 5.68,
-    colW: columnWidths,
-    fontFace: "Aptos",
-    fontSize: columnCount > 7 ? 6 : 7,
-    color: "1F2937",
-    border: { type: "solid", color: "D8DEE4", pt: 0.4 },
-    margin: 0.035,
-    autoFit: false,
-    valign: "mid",
-    breakLine: false,
-    fill: "FFFFFF",
-    bold: false,
-    paraSpaceAfterPt: 0,
-    rowH: 0.31,
-    showHeader: true,
-    autoPage: false,
-    headerRows: 1,
-    align: "right",
+  const remainingWidth = tableWidth - lineColumnWidth;
+  const columnWidths = [
+    lineColumnWidth,
+    ...Array.from({ length: columnCount - 1 }, () => remainingWidth / (columnCount - 1)),
+  ];
+  const rowHeight = tableHeight / rows.length;
+  const fontSize = columnCount > 7 ? 6 : 7;
+  const padding = 0.035;
+
+  // Use standard DrawingML shapes instead of a native PowerPoint table.
+  // The native table opens in LibreOffice but is rejected by Microsoft PowerPoint.
+  rows.forEach((row, rowIndex) => {
+    let cellX = tableX;
+    const cellY = tableY + rowIndex * rowHeight;
+
+    row.forEach((cell, columnIndex) => {
+      const cellWidth = columnWidths[columnIndex];
+      slide.addShape("rect", {
+        x: cellX,
+        y: cellY,
+        w: cellWidth,
+        h: rowHeight,
+        fill: { color: "FFFFFF" },
+        line: { color: "D8DEE4", width: 0.4 },
+      });
+      slide.addText(String(cell ?? ""), {
+        x: cellX + padding,
+        y: cellY + padding,
+        w: cellWidth - padding * 2,
+        h: rowHeight - padding * 2,
+        fontFace: "Aptos",
+        fontSize,
+        color: "1F2937",
+        margin: 0,
+        valign: "mid",
+        align: "right",
+      });
+      cellX += cellWidth;
+    });
   });
 }
 
