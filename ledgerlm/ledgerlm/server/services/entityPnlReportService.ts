@@ -462,18 +462,45 @@ export function buildEntityPnlReport(rows: AggregateRow[], request: EntityPnlRep
     }
   }
   const insights = [
-    `Revenue changed by ${money(currentRevenue - priorRevenue, request.currency)} between the selected ${mode} periods.`,
-    `EBIT changed by ${money(ebitDelta, request.currency)}; the report attributes movement only to governed P&L figures.`,
+    revenueDelta === null
+      ? `Revenue movement is unavailable because source snapshots are missing for one or more selected ${mode} periods.`
+      : `Revenue changed by ${money(revenueDelta, request.currency)} between the selected ${mode} periods.`,
+    ebitDelta === null
+      ? "EBIT movement is unavailable because required P&L source snapshots are missing."
+      : `EBIT changed by ${money(ebitDelta, request.currency)}; the report attributes movement only to governed P&L figures.`,
   ];
   const commentary = [{
     label: "Revenue and EBIT",
     text: `${currentLabel} revenue is ${money(currentRevenue, request.currency)} and EBIT is ${money(currentEbit, request.currency)}. Underlying business causes require owner commentary.`,
   }];
   const kpis = [
-    { label: `Revenue · ${currentLabel}`, value: money(currentRevenue, request.currency), change: `${money(currentRevenue - priorRevenue, request.currency)} vs ${comparisonLabel}`, direction: currentRevenue >= priorRevenue ? "up" as const : "down" as const },
-    { label: `EBIT · ${currentLabel}`, value: money(currentEbit, request.currency), change: `${money(ebitDelta, request.currency)} vs ${comparisonLabel}`, direction: ebitDelta >= 0 ? "up" as const : "down" as const },
-    { label: `EBIT% · ${currentLabel}`, value: currentEbitPercent === null ? "—" : `${currentEbitPercent.toFixed(1)}%`, direction: (currentEbitPercent ?? 0) >= (priorEbitPercent ?? 0) ? "up" as const : "down" as const },
-    { label: "Total End", value: totalEnd.toLocaleString("en-US", { maximumFractionDigits: 0 }), change: `Total average ${totalAverage.toLocaleString("en-US", { maximumFractionDigits: 0 })} YTD`, direction: "flat" as const },
+    {
+      label: `Revenue · ${currentLabel}`,
+      value: money(currentRevenue, request.currency),
+      change: revenueDelta === null ? `Comparison unavailable vs ${comparisonLabel}` : `${money(revenueDelta, request.currency)} vs ${comparisonLabel}`,
+      direction: revenueDelta === null ? undefined : revenueDelta >= 0 ? "up" as const : "down" as const,
+    },
+    {
+      label: `EBIT · ${currentLabel}`,
+      value: money(currentEbit, request.currency),
+      change: ebitDelta === null ? `Comparison unavailable vs ${comparisonLabel}` : `${money(ebitDelta, request.currency)} vs ${comparisonLabel}`,
+      direction: ebitDelta === null ? undefined : ebitDelta >= 0 ? "up" as const : "down" as const,
+    },
+    {
+      label: `EBIT% · ${currentLabel}`,
+      value: currentEbitPercent === null ? "—" : `${currentEbitPercent.toFixed(1)}%`,
+      direction: currentEbitPercent === null || priorEbitPercent === null
+        ? undefined
+        : currentEbitPercent >= priorEbitPercent ? "up" as const : "down" as const,
+    },
+    {
+      label: "Total End",
+      value: totalEnd === null ? "—" : totalEnd.toLocaleString("en-US", { maximumFractionDigits: 0 }),
+      change: totalAverage === null
+        ? "YTD average unavailable"
+        : `Total average ${totalAverage.toLocaleString("en-US", { maximumFractionDigits: 0 })} YTD`,
+      direction: totalEnd === null ? undefined : "flat" as const,
+    },
   ];
   const tableColumns = ["Line item", ...columns, "Variance", "%"];
   const tableRows = lines.map((line) => [
