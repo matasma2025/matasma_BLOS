@@ -138,7 +138,11 @@ test("Entity P&L marks missing comparison snapshots and incomplete YTD capacity 
     comparison: "yoy",
     currency: "INR",
   });
-  const yoyReport = buildEntityPnlReport(sparseRows, yoyRequest);
+  const yoySparseRows = [
+    aggregateRow({ year: 2026, month: 7, costCategory: "Revenue Summary", entityCategory: "Revenue", amount: 1000 }),
+    aggregateRow({ year: 2026, month: 7, costCategory: "Cost Summary", entityCategory: "Employee Benefits", amount: 400 }),
+  ];
+  const yoyReport = buildEntityPnlReport(yoySparseRows, yoyRequest);
   const yoyRevenue = yoyReport.lines.find((line) => line.label === "Revenue")!;
   const yoyExpenses = yoyReport.lines.find((line) => line.label === "Total Expenses")!;
   const yoyEbit = yoyReport.lines.find((line) => line.label === "EBIT")!;
