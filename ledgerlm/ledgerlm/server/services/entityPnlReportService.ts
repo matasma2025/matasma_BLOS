@@ -104,6 +104,14 @@ function previousMonth(year: number, month: number, offset = 1): [number, number
   return [Math.floor(absolute / 12), ((absolute % 12) + 12) % 12 + 1];
 }
 
+function quarterNumber(month: number): number {
+  return Math.ceil(month / 3);
+}
+
+function quarterLabel(point: [number, number]): string {
+  return `Q${quarterNumber(point[1])} ${point[0]}`;
+}
+
 function periodLabel(year: number, month: number, suffix: string): string {
   return `${MONTH_ABBREVIATIONS[month - 1]} ${year} ${suffix}`;
 }
@@ -170,7 +178,8 @@ function amountForPeriod(
   if (!financialCoverage.has(`${snapshotKey(point, scenario)}:${category}`)) return null;
   const current = snapshots.get(snapshotValueKey(point, scenario, line)) ?? 0;
   if (comparison === "yoy") return current;
-  const priorPoint = previousMonth(...point);
+  if (point[1] === 3) return current;
+  const priorPoint = previousMonth(...point, 3);
   if (!financialCoverage.has(`${snapshotKey(priorPoint, scenario)}:${category}`)) return null;
   return current - (snapshots.get(snapshotValueKey(priorPoint, scenario, line)) ?? 0);
 }
@@ -227,6 +236,10 @@ export function validateEntityPnlReportRequest(payload: unknown): EntityPnlRepor
   }
   if (request.comparison !== "qoq" && request.comparison !== "yoy") {
     throw new Error("Choose a QoQ or YoY Entity P&L comparison.");
+  }
+  const reportingMonth = Number(request.asOf.slice(5));
+  if (request.comparison === "qoq" && ![3, 6, 9, 12].includes(reportingMonth)) {
+    throw new Error("QoQ Entity P&L comparisons are available only for March, June, September, or December.");
   }
   if (request.currency !== "USD" && request.currency !== "INR") {
     throw new Error("Choose USD or INR for the Entity P&L report.");
@@ -294,10 +307,17 @@ export function buildEntityPnlReport(rows: AggregateRow[], request: EntityPnlRep
   const currentPoint: [number, number] = [year, month];
   const comparisonPoint = request.comparison === "qoq" ? previousMonth(year, month, 3) : [year - 1, month] as [number, number];
   const yearEndPoint: [number, number] = [year - 1, 12];
-  const suffix = request.comparison === "qoq" ? "MTD" : "YTD";
-  const currentLabel = periodLabel(year, month, suffix);
-  const comparisonLabel = periodLabel(comparisonPoint[0], comparisonPoint[1], suffix);
-  const forecastLabel = request.cfVersion ? `${request.cfVersion} ${suffix}` : undefined;
+  const currentLabel = request.comparison === "qoq"
+    ? quarterLabel(currentPoint)
+    : periodLabel(year, month, "YTD");
+  const comparisonLabel = request.comparison === "qoq"
+    ? quarterLabel(comparisonPoint)
+    : periodLabel(comparisonPoint[0], comparisonPoint[1], "YTD");
+  const forecastLabel = request.cfVersion
+    ? request.comparison === "qoq"
+      ? `${request.cfVersion} ${currentLabel}`
+      : `${request.cfVersion} YTD`
+    : undefined;
   const yearEndLabel = periodLabel(yearEndPoint[0], yearEndPoint[1], "YE");
   const columns = [currentLabel, comparisonLabel, ...(forecastLabel ? [forecastLabel] : []), yearEndLabel];
   const baseLineLabels = ["Revenue", ...VISIBLE_COST_LINES.map((line) => line.label), "Total Expenses"];
@@ -384,7 +404,7 @@ export function buildEntityPnlReport(rows: AggregateRow[], request: EntityPnlRep
   const totalAverage = valuesByLine.get("Total Average")?.[currentLabel] ?? null;
   const revenueDelta = difference(currentRevenue, priorRevenue);
   const ebitDelta = difference(currentEbit, priorEbit);
-  const mode = request.comparison === "qoq" ? "quarter-end MTD" : "YTD";
+  const mode = request.comparison === "qoq" ? "quarter" : "YTD";
   const summary = `${entity} reported ${money(currentRevenue, request.currency)} revenue and ${money(currentEbit, request.currency)} EBIT in ${currentLabel}. EBIT moved ${money(ebitDelta, request.currency)} from ${comparisonLabel}.`;
   const warnings: string[] = [];
   if ((rowCounts.get("actual") ?? 0) === 0) warnings.push("No Actual Entity P&L rows were found for the selected period and entity scope.");
@@ -402,7 +422,9 @@ export function buildEntityPnlReport(rows: AggregateRow[], request: EntityPnlRep
     scenario: string,
     comparison: EntityPnlComparison,
   ) => {
-    const points = comparison === "qoq" ? [point, previousMonth(...point)] : [point];
+    const points = comparison === "qoq" && point[1] !== 3
+      ? [point, previousMonth(...point, 3)]
+      : [point];
     for (const requiredPoint of points) {
       requiredSnapshotChecks.push(
         { point: requiredPoint, scenario, category: "revenue" },
