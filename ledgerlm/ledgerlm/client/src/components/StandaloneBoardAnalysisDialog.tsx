@@ -31,7 +31,14 @@ interface BalanceSheetPeriod {
 }
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const QUARTER_END_MONTHS = [3, 6, 9, 12];
 const DIMENSIONS = ['Entity', 'Sector', 'Cost Category', 'Resource Type', 'Location', 'Project GB', 'Planning GB', 'Salary Level'];
+
+function nearestQuarterEndMonth(month: number) {
+  return QUARTER_END_MONTHS.reduce((nearest, candidate) =>
+    Math.abs(candidate - month) < Math.abs(nearest - month) ? candidate : nearest,
+  QUARTER_END_MONTHS[0]);
+}
 
 function templateLabel(templateKey: string) {
   return ({
@@ -55,6 +62,7 @@ export function StandaloneBoardAnalysisDialog({
   const isBalanceSheet = templateKey === 'balance-sheet-tracker';
   const isEntityPnl = templateKey === 'entity-pnl';
   const scope = flow.scope ?? {};
+  const isEntityPnlQoq = isEntityPnl && scope.pnlComparison !== 'yoy';
   const currentYear = new Date().getFullYear();
   const configuredDimensions = Array.isArray(settings.defaultDimensions)
     ? settings.defaultDimensions.map(String)
@@ -74,7 +82,8 @@ export function StandaloneBoardAnalysisDialog({
   useEffect(() => {
     if (!open) return;
     setYear(Number(flow.scope?.year) || currentYear);
-    setMonths([Number(flow.scope?.month) || new Date().getMonth() + 1]);
+    const configuredMonth = Number(flow.scope?.month) || new Date().getMonth() + 1;
+    setMonths([isEntityPnlQoq ? nearestQuarterEndMonth(configuredMonth) : configuredMonth]);
     setDimensions(configuredDimensions);
     setExtraContext('');
   }, [open, board.id]);
@@ -112,6 +121,9 @@ export function StandaloneBoardAnalysisDialog({
     mutationFn: async () => {
       if (!sourceSelection) throw new Error('Select an authorized source before starting this analysis.');
       if (!months.length) throw new Error('Select at least one month.');
+      if (isEntityPnl && (months.length !== 1 || (isEntityPnlQoq && !QUARTER_END_MONTHS.includes(months[0])))) {
+        throw new Error('Select one valid quarter-end month for the Entity P&L comparison.');
+      }
        if (!isEntityPnl && !dimensions.length) throw new Error('Select at least one grouping dimension.');
       return apiRequest('POST', `/api/boards/${board.id}/analysis-runs`, {
         year,
@@ -142,10 +154,15 @@ export function StandaloneBoardAnalysisDialog({
     onError: (error: Error) => toast({ title: 'Could not start analysis', description: error.message, variant: 'destructive' }),
   });
 
-  const toggleMonth = (month: number) =>
+  const toggleMonth = (month: number) => {
+    if (isEntityPnl) {
+      setMonths([month]);
+      return;
+    }
     setMonths((current) => current.includes(month)
       ? current.filter((value) => value !== month)
       : [...current, month].sort((a, b) => a - b));
+  };
 
   const toggleDimension = (dimension: string) =>
     setDimensions((current) => current.includes(dimension)
@@ -210,6 +227,11 @@ export function StandaloneBoardAnalysisDialog({
                </>
              ) : (
                <>
+                  {isEntityPnlQoq && (
+                    <p className="text-xs text-muted-foreground">
+                      QoQ P&L uses quarter-end snapshots only: March, June, September, and December.
+                    </p>
+                  )}
                  <div className="flex items-center gap-2">
                    <span className="text-xs text-muted-foreground w-10">Year</span>
                    <div className="flex gap-1">
@@ -219,8 +241,10 @@ export function StandaloneBoardAnalysisDialog({
                    </div>
                  </div>
                  <div className="flex flex-wrap gap-1.5">
-                   {MONTHS.map((month, index) => (
-                     <button key={month} type="button" onClick={() => toggleMonth(index + 1)} className={`px-2.5 py-1.5 rounded text-xs border ${months.includes(index + 1) ? 'bg-primary text-primary-foreground border-primary' : 'hover:bg-muted'}`}>{month}</button>
+                    {MONTHS.map((month, index) => ({ month, value: index + 1 }))
+                      .filter(({ value }) => !isEntityPnlQoq || QUARTER_END_MONTHS.includes(value))
+                      .map(({ month, value }) => (
+                      <button key={month} type="button" onClick={() => toggleMonth(value)} className={`px-2.5 py-1.5 rounded text-xs border ${months.includes(value) ? 'bg-primary text-primary-foreground border-primary' : 'hover:bg-muted'}`}>{month}</button>
                    ))}
                  </div>
                </>

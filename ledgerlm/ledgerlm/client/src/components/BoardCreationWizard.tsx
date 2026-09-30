@@ -29,6 +29,13 @@ const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
+const QUARTER_END_MONTHS = [3, 6, 9, 12];
+
+function nearestQuarterEndMonth(month: number) {
+  return QUARTER_END_MONTHS.reduce((nearest, candidate) =>
+    Math.abs(candidate - month) < Math.abs(nearest - month) ? candidate : nearest,
+  QUARTER_END_MONTHS[0]);
+}
 
 const COMPARISONS = [
   ['previous-period', 'Previous period'],
@@ -59,6 +66,7 @@ export function BoardCreationWizard({
   const isKpi = templateSlug === 'kpi-metrics';
   const isBalanceSheet = templateSlug === 'balance-sheet-tracker';
   const isEntityPnl = templateSlug === 'entity-pnl';
+  const isEntityPnlQoq = isEntityPnl && (formData.scope.pnlComparison ?? 'qoq') === 'qoq';
   const hasLegacyVarianceConfig = isEditing
     && templateSlug === 'variance-analysis'
     && !!formData.columnMapping?.actuals
@@ -73,6 +81,16 @@ export function BoardCreationWizard({
       setTemplateSourceLabel(null);
     }
   }, [open]);
+
+  useEffect(() => {
+    if (!isEntityPnlQoq) return;
+    const month = Number(formData.scope.month);
+    if (QUARTER_END_MONTHS.includes(month)) return;
+    setFormData((current: any) => ({
+      ...current,
+      scope: { ...current.scope, month: String(nearestQuarterEndMonth(month || 3)) },
+    }));
+  }, [formData.scope.month, isEntityPnlQoq, setFormData]);
 
   const update = (patch: Record<string, unknown>) => setFormData((current: any) => ({ ...current, ...patch }));
   const updateScope = (patch: Record<string, unknown>) =>
@@ -278,17 +296,20 @@ export function BoardCreationWizard({
                       </select>
                     </div>
                     <div className="space-y-1.5">
-                      <Label className="text-xs">Month</Label>
+                      <Label className="text-xs">{isEntityPnlQoq ? 'Quarter-end month' : 'Month'}</Label>
                       <select value={formData.scope.month} onChange={(event) => updateScope({ month: event.target.value })} className="w-full h-9 rounded-md border bg-background px-3 text-sm">
-                        {MONTHS.map((month, index) => <option key={month} value={String(index + 1)}>{month}</option>)}
+                        {MONTHS.map((month, index) => ({ month, value: index + 1 }))
+                          .filter(({ value }) => !isEntityPnlQoq || QUARTER_END_MONTHS.includes(value))
+                          .map(({ month, value }) => <option key={month} value={String(value)}>{month}</option>)}
                       </select>
+                      {isEntityPnlQoq && <p className="text-[11px] text-muted-foreground">QoQ P&L uses quarter-end snapshots: March, June, September, and December.</p>}
                     </div>
                     {isEntityPnl ? (
                       <>
                         <div className="space-y-1.5">
                           <Label className="text-xs">Comparison</Label>
                           <select value={formData.scope.pnlComparison ?? 'qoq'} onChange={(event) => updateScope({ pnlComparison: event.target.value })} className="w-full h-9 rounded-md border bg-background px-3 text-sm">
-                            <option value="qoq">QoQ — quarter-end MTD vs prior quarter-end MTD</option>
+                            <option value="qoq">QoQ — quarter total vs prior quarter</option>
                             <option value="yoy">YoY — YTD vs same month last year</option>
                           </select>
                         </div>
