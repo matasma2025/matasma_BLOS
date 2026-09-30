@@ -1,9 +1,16 @@
 [
-	{
-		"id": "75dfcfc6-c003-424c-a3cd-fdbdd64b0ff9",
-		"position": 1,
-		"filepath": "attached_assets/imported_slides/0_board_91aab255_3fc3_45c9_b473_9d6fd0dccd26_summary_4_1790688702372/Slide1.tsx",
-		"title": "Slide 1",
-		"description": ""
-	}
+{
+"id": "a68225bd-cf08-4e06-942a-504a3a0f04ab",
+"position": 1,
+"filepath": "attached_assets/imported_slides/balance_sheet_analysis_9_22_26_5_32_pm_1790616193030/Slide1.tsx",
+"title": "Slide 1",
+"description": ""
+},
+{
+"id": "40d364a7-b624-46bb-aff6-49eafd2c7045",
+"position": 2,
+"filepath": "attached_assets/imported_slides/balance_sheet_analysis_9_22_26_5_32_pm_1790616193030/Slide2.tsx",
+"title": "Slide 2",
+"description": ""
+}
 ]

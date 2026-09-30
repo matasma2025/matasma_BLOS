@@ -55,13 +55,8 @@ interface AggregateRow {
   scenario: string | null;
   cost_category: string | null;
   entity_category: string | null;
-  entity_sub_category: string | null;
-  order_reason: string | null;
-  gl_account: string | null;
   resource_type: string | null;
-  onsite_offshore: string | null;
-  sector: string | null;
-  service_area: string | null;
+  source_sub_category: string | null;
   amount: number | string | null;
   capacity: number | string | null;
   source_rows: number | string | null;
@@ -87,7 +82,6 @@ const CAPACITY_LINES = [
   "End Capacity On-roll",
   "End Capacity Outsourcing",
   "Total End",
-  "Avg Capacity On-roll",
   "Avg Capacity Overall",
   "Avg Capacity Outsourcing",
   "Total Average",
@@ -137,21 +131,14 @@ function selectedPoints(request: EntityPnlReportRequest): Array<[number, number]
     .sort(([leftYear, leftMonth], [rightYear, rightMonth]) => leftYear - rightYear || leftMonth - rightMonth);
 }
 
-function capacityComponent(
-  resourceType: unknown,
-  onsiteOffshore: unknown,
-  sector: unknown,
-  serviceArea: unknown,
-): "on_roll" | "outsourcing" | undefined {
+function capacityComponent(resourceType: unknown, sourceSubCategory: unknown): "on_roll" | "outsourcing" | undefined {
   const normalize = (value: unknown) => String(value ?? "").toLowerCase().replace(/-/g, " ").trim().replace(/\s+/g, " ");
+  const source = normalize(sourceSubCategory);
   const resource = normalize(resourceType);
-  const location = normalize(onsiteOffshore);
-  if (normalize(sector) === "internal") return undefined;
-  if (["corporate", "rbei corporate", "sds corporate"].includes(normalize(serviceArea))) return undefined;
-  if (resource === "internal" && ["offshore", "onsite"].includes(location)) {
+  if (["internal", "on roll", "onroll"].includes(source) || ["internal", "on roll", "onroll"].includes(resource)) {
     return "on_roll";
   }
-  if (resource === "external" && location === "offshore") {
+  if (["outsourcing", "external"].includes(source) || ["outsourcing", "external"].includes(resource)) {
     return "outsourcing";
   }
   return undefined;
@@ -277,13 +264,8 @@ export function buildEntityPnlReport(rows: AggregateRow[], request: EntityPnlRep
     rowCounts.set(scenarioId, (rowCounts.get(scenarioId) ?? 0) + finiteNumber(row.source_rows));
     const amount = finiteNumber(row.amount);
     const category = normalizeCategory(row.cost_category);
-    if (category === "gb wise end capacity") {
-      const component = capacityComponent(
-        row.resource_type,
-        row.onsite_offshore,
-        row.sector,
-        row.service_area,
-      );
+    if (category.includes("end capacity")) {
+      const component = capacityComponent(row.resource_type, row.source_sub_category);
       if (component) {
         capacityCoverage.add(periodKey);
         const key = `${periodKey}:${component}`;
@@ -292,23 +274,18 @@ export function buildEntityPnlReport(rows: AggregateRow[], request: EntityPnlRep
       continue;
     }
     const entityCategory = normalizeCategory(row.entity_category);
-    if (category === "revenue summary") {
-      const orderReason = String(row.order_reason ?? "").trim().toUpperCase();
-      const glAccount = String(row.gl_account ?? "").trim();
-      if (["YEH", "YEI", "YEJ", "YEK", "YN2"].includes(orderReason) || glAccount.startsWith("139")) continue;
+    if (category === "revenue summary" && (entityCategory === "" || entityCategory === "revenue")) {
       financialCoverage.add(`${periodKey}:revenue`);
       const key = `${periodKey}:Revenue`;
       snapshots.set(key, (snapshots.get(key) ?? 0) + amount);
     } else if (category === "cost summary") {
-      const entitySubCategory = normalizeCategory(row.entity_sub_category);
-      if (!entityCategory || !entitySubCategory) continue;
       financialCoverage.add(`${periodKey}:cost`);
       const totalKey = `${periodKey}:Total Expenses`;
-      snapshots.set(totalKey, (snapshots.get(totalKey) ?? 0) + amount);
+      snapshots.set(totalKey, (snapshots.get(totalKey) ?? 0) + Math.abs(amount));
       const visibleLine = VISIBLE_COST_LINES.find((line) => line.aliases.has(entityCategory))?.label;
       if (visibleLine) {
         const key = `${periodKey}:${visibleLine}`;
-        snapshots.set(key, (snapshots.get(key) ?? 0) + amount);
+        snapshots.set(key, (snapshots.get(key) ?? 0) + Math.abs(amount));
       }
     }
   }
@@ -375,7 +352,6 @@ export function buildEntityPnlReport(rows: AggregateRow[], request: EntityPnlRep
       "End Capacity On-roll": onRollEnd,
       "End Capacity Outsourcing": outsourcingEnd,
       "Total End": onRollEnd === null || outsourcingEnd === null ? null : onRollEnd + outsourcingEnd,
-      "Avg Capacity On-roll": onRollAverage,
       "Avg Capacity Overall": onRollAverage === null || outsourcingAverage === null ? null : onRollAverage + outsourcingAverage,
       "Avg Capacity Outsourcing": outsourcingAverage,
       "Total Average": onRollAverage === null || outsourcingAverage === null ? null : onRollAverage + outsourcingAverage,
@@ -618,13 +594,8 @@ export async function runEntityPnlReport(request: EntityPnlReportRequest): Promi
       CASE WHEN ${ACTUAL_SCENARIO_PREDICATE} THEN 'actual' ELSE trim(coalesce(version, '')) END AS scenario,
       trim(coalesce(cost_category, '')) AS cost_category,
       trim(coalesce(entity_category, '')) AS entity_category,
-      trim(coalesce(entity_sub_category, '')) AS entity_sub_category,
-      trim(coalesce(order_reason, '')) AS order_reason,
-      trim(coalesce(gl_account, '')) AS gl_account,
       trim(coalesce(resource_type, '')) AS resource_type,
-      trim(coalesce(onsite_offshore, '')) AS onsite_offshore,
-      trim(coalesce(sector, '')) AS sector,
-      trim(coalesce(service_area, '')) AS service_area,
+      trim(coalesce(row_data ->> 'source_sub_category', '')) AS source_sub_category,
       coalesce(sum(coalesce(${currencyColumn}, 0)), 0) AS amount,
       coalesce(sum(coalesce(capacity, 0)), 0) AS capacity,
       count(*)::int AS source_rows
@@ -634,10 +605,10 @@ export async function runEntityPnlReport(request: EntityPnlReportRequest): Promi
       AND (${pointFilter})
       AND ${scenarioFilter}
       AND (
-        lower(trim(coalesce(cost_category, ''))) IN ('revenue summary', 'cost summary', 'gb wise end capacity')
+        lower(trim(coalesce(cost_category, ''))) IN ('revenue summary', 'cost summary')
+        OR lower(trim(coalesce(cost_category, ''))) LIKE '%end capacity%'
       )
-    GROUP BY year, month, scenario, cost_category, entity_category, entity_sub_category,
-      order_reason, gl_account, resource_type, onsite_offshore, sector, service_area
+    GROUP BY year, month, scenario, cost_category, entity_category, resource_type, source_sub_category
   `);
   const rows = ((result as unknown as { rows?: unknown[] }).rows ?? []) as AggregateRow[];
   return buildEntityPnlReport(rows, request);

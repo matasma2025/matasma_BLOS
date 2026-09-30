@@ -12,4 +12,3 @@
 - [Balance Sheet cube isolation](balance-sheet-cube-isolation.md) — Balance Sheet boards use point-in-time account data in their own cube/table, never the KPI planning fact path
 - [Balance Sheet PPTX exports](balance-sheet-pptx-exports.md) — compact visible chart labels plus exact-value tables avoid hover-only figures and clustered-label collisions
 - [Balance Sheet subtotal normalization](balance-sheet-subtotal-normalization.md) — retain subtotals, avoid double-counting, and use total liabilities for reference debt-to-equity
-- [PowerPoint native-table compatibility](entity-pnl-pptx-compatibility.md) — Entity P&L native tables fail in Microsoft PowerPoint; use standard shapes and text instead

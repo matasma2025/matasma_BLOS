@@ -34,7 +34,7 @@ export async function fetchApiFile(
     document.body.appendChild(anchor);
     anchor.click();
     anchor.remove();
-    window.setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+    URL.revokeObjectURL(blobUrl);
   } catch (error) {
     previewWindow?.close();
     throw error;
