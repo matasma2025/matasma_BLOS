@@ -9,6 +9,7 @@
 - [KPI source normalization](kpi-source-normalization.md) — verify source filters survived ingestion before changing KPI formulas
 - [Plan Delta capacity](plan-delta-capacity.md) — Actual capacity adjustments come from the workbook Delta column, with Cost value only as a legacy fallback
 - [Plan ingestion job status](plan-ingestion-job-status.md) — plan workbooks can load into cube_plan_data while their ingestion job remains queued; verify imported periods directly
+- [Entity P&L quarter totals](entity-pnl-quarter-totals.md) — QoQ financial lines use quarter-end cumulative differences; capacity remains point-in-time with YTD averages
 - [Balance Sheet cube isolation](balance-sheet-cube-isolation.md) — Balance Sheet boards use point-in-time account data in their own cube/table, never the KPI planning fact path
 - [Balance Sheet PPTX exports](balance-sheet-pptx-exports.md) — compact visible chart labels plus exact-value tables avoid hover-only figures and clustered-label collisions
 - [Balance Sheet subtotal normalization](balance-sheet-subtotal-normalization.md) — retain subtotals, avoid double-counting, and use total liabilities for reference debt-to-equity
