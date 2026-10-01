@@ -122,7 +122,7 @@ export function StandaloneBoardAnalysisDialog({
       if (!sourceSelection) throw new Error('Select an authorized source before starting this analysis.');
       if (!months.length) throw new Error('Select at least one month.');
       if (isEntityPnl && (months.length !== 1 || (isEntityPnlQoq && !QUARTER_END_MONTHS.includes(months[0])))) {
-        throw new Error('Select one valid quarter-end month for the Entity P&L comparison.');
+        throw new Error('Select one reporting month; QoQ Entity P&L comparisons require a quarter-end month.');
       }
        if (!isEntityPnl && !dimensions.length) throw new Error('Select at least one grouping dimension.');
       return apiRequest('POST', `/api/boards/${board.id}/analysis-runs`, {
@@ -280,7 +280,7 @@ export function StandaloneBoardAnalysisDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={runMutation.isPending}>Cancel</Button>
-          <Button onClick={() => runMutation.mutate()} disabled={runMutation.isPending || configLoading || !sourceSelection || !months.length || (!isEntityPnl && !dimensions.length)}>
+          <Button onClick={() => runMutation.mutate()} disabled={runMutation.isPending || configLoading || !sourceSelection || !months.length || (isEntityPnl && (months.length !== 1 || (isEntityPnlQoq && !QUARTER_END_MONTHS.includes(months[0])))) || (!isEntityPnl && !dimensions.length)}>
             {runMutation.isPending ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Starting…</> : <><Play className="w-4 h-4 mr-2" />Start analysis</>}
           </Button>
         </DialogFooter>
