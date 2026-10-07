@@ -22,6 +22,7 @@ import { runKpiReport, validateKpiReportRequest } from "../kpiReportService";
 import { runBalanceSheetReport } from "../balanceSheetService";
 import {
   runEntityPnlReport,
+  entityPnlResultPayload,
   validateEntityPnlReportRequest,
   type EntityPnlReport,
 } from "../entityPnlReportService";
@@ -355,7 +356,7 @@ export async function executeBoardAnalysis(runId: string) {
           entity: request.entityPnl?.entity ?? scope.entity,
           cfVersion: request.entityPnl?.cfVersion ?? (scope.forecastScenario || undefined),
         });
-        governedEntityPnlReport = await runEntityPnlReport(entityPnlRequest);
+        governedEntityPnlReport = await runEntityPnlReport(entityPnlRequest, settings.entityPnlFinancialPlan);
         preparedSource = {
           source: {
             id: sourceSelection.cubeId,
@@ -489,25 +490,7 @@ export async function executeBoardAnalysis(runId: string) {
         warnings: standaloneVersion ? [] : ["No explicit data version was selected; the first available source version was used."],
       },
       balanceSheet: governedBalanceSheetReport,
-      entityPnl: governedEntityPnlReport ? {
-        entity: governedEntityPnlReport.entity,
-        currency: governedEntityPnlReport.currency,
-        units: governedEntityPnlReport.units,
-        asOf: governedEntityPnlReport.asOf,
-        comparison: governedEntityPnlReport.comparison,
-        columns: governedEntityPnlReport.columns,
-        currentLabel: governedEntityPnlReport.currentLabel,
-        comparisonLabel: governedEntityPnlReport.comparisonLabel,
-        forecastLabel: governedEntityPnlReport.forecastLabel,
-        yearEndLabel: governedEntityPnlReport.yearEndLabel,
-        lines: governedEntityPnlReport.lines,
-        sourceRowCount: governedEntityPnlReport.sourceRowCount,
-        forecastSourceRowCount: governedEntityPnlReport.forecastSourceRowCount,
-        metrics: governedEntityPnlReport.metrics,
-        evidence: governedEntityPnlReport.evidence,
-        warnings: governedEntityPnlReport.warnings,
-        chart: governedEntityPnlReport.chart,
-      } : undefined,
+      entityPnl: governedEntityPnlReport ? entityPnlResultPayload(governedEntityPnlReport) : undefined,
     } : {
       summary: legacyReport?.rawAnalysis?.slice(0, 4_000)
         || `Deterministic analysis for ${preparedSource.plan.measures.map((measure: { label: string }) => measure.label).join(", ")}.`,

@@ -3303,7 +3303,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             : String(report.templateKey) === "balance-sheet-tracker"
               ? await exportBalanceSheetPptx(report as any, boardSettings.boardFlow?.reportTemplatePptxBase64)
               : String(report.templateKey) === "entity-pnl"
-                ? await exportEntityPnlPptx(report as any)
+                ? await exportEntityPnlPptx(report as any, boardSettings.boardFlow?.reportTemplatePptxBase64)
                 : await exportKpiReportPptx(
                     report as any,
                     typeof req.body?.scopeCode === "string" ? req.body.scopeCode : undefined,

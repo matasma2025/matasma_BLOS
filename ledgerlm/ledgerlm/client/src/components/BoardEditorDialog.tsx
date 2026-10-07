@@ -138,6 +138,8 @@ export function BoardEditorDialog({
         description: data.description,
         templateId: template?.id ?? null,
         settings: {
+          ...(isEntityPnlTemplate && (board?.settings as any)?.entityPnlFinancialPlan
+            ? { entityPnlFinancialPlan: (board!.settings as any).entityPnlFinancialPlan } : {}),
           analysisPrompts: data.analysisPrompts,
           cubeId: data.cubeId || undefined,
           columnMapping: data.cubeId ? data.columnMapping : undefined,

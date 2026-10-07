@@ -89,17 +89,38 @@ const SCOPE_COLORS = [
   { accent: "7C3AED", soft: "EDE9FE", surface: "F5F3FF", text: "5B21B6" },
 ];
 
-function numberValue(value: number | null | undefined) {
+function numberValue(value: number | null | undefined, decimals = 1) {
   if (value === null || value === undefined || !Number.isFinite(value)) return "—";
-  return new Intl.NumberFormat("en-US", { maximumFractionDigits: 1 }).format(value);
+  return new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  }).format(value);
 }
 
 function metricValue(metric: KpiMetric, value: number | null | undefined) {
   if (value === null || value === undefined || !Number.isFinite(value)) return "—";
   const label = metric.label.toLowerCase();
   if (label.includes("utilization")) return `${numberValue(Math.abs(value) <= 1.5 ? value * 100 : value)}%`;
-  if (label.includes("revenue")) return `${numberValue(value)} mUSD`;
+  if (label.includes("budget") || label.includes("revenue")) return `${numberValue(value)} mUSD`;
+  if (label.includes("capacity")) return numberValue(value, 0);
   return numberValue(value);
+}
+
+function breakdownPrefix(label: string) {
+  return label === "Integrated Service" ? "Integrated Service (BD,GS,SO) : " : `${label}: `;
+}
+
+export function removeSourceGovernanceFooter(xml: string) {
+  const hasSourceFooter = /Source\s*(?:&amp;|&)\s*governance/i.test(xml)
+    || /\{\{(?:ww|in|vn|mx)_source_note\}\}/.test(xml);
+  if (!hasSourceFooter) return xml;
+  return xml.replace(/<p:sp\b[^>]*>[\s\S]*?<\/p:sp>/g, (shape) => {
+    const isFooterContent = /Source\s*(?:&amp;|&)\s*governance/i.test(shape)
+      || /\{\{(?:ww|in|vn|mx)_(?:source_note|actual_source_label|forecast_source_label|warnings)\}\}/.test(shape);
+    // This divider belongs to the footer in the supplied four-entity template.
+    const isFooterDivider = /<p:cNvPr\b[^>]*\bname="Shape 48"/.test(shape);
+    return isFooterContent || isFooterDivider ? "" : shape;
+  });
 }
 
 function getKpiReport(report: BoardReportForExport) {
@@ -190,7 +211,7 @@ function templateMetricText(
       comparisonLine("1) ", metric.actual, metric.comparisons),
       ...(metric.breakdowns ?? [])
         .filter((breakdown) => allowedBreakdowns.includes(breakdown.label))
-        .map((breakdown) => comparisonLine(`${breakdown.label}: `, breakdown.actual, breakdown.comparisons)),
+        .map((breakdown) => comparisonLine(breakdownPrefix(breakdown.label), breakdown.actual, breakdown.comparisons)),
     ];
     return { summary: "", detail: lines.join("\n") };
   }
@@ -201,6 +222,23 @@ function templateMetricText(
     variance: number | null | undefined,
   ) => {
     if (actual !== null && actual !== undefined && forecast !== null && forecast !== undefined) {
+      if (label.includes("budget") || label.includes("revenue")) {
+        const difference = variance === null || variance === undefined
+          ? "difference is unavailable"
+          : variance === 0
+            ? "no difference"
+            : `${variance > 0 ? "up" : "down"} by ${numberValue(Math.abs(variance))} m USD`;
+        return `${prefix}${period} forecast is ${numberValue(forecast)} m USD; Actuals is ${numberValue(actual)} m USD; ${difference}.`;
+      }
+      if (label.includes("capacity")) {
+        const forecastText = `${period} Forecast (${numberValue(forecast, 0)})`;
+        const actualText = `${prefix}${period} end Capacity (${numberValue(actual, 0)})`;
+        if (variance === null || variance === undefined) {
+          return `${actualText}; ${forecastText}; difference is unavailable.`;
+        }
+        if (variance === 0) return `${actualText} is equal to ${forecastText}.`;
+        return `${actualText} is ${variance > 0 ? "higher" : "lower"} by ${numberValue(Math.abs(variance), 0)} HC as compared to ${forecastText}.`;
+      }
       const direction = variance !== null && variance !== undefined && variance >= 0 ? "higher" : "lower";
       return `${prefix}${period} Actual ${display(actual)} is ${direction} by ${display(Math.abs(variance ?? 0))} compared with Forecast ${display(forecast)}.`;
     }
@@ -220,7 +258,7 @@ function templateMetricText(
     ...(metric.breakdowns ?? [])
       .filter((breakdown) => allowedBreakdowns.includes(breakdown.label))
       .map((breakdown) =>
-      comparisonLine(`${breakdown.label}: `, breakdown.actual, breakdown.forecast, breakdown.variance)),
+      comparisonLine(breakdownPrefix(breakdown.label), breakdown.actual, breakdown.forecast, breakdown.variance)),
   ];
   return { summary: "", detail: lines.join("\n") };
 }
@@ -267,7 +305,7 @@ function replaceTemplateTokens(xml: string, report: BoardReportForExport, kpiRep
   const emptyTokens = Object.entries(replacements)
     .filter(([, value]) => value === "")
     .map(([token]) => token);
-  const xmlWithoutEmptyPlaceholderParagraphs = removeEmptyPlaceholderParagraphs(xml, emptyTokens);
+  const xmlWithoutEmptyPlaceholderParagraphs = removeEmptyPlaceholderParagraphs(removeSourceGovernanceFooter(xml), emptyTokens);
   const replaced = Object.entries(replacements).reduce(
     (result, [token, value]) => result.split(token).join(escapeXml(value)),
     xmlWithoutEmptyPlaceholderParagraphs,

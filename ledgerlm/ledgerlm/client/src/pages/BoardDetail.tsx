@@ -545,7 +545,7 @@ export default function BoardDetail() {
                               {report.sourceSnapshot?.sourceType === 'enterprise' ? 'Enterprise Data' : 'Vault'}
                               {report.sourceSnapshot?.name ? ` · ${report.sourceSnapshot.name}` : ''}
                               {report.periodLabel ? ` · ${report.periodLabel}` : ''}
-                              {kpiReport?.forecastScenario ? ` · ${kpiReport.forecastScenario}` : ''}
+                              {!report.result?.entityPnl && kpiReport?.forecastScenario ? ` · ${kpiReport.forecastScenario}` : ''}
                             </p>
                           </div>
                           <Badge variant="secondary">Governed</Badge>
@@ -577,7 +577,7 @@ export default function BoardDetail() {
                             <p className="text-[11px] text-muted-foreground">Calculated by the governed deterministic engine. AI narrative below is explanatory only.</p>
                          </div>
                         ) : null}
-                        {isStandaloneBoard && kpiReport?.metrics?.length ? (
+                        {isStandaloneBoard && !report.result?.entityPnl && !report.result?.balanceSheet && kpiReport?.metrics?.length ? (
                           <KpiTemplateReport
                             title={report.title}
                             periodLabel={report.periodLabel}

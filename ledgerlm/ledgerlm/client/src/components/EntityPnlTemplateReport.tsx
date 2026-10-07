@@ -1,6 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ENTITY_PNL_CALCULATION_VERSION, type EntityPnlPlanningForecast, type EntityPnlForecastComparison, type EntityPnlFinancialPlanSource } from "@shared/entityPnlPlanning";
 
 interface EntityPnlLine {
   label: string;
@@ -10,6 +11,8 @@ interface EntityPnlLine {
 }
 
 interface EntityPnlPayload {
+  calculationVersion?: string;
+  financialPlanSource?: EntityPnlFinancialPlanSource;
   entity: string;
   asOf: string;
   comparison: "qoq" | "yoy";
@@ -23,6 +26,9 @@ interface EntityPnlPayload {
   lines: EntityPnlLine[];
   evidence: string[];
   warnings: string[];
+  planningForecast?: EntityPnlPlanningForecast;
+  forecastComparison?: EntityPnlForecastComparison;
+  expenseReconciliation?: Array<{ period: string; amount: number | null }>;
   chart?: {
     title: string;
     series: Array<{ name: string; values: Array<{ period: string; value: number | null }> }>;
@@ -120,6 +126,21 @@ export function EntityPnlTemplateReport({
       </div>
 
       {summary && <p className="text-sm leading-6">{summary}</p>}
+      {report.calculationVersion !== ENTITY_PNL_CALCULATION_VERSION && (
+        <p role="status" className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+          This saved report uses earlier Entity P&amp;L calculation rules. Generate a new analysis to apply the revised financial plan, corrected financial scope,
+          signed costs and CF source comparisons. Existing saved figures have not been recalculated.
+        </p>
+      )}
+      {report.financialPlanSource && (
+        <p data-testid="entity-pnl-financial-source" className="rounded-md border bg-muted/30 p-3 text-sm">
+          Financial forecast: {report.financialPlanSource.sourceName} · {report.financialPlanSource.entity} only ·
+          source amounts in mINR · cumulative YTD.
+          {report.currency === "USD" && report.financialPlanSource.usdExchangeRate
+            ? ` ${report.financialPlanSource.scenario} converted at ${report.financialPlanSource.usdExchangeRate} INR/USD.`
+            : ` Displayed in ${report.currency}.`}
+        </p>
+      )}
 
       {kpis.length > 0 && (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -186,6 +207,7 @@ export function EntityPnlTemplateReport({
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm">Profit &amp; Loss and capacity</CardTitle>
+          <p className="text-xs text-muted-foreground">Variance compares current Actual with comparison Actual, not Forecast.</p>
         </CardHeader>
         <CardContent className="p-0">
           <div className="max-h-[560px] overflow-auto">
@@ -196,8 +218,8 @@ export function EntityPnlTemplateReport({
                   {report.columns.map((column) => (
                     <th key={column} className="border px-3 py-2 text-right font-semibold">{column}</th>
                   ))}
-                  <th className="border px-3 py-2 text-right font-semibold">Variance</th>
-                  <th className="border px-3 py-2 text-right font-semibold">%</th>
+                  <th className="border px-3 py-2 text-right font-semibold">{report.comparison.toUpperCase()} variance</th>
+                  <th className="border px-3 py-2 text-right font-semibold">{report.comparison.toUpperCase()} %</th>
                 </tr>
               </thead>
               <tbody>
@@ -215,7 +237,7 @@ export function EntityPnlTemplateReport({
                         {formatVariance(line, report.currency)}
                       </td>
                       <td className="border px-3 py-2 text-right tabular-nums">
-                        {line.variancePercent === null ? "—" : `${line.variancePercent.toFixed(1)}%`}
+                        {line.label === "EBIT%" || line.variancePercent === null ? "—" : `${line.variancePercent.toFixed(1)}%`}
                       </td>
                     </tr>
                   );
@@ -225,6 +247,94 @@ export function EntityPnlTemplateReport({
           </div>
         </CardContent>
       </Card>
+
+      {report.expenseReconciliation?.some((item) => item.amount !== null && Math.abs(item.amount) > 0.01) && (
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-sm">Expense reconciliation</CardTitle></CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            <p className="text-muted-foreground">
+              Total Expenses includes all governed cost categories. These amounts are already in Total Expenses
+              but not in the individual expense lines above; do not add them again or treat them as Other Expenses.
+            </p>
+            {report.expenseReconciliation.map((item) => (
+              <p key={item.period} className="flex flex-wrap justify-between gap-2">
+                <span>{item.period} — categories not individually displayed</span>
+                <span className="tabular-nums">{formatAmount(item.amount, report.currency)}</span>
+              </p>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {report.planningForecast && (
+        <Card data-testid="entity-pnl-planning-forecast">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Available forecast planning data — {report.planningForecast.scenario}</CardTitle>
+            <p className="text-xs text-muted-foreground">
+              {report.planningForecast.entity} · {report.planningForecast.asOf} snapshot · USD budgets and supplied capacity.
+              These are operational measures, not confirmed YTD financial revenue or expenses.
+              {report.currency === "INR" && " USD budgets are retained because an approved INR conversion is not supplied."}
+            </p>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead><tr className="border-b">
+                  <th className="py-2 text-left">Source measure</th>
+                  <th className="py-2 text-right">Value</th>
+                  <th className="py-2 pl-4 text-left">Availability</th>
+                </tr></thead>
+                <tbody>{(report.planningForecast.entityBreakdowns ?? [report.planningForecast]).flatMap((source) => source.metrics.map((metric) => (
+                  <tr key={`${source.entity}:${metric.label}`} className="border-b">
+                    <td className="py-2">{report.planningForecast?.entityBreakdowns && <span className="block text-xs text-muted-foreground">{source.entity} · separate source scope</span>}{metric.label}</td>
+                    <td className="py-2 text-right tabular-nums">
+                      {metric.value === null ? "—" : metric.unit === "USD"
+                        ? `${new Intl.NumberFormat("en-US", { maximumFractionDigits: 4 }).format(metric.value / 1_000_000)} mUSD`
+                        : new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(metric.value)}
+                    </td>
+                    <td className="py-2 pl-4 text-muted-foreground">
+                      {metric.status === "conflicting" ? "Conflicting records — review required"
+                        : metric.status === "missing" ? "Not supplied" : "Available"}
+                    </td>
+                  </tr>
+                )))}</tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {report.forecastComparison && (
+        <Card data-testid="entity-pnl-forecast-comparison">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Actual versus {report.forecastComparison.scenario}</CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Separate from {report.comparison.toUpperCase()} variance. Actual minus CF uses the same entity, period and currency.
+              Margins compare in percentage points; operational budgets are not substituted for financial revenue.
+            </p>
+          </CardHeader>
+          <CardContent className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead><tr className="border-b">
+                {["Line", "Actual", "CF", "Actual − CF / pp", "%", "Availability"].map((header) =>
+                  <th key={header} className="p-2 text-left">{header}</th>)}
+              </tr></thead>
+              <tbody>{report.forecastComparison.rows.map((row) => {
+                const line = { ...row, values: {} };
+                return <tr key={row.label} className="border-b">
+                  <td className="p-2">{row.label}</td>
+                  <td className="p-2 tabular-nums">{formatCell(line, row.actual, report.currency)}</td>
+                  <td className="p-2 tabular-nums">{formatCell(line, row.forecast, report.currency)}</td>
+                  <td className="p-2 tabular-nums">{formatVariance(line, report.currency)}</td>
+                  <td className="p-2 tabular-nums">{row.variancePercent === null ? "—" : `${row.variancePercent.toFixed(1)}%`}</td>
+                  <td className="p-2 text-xs text-muted-foreground">{row.reason ?? (row.label === "EBIT%" ? "Margin change in pp"
+                    : row.forecast === 0 ? "Zero CF baseline: percentage unavailable" : "Comparable")}</td>
+                </tr>;
+              })}</tbody>
+            </table>
+          </CardContent>
+        </Card>
+      )}
 
       {(insights.length > 0 || commentary.length > 0) && (
         <div className="grid gap-3 lg:grid-cols-2">

@@ -94,6 +94,15 @@ export const boardAnalysisResultSchema = z.object({
     actions: balanceSheetReportSchema.shape.actions.optional(),
   }).strict().optional(),
   entityPnl: z.object({
+    calculationVersion: z.string().max(100).optional(),
+    financialPlanSource: z.object({
+      sourceName: z.string().max(200),
+      entity: z.string().max(200),
+      sourceUnit: z.literal("mINR"),
+      periodBasis: z.literal("ytd"),
+      scenario: z.string().max(100),
+      usdExchangeRate: z.number().finite().positive().optional(),
+    }).strict().optional(),
     entity: z.string().max(200),
     currency: z.string().max(20),
     metrics: boundedRecord(z.number().finite().nullable(), 100).default({}),
@@ -113,6 +122,47 @@ export const boardAnalysisResultSchema = z.object({
     }).strict()).max(30).optional(),
     sourceRowCount: z.number().int().min(0).optional(),
     forecastSourceRowCount: z.number().int().min(0).optional(),
+    planningForecast: z.object({
+      scenario: z.string().max(100),
+      asOf: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
+      entity: z.string().max(200),
+      sourceRowCount: z.number().int().min(0),
+      metrics: z.array(z.object({
+        label: z.string().max(200),
+        value: z.number().finite().nullable(),
+        unit: z.enum(["USD", "capacity"]),
+        status: z.enum(["available", "missing", "conflicting"]),
+      }).strict()).max(20),
+      entityBreakdowns: z.array(z.object({
+        scenario: z.string().max(100),
+        asOf: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
+        entity: z.string().max(200),
+        sourceRowCount: z.number().int().min(0),
+        metrics: z.array(z.object({
+          label: z.string().max(200),
+          value: z.number().finite().nullable(),
+          unit: z.enum(["USD", "capacity"]),
+          status: z.enum(["available", "missing", "conflicting"]),
+        }).strict()).max(20),
+        warnings: z.array(z.string().max(1_000)).max(30),
+      }).strict()).max(50).optional(),
+      warnings: z.array(z.string().max(1_000)).max(100),
+    }).strict().optional(),
+    forecastComparison: z.object({
+      scenario: z.string().max(100),
+      rows: z.array(z.object({
+        label: z.string().max(200),
+        actual: z.number().finite().nullable(),
+        forecast: z.number().finite().nullable(),
+        variance: z.number().finite().nullable(),
+        variancePercent: z.number().finite().nullable(),
+        reason: z.string().max(500).optional(),
+      }).strict()).max(30),
+    }).strict().optional(),
+    expenseReconciliation: z.array(z.object({
+      period: z.string().max(100),
+      amount: z.number().finite().nullable(),
+    }).strict()).max(10).optional(),
     evidence: z.array(z.string().max(1_000)).max(20).optional(),
     chart: z.object({
       title: z.string().max(200),

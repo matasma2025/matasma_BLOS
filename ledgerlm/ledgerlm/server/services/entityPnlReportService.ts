@@ -1,5 +1,8 @@
 import { sql } from "drizzle-orm";
 import { db } from "../db";
+import { readEntityPnlPlanningForecast } from "./entityPnlPlanningService";
+import { ENTITY_PNL_CALCULATION_VERSION, type EntityPnlPlanningForecast, type EntityPnlForecastComparison, type EntityPnlFinancialPlanSource } from "../../shared/entityPnlPlanning";
+import { financialPlanAggregateRows, validateEntityPnlFinancialPlan } from "./entityPnlFinancialPlanService";
 
 export type EntityPnlComparison = "qoq" | "yoy";
 export type EntityPnlCurrency = "USD" | "INR";
@@ -21,11 +24,16 @@ export interface EntityPnlLine {
 }
 
 export interface EntityPnlReport {
+  calculationVersion: typeof ENTITY_PNL_CALCULATION_VERSION;
+  financialPlanSource?: EntityPnlFinancialPlanSource;
   entity: string;
   asOf: string;
   comparison: EntityPnlComparison;
   currency: EntityPnlCurrency;
   units: EntityPnlCurrency;
+  planningForecast?: EntityPnlPlanningForecast;
+  forecastComparison?: EntityPnlForecastComparison;
+  expenseReconciliation?: Array<{ period: string; amount: number | null }>;
   columns: string[];
   currentLabel: string;
   comparisonLabel: string;
@@ -49,6 +57,11 @@ export interface EntityPnlReport {
   periodLabel: string;
 }
 
+export function entityPnlResultPayload(report: EntityPnlReport) {
+  const { summary, kpis, insights, commentary, table, periodLabel, ...payload } = report;
+  return payload;
+}
+
 interface AggregateRow {
   year: number | string;
   month: number | string;
@@ -60,6 +73,8 @@ interface AggregateRow {
   amount: number | string | null;
   capacity: number | string | null;
   source_rows: number | string | null;
+  amount_complete?: boolean;
+  capacity_complete?: boolean;
 }
 
 const ACTUAL_SCENARIO_PREDICATE = sql`
@@ -82,7 +97,7 @@ const CAPACITY_LINES = [
   "End Capacity On-roll",
   "End Capacity Outsourcing",
   "Total End",
-  "Avg Capacity Overall",
+  "Avg Capacity On-roll",
   "Avg Capacity Outsourcing",
   "Total Average",
 ] as const;
@@ -190,19 +205,21 @@ function capacityForPeriod(
   point: [number, number],
   scenario: string,
   component: "on_roll" | "outsourcing",
+  comparison: EntityPnlComparison,
 ): [number | null, number | null] {
   const [year, month] = point;
   const currentKey = snapshotKey(point, scenario);
-  if (!capacityCoverage.has(currentKey)) return [null, null];
+  if (!capacityCoverage.has(`${currentKey}:${component}`)) return [null, null];
 
   const end = capacity.get(`${currentKey}:${component}`) ?? 0;
-  const yearToDate: number[] = [];
-  for (let index = 1; index <= month; index += 1) {
+  const averageMonths: number[] = [];
+  const startMonth = comparison === "qoq" ? month - 2 : 1;
+  for (let index = startMonth; index <= month; index += 1) {
     const monthKey = snapshotKey([year, index], scenario);
-    if (!capacityCoverage.has(monthKey)) return [end, null];
-    yearToDate.push(capacity.get(`${monthKey}:${component}`) ?? 0);
+    if (!capacityCoverage.has(`${monthKey}:${component}`)) return [end, null];
+    averageMonths.push(capacity.get(`${monthKey}:${component}`) ?? 0);
   }
-  return [end, yearToDate.reduce((sum, value) => sum + value, 0) / yearToDate.length];
+  return [end, averageMonths.reduce((sum, value) => sum + value, 0) / averageMonths.length];
 }
 
 function money(value: number | null, currency: EntityPnlCurrency): string {
@@ -261,12 +278,14 @@ export function validateEntityPnlReportRequest(payload: unknown): EntityPnlRepor
   };
 }
 
-export function buildEntityPnlReport(rows: AggregateRow[], request: EntityPnlReportRequest): EntityPnlReport {
+export function buildEntityPnlReport(rows: AggregateRow[], request: EntityPnlReportRequest, planningForecast?: EntityPnlPlanningForecast, financialPlanSource?: EntityPnlFinancialPlanSource): EntityPnlReport {
   const snapshots = new Map<string, number>();
   const capacity = new Map<string, number>();
   const rowCounts = new Map<string, number>();
   const financialCoverage = new Set<string>();
   const capacityCoverage = new Set<string>();
+  const invalidFinancialCoverage = new Set<string>();
+  const invalidCapacityCoverage = new Set<string>();
   for (const row of rows) {
     const year = Number(row.year);
     const month = Number(row.month);
@@ -280,28 +299,42 @@ export function buildEntityPnlReport(rows: AggregateRow[], request: EntityPnlRep
     if (category.includes("end capacity")) {
       const component = capacityComponent(row.resource_type, row.source_sub_category);
       if (component) {
-        capacityCoverage.add(periodKey);
         const key = `${periodKey}:${component}`;
+        if (row.capacity_complete === false || row.capacity === null || String(row.capacity).trim() === "" || !Number.isFinite(Number(row.capacity))) {
+          invalidCapacityCoverage.add(key);
+          continue;
+        }
+        capacityCoverage.add(key);
         capacity.set(key, (capacity.get(key) ?? 0) + finiteNumber(row.capacity));
       }
       continue;
     }
     const entityCategory = normalizeCategory(row.entity_category);
     if (category === "revenue summary" && (entityCategory === "" || entityCategory === "revenue")) {
+      if (row.amount_complete === false || row.amount === null || String(row.amount).trim() === "" || !Number.isFinite(Number(row.amount))) {
+        invalidFinancialCoverage.add(`${periodKey}:revenue`);
+        continue;
+      }
       financialCoverage.add(`${periodKey}:revenue`);
       const key = `${periodKey}:Revenue`;
       snapshots.set(key, (snapshots.get(key) ?? 0) + amount);
     } else if (category === "cost summary") {
+      if (row.amount_complete === false || row.amount === null || String(row.amount).trim() === "" || !Number.isFinite(Number(row.amount))) {
+        invalidFinancialCoverage.add(`${periodKey}:cost`);
+        continue;
+      }
       financialCoverage.add(`${periodKey}:cost`);
       const totalKey = `${periodKey}:Total Expenses`;
-      snapshots.set(totalKey, (snapshots.get(totalKey) ?? 0) + Math.abs(amount));
+      snapshots.set(totalKey, (snapshots.get(totalKey) ?? 0) + amount);
       const visibleLine = VISIBLE_COST_LINES.find((line) => line.aliases.has(entityCategory))?.label;
       if (visibleLine) {
         const key = `${periodKey}:${visibleLine}`;
-        snapshots.set(key, (snapshots.get(key) ?? 0) + Math.abs(amount));
+        snapshots.set(key, (snapshots.get(key) ?? 0) + amount);
       }
     }
   }
+  invalidFinancialCoverage.forEach((key) => financialCoverage.delete(key));
+  invalidCapacityCoverage.forEach((key) => capacityCoverage.delete(key));
 
   const [year, month] = request.asOf.split("-").map(Number);
   const currentPoint: [number, number] = [year, month];
@@ -314,7 +347,10 @@ export function buildEntityPnlReport(rows: AggregateRow[], request: EntityPnlRep
     ? quarterLabel(comparisonPoint)
     : periodLabel(comparisonPoint[0], comparisonPoint[1], "YTD");
   const forecastLabel = request.cfVersion
-    ? request.comparison === "qoq"
+    ? planningForecast && !financialPlanSource && !financialCoverage.has(`${snapshotKey(currentPoint, request.cfVersion)}:revenue`)
+      && !financialCoverage.has(`${snapshotKey(currentPoint, request.cfVersion)}:cost`)
+      ? `${request.cfVersion} · ${periodLabel(year, month, "snapshot")}`
+      : request.comparison === "qoq"
       ? `${request.cfVersion} ${currentLabel}`
       : `${request.cfVersion} YTD`
     : undefined;
@@ -356,23 +392,26 @@ export function buildEntityPnlReport(rows: AggregateRow[], request: EntityPnlRep
   const incompleteCapacityAverages = new Map<string, string[]>();
   for (const { point, label, scenario } of capacityPoints) {
     const periodKey = snapshotKey(point, scenario);
-    if (!capacityCoverage.has(periodKey)) missingCapacitySnapshots.add(label);
-    const missingYtdMonths = Array.from({ length: point[1] }, (_, index) => index + 1)
-      .filter((monthNumber) => !capacityCoverage.has(snapshotKey([point[0], monthNumber], scenario)));
-    if (missingYtdMonths.length) {
+    if (!["on_roll", "outsourcing"].every((component) => capacityCoverage.has(`${periodKey}:${component}`))) missingCapacitySnapshots.add(label);
+    const averageComparison = label === yearEndLabel ? "yoy" : request.comparison;
+    const startMonth = averageComparison === "qoq" ? point[1] - 2 : 1;
+    const missingAverageMonths = Array.from({ length: point[1] - startMonth + 1 }, (_, index) => index + startMonth)
+      .filter((monthNumber) => !["on_roll", "outsourcing"].every((component) =>
+        capacityCoverage.has(`${snapshotKey([point[0], monthNumber], scenario)}:${component}`)));
+    if (missingAverageMonths.length) {
       incompleteCapacityAverages.set(
         label,
-        missingYtdMonths.map((monthNumber) => `${MONTH_ABBREVIATIONS[monthNumber - 1]} ${point[0]}`),
+        missingAverageMonths.map((monthNumber) => `${MONTH_ABBREVIATIONS[monthNumber - 1]} ${point[0]}`),
       );
     }
 
-    const [onRollEnd, onRollAverage] = capacityForPeriod(capacity, capacityCoverage, point, scenario, "on_roll");
-    const [outsourcingEnd, outsourcingAverage] = capacityForPeriod(capacity, capacityCoverage, point, scenario, "outsourcing");
+    const [onRollEnd, onRollAverage] = capacityForPeriod(capacity, capacityCoverage, point, scenario, "on_roll", averageComparison);
+    const [outsourcingEnd, outsourcingAverage] = capacityForPeriod(capacity, capacityCoverage, point, scenario, "outsourcing", averageComparison);
     const lineValues: Record<string, number | null> = {
       "End Capacity On-roll": onRollEnd,
       "End Capacity Outsourcing": outsourcingEnd,
       "Total End": onRollEnd === null || outsourcingEnd === null ? null : onRollEnd + outsourcingEnd,
-      "Avg Capacity Overall": onRollAverage === null || outsourcingAverage === null ? null : onRollAverage + outsourcingAverage,
+      "Avg Capacity On-roll": onRollAverage,
       "Avg Capacity Outsourcing": outsourcingAverage,
       "Total Average": onRollAverage === null || outsourcingAverage === null ? null : onRollAverage + outsourcingAverage,
     };
@@ -390,7 +429,7 @@ export function buildEntityPnlReport(rows: AggregateRow[], request: EntityPnlRep
     const current = values[currentLabel] ?? null;
     const prior = values[comparisonLabel] ?? null;
     const variance = current === null || prior === null ? null : current - prior;
-    const variancePercent = variance === null || prior === null || prior === 0 ? null : (variance / Math.abs(prior)) * 100;
+  const variancePercent = label === "EBIT%" || variance === null || prior === null || prior === 0 ? null : (variance / Math.abs(prior)) * 100;
     return { label, values, variance, variancePercent };
   });
 
@@ -409,7 +448,14 @@ export function buildEntityPnlReport(rows: AggregateRow[], request: EntityPnlRep
   const warnings: string[] = [];
   if ((rowCounts.get("actual") ?? 0) === 0) warnings.push("No Actual Entity P&L rows were found for the selected period and entity scope.");
   if (request.cfVersion && (rowCounts.get(normalizedScenario(request.cfVersion)) ?? 0) === 0) {
-    warnings.push(`No rows were found for the selected forecast scenario ${request.cfVersion}.`);
+    warnings.push(`No supported financial summary or end-capacity rows were found for ${request.cfVersion}. This does not mean the cube has no forecast records.`);
+  }
+  if (invalidFinancialCoverage.size) warnings.push(`Some ${request.currency} amounts are missing or incomplete; affected revenue, expenses and EBIT are unavailable, not zero.`);
+  if (invalidCapacityCoverage.size) warnings.push("Some capacity amounts are missing or incomplete; affected capacity measures are unavailable, not zero.");
+  if (request.cfVersion && !request.entity) warnings.push("All-entity planning source scopes are displayed separately; they are not assumed to match the financial consolidated population.");
+  if (planningForecast) {
+    warnings.push("Available operational forecast measures are shown separately below. Missing financial expenses, currency conversions and unconfirmed period semantics are not estimated.");
+    warnings.push(...planningForecast.warnings);
   }
 
   const requiredSnapshotChecks: Array<{
@@ -482,7 +528,7 @@ export function buildEntityPnlReport(rows: AggregateRow[], request: EntityPnlRep
       const details = Array.from(incompleteCapacityAverages.entries())
         .map(([label, months]) => `${label} (missing ${months.join(", ")})`)
         .join("; ");
-      warnings.push(`YTD capacity averages are unavailable because monthly capacity snapshots are incomplete: ${details}.`);
+      warnings.push(`${request.comparison === "qoq" ? "Quarter capacity averages (and full-year averages for YE)" : "YTD capacity averages"} are unavailable because monthly capacity snapshots are incomplete: ${details}.`);
     }
   }
   const insights = [
@@ -521,8 +567,8 @@ export function buildEntityPnlReport(rows: AggregateRow[], request: EntityPnlRep
       label: "Total End",
       value: totalEnd === null ? "—" : totalEnd.toLocaleString("en-US", { maximumFractionDigits: 0 }),
       change: totalAverage === null
-        ? "YTD average unavailable"
-        : `Total average ${totalAverage.toLocaleString("en-US", { maximumFractionDigits: 0 })} YTD`,
+        ? `${request.comparison === "qoq" ? "Quarter" : "YTD"} average unavailable`
+        : `Total average ${totalAverage.toLocaleString("en-US", { maximumFractionDigits: 0 })} ${request.comparison === "qoq" ? "quarter" : "YTD"}`,
       direction: totalEnd === null ? undefined : "flat" as const,
     },
   ];
@@ -546,18 +592,28 @@ export function buildEntityPnlReport(rows: AggregateRow[], request: EntityPnlRep
     line.variancePercent === null ? "—" : `${line.variancePercent.toFixed(1)}%`,
   ]);
   const metrics = Object.fromEntries(lines.map((line) => [line.label, line.values[currentLabel] ?? null]));
+  const expenseReconciliation = columns.map((period) => {
+    const total = valuesByLine.get("Total Expenses")?.[period] ?? null;
+    const displayed = VISIBLE_COST_LINES.map((line) => valuesByLine.get(line.label)?.[period] ?? null);
+    return { period, amount: total === null || displayed.some((value) => value === null)
+      ? null : total - displayed.reduce<number>((sum, value) => sum + (value ?? 0), 0) };
+  });
   const evidence = [
     `Read ${rowCounts.get("actual") ?? 0} Actual source rows from the selected authorized cube.`,
     request.entity
       ? `Read-only run from the selected Enterprise cube for ${entity}.`
       : "Read-only run from the selected Enterprise cube across all entity rows, including blank entity values.",
     `${request.comparison.toUpperCase()} comparison: ${currentLabel} versus ${comparisonLabel}.`,
-    "Total Expenses uses the full governed Cost Summary population; visible expense rows are a presentation subset.",
+    "Total Expenses uses classified Entity P&L Cost Summary rows with nonblank entity category and subcategory; credits and reversals retain their signed contribution. Visible expense rows are a presentation subset.",
+    "Revenue excludes order reasons YEH, YEI, YEJ, YEK, YN2 and GL accounts beginning 139, matching the existing Entity P&L rules.",
+    "Financial values use cumulative YTD snapshots, not a sum of monthly YTD snapshots. Calendar-quarter amounts use quarter-end differences.",
     "Actual and CF are queried as separate scenarios and are never combined.",
   ];
   if (request.cfVersion) {
     evidence.push(`Read ${rowCounts.get(normalizedScenario(request.cfVersion)) ?? 0} source rows for ${request.cfVersion}; forecast amounts remain separate from Actual.`);
   }
+  if (planningForecast) evidence.push(`Read ${planningForecast.sourceRowCount} planning source rows for ${planningForecast.entity}, ${planningForecast.scenario}, ${planningForecast.asOf}, blank-GB entity total scope. Operational measures are not mixed with financial snapshots.`);
+  evidence.push(`Variance is current Actual minus comparison Actual, not Actual minus Forecast. Undisplayed expense categories are reconciled separately without redefining Other Expenses.`);
   const chart = {
     title: "Revenue, Expenses and EBIT",
     series: ["Revenue", "Total Expenses", "EBIT"].map((name) => ({
@@ -568,13 +624,34 @@ export function buildEntityPnlReport(rows: AggregateRow[], request: EntityPnlRep
       })),
     })),
   };
+  const forecastComparison = request.cfVersion && forecastLabel ? {
+    scenario: request.cfVersion,
+    rows: lines.map((line) => {
+      const actual = line.values[currentLabel] ?? null;
+      const forecast = line.values[forecastLabel] ?? null;
+      const variance = actual === null || forecast === null ? null : actual - forecast;
+      return {
+        label: line.label, actual, forecast, variance,
+        variancePercent: line.label === "EBIT%" || variance === null || forecast === null || forecast === 0
+          ? null : variance / Math.abs(forecast) * 100,
+        ...(actual === null || forecast === null ? { reason: forecast === null
+          ? "Comparable CF snapshot unavailable: operational budget/capacity is not a confirmed financial or mapped capacity snapshot."
+          : "Actual snapshot unavailable." } : {}),
+      };
+    }),
+  } : undefined;
 
   return {
+    calculationVersion: ENTITY_PNL_CALCULATION_VERSION,
+    ...(financialPlanSource ? { financialPlanSource } : {}),
     entity,
     asOf: request.asOf,
     comparison: request.comparison,
     currency: request.currency,
     units: request.currency,
+    ...(planningForecast ? { planningForecast } : {}),
+    ...(forecastComparison ? { forecastComparison } : {}),
+    expenseReconciliation,
     columns,
     currentLabel,
     comparisonLabel,
@@ -596,7 +673,7 @@ export function buildEntityPnlReport(rows: AggregateRow[], request: EntityPnlRep
   };
 }
 
-export async function runEntityPnlReport(request: EntityPnlReportRequest): Promise<EntityPnlReport> {
+export async function runEntityPnlReport(request: EntityPnlReportRequest, financialPlanData?: unknown): Promise<EntityPnlReport> {
   const points = selectedPoints(request);
   const pointFilter = sql.join(
     points.map(([year, month]) => sql`(year = ${year} AND month = ${month})`),
@@ -618,8 +695,10 @@ export async function runEntityPnlReport(request: EntityPnlReportRequest): Promi
       trim(coalesce(entity_category, '')) AS entity_category,
       trim(coalesce(resource_type, '')) AS resource_type,
       trim(coalesce(row_data ->> 'source_sub_category', '')) AS source_sub_category,
-      coalesce(sum(coalesce(${currencyColumn}, 0)), 0) AS amount,
-      coalesce(sum(coalesce(capacity, 0)), 0) AS capacity,
+      sum(${currencyColumn}) AS amount,
+      count(${currencyColumn}) = count(*) AS amount_complete,
+      sum(capacity) AS capacity,
+      count(capacity) = count(*) AS capacity_complete,
       count(*)::int AS source_rows
     FROM cube_fact_data
     WHERE cube_id = ${request.cubeId}
@@ -627,11 +706,51 @@ export async function runEntityPnlReport(request: EntityPnlReportRequest): Promi
       AND (${pointFilter})
       AND ${scenarioFilter}
       AND (
-        lower(trim(coalesce(cost_category, ''))) IN ('revenue summary', 'cost summary')
+        (lower(trim(coalesce(cost_category, ''))) = 'revenue summary'
+          AND coalesce(trim(order_reason), '') NOT IN ('YEH', 'YEI', 'YEJ', 'YEK', 'YN2')
+          AND coalesce(trim(gl_account), '') NOT LIKE '139%')
+        OR (lower(trim(coalesce(cost_category, ''))) = 'cost summary'
+          AND trim(coalesce(entity_category, '')) <> ''
+          AND trim(coalesce(entity_sub_category, '')) <> '')
         OR lower(trim(coalesce(cost_category, ''))) LIKE '%end capacity%'
       )
     GROUP BY year, month, scenario, cost_category, entity_category, resource_type, source_sub_category
   `);
-  const rows = ((result as unknown as { rows?: unknown[] }).rows ?? []) as AggregateRow[];
-  return buildEntityPnlReport(rows, request);
+  let rows = ((result as unknown as { rows?: unknown[] }).rows ?? []) as AggregateRow[];
+  const financialPlan = financialPlanData ? validateEntityPnlFinancialPlan(financialPlanData) : undefined;
+  const matchingEntity = Boolean(financialPlan && request.entity
+    && request.entity.trim().toLowerCase() === financialPlan.entity.trim().toLowerCase());
+  const selectedScenario = Boolean(financialPlan && request.cfVersion
+    && financialPlan.rows.some((row) => row.scenario.toLowerCase() === request.cfVersion!.toLowerCase() && row.value !== null));
+  const useFinancialPlan = matchingEntity && selectedScenario;
+  let financialPlanSource: EntityPnlFinancialPlanSource | undefined;
+  if (useFinancialPlan && financialPlan && request.cfVersion) {
+    const pointKeys = new Set(points.map((point) => point.join(":")));
+    // Authoritative board-local source: never add the legacy cube CF population to it.
+    rows = rows.filter((row) => normalizedScenario(String(row.scenario)) !== normalizedScenario(request.cfVersion!));
+    rows.push(...financialPlanAggregateRows(financialPlan, request)
+      .filter((row) => pointKeys.has(`${row.year}:${row.month}`)));
+    financialPlanSource = {
+      sourceName: financialPlan.sourceName, entity: financialPlan.entity,
+      sourceUnit: financialPlan.sourceUnit, periodBasis: financialPlan.periodBasis,
+      scenario: request.cfVersion,
+      ...(financialPlan.usdExchangeRates[request.cfVersion] ? { usdExchangeRate: financialPlan.usdExchangeRates[request.cfVersion] } : {}),
+    };
+  }
+  const planningForecast = useFinancialPlan ? undefined : await readEntityPnlPlanningForecast(request);
+  const report = buildEntityPnlReport(rows, request, planningForecast, financialPlanSource);
+  if (financialPlan) {
+    if (!matchingEntity) report.warnings.push(`The revised financial plan covers ${financialPlan.entity} only. Select ${financialPlan.entity}; it is not a consolidated All entities forecast.`);
+    else if (!selectedScenario) report.warnings.push(`The revised financial plan has no populated ${request.cfVersion ?? "selected forecast"} values. Empty forecast columns are unavailable, not zero.`);
+    if (financialPlanSource) {
+      report.evidence.push(`Financial forecast source: ${financialPlan.sourceName}, ${financialPlan.entity} only. Financial cells are mINR, normalized once to INR; cumulative YTD basis was confirmed by the user. Months are not summed.`);
+      report.evidence.push("Financial plan: Revenue maps to Revenue Summary; other financial categories retain the existing signed expense classification. Internal/Outsourcing End Capacity maps directly; averages use the required monthly end snapshots.");
+      if (request.currency === "USD") {
+        const rate = financialPlanSource.usdExchangeRate;
+        if (rate) report.evidence.push(`${request.cfVersion} USD conversion: source mINR × 1,000,000 ÷ ${rate} INR/USD. Actual uses existing cube USD amounts, not the forecast rate.`);
+        else report.warnings.push(`No approved INR/USD rate was supplied for ${request.cfVersion}. Financial USD forecast values are unavailable; capacities remain unconverted.`);
+      }
+    }
+  }
+  return report;
 }
