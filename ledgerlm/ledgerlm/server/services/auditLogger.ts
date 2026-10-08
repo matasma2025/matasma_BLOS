@@ -54,8 +54,6 @@ export async function writeAuditLog(entry: AuditEntry): Promise<void> {
   }
 }
 
-export function extractIp(req: { headers: Record<string, unknown>; socket?: { remoteAddress?: string } }): string {
-  const forwarded = req.headers["x-forwarded-for"];
-  if (typeof forwarded === "string") return forwarded.split(",")[0].trim();
-  return (req.socket?.remoteAddress ?? "unknown");
+export function extractIp(req: { ip?: string; headers: Record<string, unknown>; socket?: { remoteAddress?: string } }): string {
+  return req.ip || req.socket?.remoteAddress || "unknown";
 }

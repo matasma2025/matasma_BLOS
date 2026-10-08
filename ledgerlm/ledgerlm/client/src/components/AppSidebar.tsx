@@ -1,3 +1,5 @@
+import { renameChatDtoSchema } from "@shared/inputValidators";
+import { NameFieldFeedback, nameError, readableValidationError } from "./NameFieldFeedback";
 import {
   Home,
   Vault,
@@ -219,7 +221,8 @@ export function AppSidebar() {
       console.error("Chat creation failed:", error);
       toast({
         title: "Error",
-        description: "Failed to create new analysis. Please try again.",
+        description: [429, 503].includes((error as Error & { status?: number }).status || 0)
+          ? error.message : "Failed to create new analysis. Please try again.",
         variant: "destructive",
       });
     },
@@ -227,9 +230,9 @@ export function AppSidebar() {
 
   const renameChatMutation = useMutation({
     mutationFn: async ({ id, title }: { id: string; title: string }) => {
-      const chat = await apiRequest<Chat>("PATCH", `/api/chats/${id}`, {
-        title,
-      });
+      const parsed = renameChatDtoSchema.safeParse({ title });
+      if (!parsed.success) throw new Error(parsed.error.issues[0]?.message || "Invalid chat title");
+      const chat = await apiRequest<Chat>("PATCH", `/api/chats/${id}`, parsed.data);
       return chat;
     },
     onSuccess: () => {
@@ -246,7 +249,7 @@ export function AppSidebar() {
       console.error("Chat rename failed:", error);
       toast({
         title: "Error",
-        description: "Failed to rename chat. Please try again.",
+        description: error.message || "Failed to rename chat. Please try again.",
         variant: "destructive",
       });
     },
@@ -918,8 +921,11 @@ export function AppSidebar() {
             <Input
               ref={renameInputRef}
               value={renameValue}
-              onChange={(e) => setRenameValue(e.target.value)}
+              onChange={(e) => { if (!renameChatMutation.isPending) renameChatMutation.reset(); setRenameValue(e.target.value); }}
               placeholder="Enter chat name"
+              maxLength={200}
+              aria-invalid={!!nameError(renameValue, "Chat name")}
+              aria-describedby="rename-chat-name-feedback"
               data-testid="input-rename-chat"
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
@@ -927,6 +933,10 @@ export function AppSidebar() {
                 }
               }}
             />
+            <NameFieldFeedback value={renameValue} label="Chat name" id="rename-chat-name-feedback" />
+            {renameChatMutation.error && <p role="alert" className="mt-2 text-sm text-destructive">
+              {readableValidationError(renameChatMutation.error)}
+            </p>}
           </div>
           <DialogFooter>
             <Button
@@ -938,7 +948,7 @@ export function AppSidebar() {
             </Button>
             <Button
               onClick={handleConfirmRename}
-              disabled={renameChatMutation.isPending || !renameValue.trim()}
+              disabled={renameChatMutation.isPending || !!nameError(renameValue, "Chat name")}
               data-testid="button-confirm-rename"
             >
               {renameChatMutation.isPending ? "Saving..." : "Save"}

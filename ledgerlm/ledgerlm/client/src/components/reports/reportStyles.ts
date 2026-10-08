@@ -1,0 +1,11 @@
+export const reportFrame = "overflow-hidden rounded-2xl border border-teal-900/15 bg-[#f3f8f7] shadow-sm";
+export const reportHeader = "border-b border-teal-900/15 bg-teal-50/80 px-4 py-5 sm:px-6";
+export const reportInsetHeader = `${reportHeader} -mx-4 -mt-4 sm:-mx-6 sm:-mt-6`;
+export const reportTitle = "text-lg font-semibold tracking-tight text-teal-950 sm:text-xl";
+export const reportEyebrow = "text-xs font-semibold uppercase tracking-[0.16em] text-teal-800";
+export const reportMetricSurface = "rounded-xl border border-teal-900/15 bg-white shadow-sm";
+export const reportMetricCard = `${reportMetricSurface} p-4`;
+export const reportWarning = "rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-amber-950";
+export const reportTh = "border border-teal-900/15 bg-teal-50 px-3 py-2 text-left font-semibold text-teal-950 whitespace-nowrap";
+export const reportTd = "border border-teal-900/10 px-3 py-2 align-top";
+export const reportScroll = "overflow-x-auto rounded-xl border border-teal-900/15 bg-white";

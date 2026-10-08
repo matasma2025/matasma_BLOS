@@ -161,9 +161,9 @@ test("planning supplement is exported without altering the uploaded template tab
     { particulars: "Outsourcing Capacity", sub_category: "Average", cost_value: 3216.6871 },
   ], { entity: data.entity, scenario: "CF05 2026", asOf: data.asOf });
   data.expenseReconciliation = [{ period: data.currentLabel, amount: 25_000_000 }];
-  const legacy = inspect(await exportEntityPnlPptx({ title: "P&L", result: { entityPnl: data } }));
+  const legacy = inspect(await exportEntityPnlPptx({ title: "P&L", result: { entityPnl: data } }, undefined, { includeSupplement: true }));
   assert.ok(legacy.files["ppt/slides/slide2.xml"]);
-  const output = await exportEntityPnlPptx({ title: "P&L", result: { entityPnl: data } }, template.toString("base64"));
+  const output = await exportEntityPnlPptx({ title: "P&L", result: { entityPnl: data } }, template.toString("base64"), { includeSupplement: true });
   const { files, slide } = inspect(output);
   const supplementaryXml = strFromU8(files["ppt/slides/slide2.xml"]);
   assert.ok(supplementaryXml.includes("1,162.8432"));
@@ -179,6 +179,20 @@ test("planning supplement is exported without altering the uploaded template tab
   assert.deepEqual(validateAndNormalizePptx(output), output);
   const pdf = exportEntityPnlPdf({ title: "P&L", result: { entityPnl: data } });
   assert.ok(pdf.toString("latin1").includes("/Count 2"));
+});
+
+test("normal summary exports one slide even when detailed planning and comparisons exist", async () => {
+  const data = payload(true);
+  data.planningForecast = buildEntityPnlPlanningForecast([
+    { particulars: "Budget (mUSD)", sub_category: "Offshore", cost_value: 1162.8432 },
+  ], { entity: data.entity, scenario: "CF05 2026", asOf: data.asOf });
+  data.expenseReconciliation = [{ period: data.currentLabel, amount: 25_000_000 }];
+  for (const template of [undefined, (await templatePromise).toString("base64")]) {
+    const { files } = inspect(await exportEntityPnlPptx({ title: "P&L", result: { entityPnl: data } }, template));
+    const slides = Object.keys(files).filter((name) => /^ppt\/slides\/slide\d+\.xml$/.test(name));
+    assert.equal(slides.length, 1);
+    assert.ok(!files["ppt/slides/slide2.xml"]);
+  }
 });
 
 test("combined template exports only the selected layout with dynamic periods and reference formatting", async () => {
@@ -221,7 +235,7 @@ test("combined template retains quarter semantics across the Q1/year boundary an
   data.planningForecast = buildEntityPnlPlanningForecast([
     { particulars: "Budget (mUSD)", sub_category: "Offshore", cost_value: 12.5 },
   ], { entity: data.entity, scenario: "CF05 2027", asOf: data.asOf });
-  const { files, slide } = inspect(await exportEntityPnlPptx({ title: "P&L", result: { entityPnl: data } }, template.toString("base64")));
+  const { files, slide } = inspect(await exportEntityPnlPptx({ title: "P&L", result: { entityPnl: data } }, template.toString("base64"), { includeSupplement: true }));
   assert.ok(slide.includes("Q1&apos;27"));
   assert.equal(tableRows(slide)[0][4], "Dec&apos;26");
   assert.ok(files["ppt/slides/slide2.xml"]);

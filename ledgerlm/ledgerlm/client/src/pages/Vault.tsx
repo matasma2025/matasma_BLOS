@@ -46,6 +46,7 @@ import { fetchApiFile } from "@/lib/apiFiles";
 import { useToast } from "@/hooks/use-toast";
 import { getAuthUser } from "@/lib/auth";
 import type { Document } from "@shared/schema";
+import { generatedChatTitle } from "@shared/inputValidators";
 import { ConnectDriveDialog } from "@/components/ConnectDriveDialog";
 
 export default function Vault() {
@@ -199,10 +200,13 @@ export default function Vault() {
         .slice(0, 2)
         .join(", ");
 
-      const chatTitle =
+      const chatTitle = generatedChatTitle(
         documentIds.length > 2
-          ? `Analysis: ${selectedDocNames} and ${documentIds.length - 2} more`
-          : `Analysis: ${selectedDocNames}`;
+          ? `Analysis - ${selectedDocNames} and ${documentIds.length - 2} more`
+          : `Analysis - ${selectedDocNames}`,
+        "Document Analysis",
+        200,
+      );
 
       const chatResponse = await fetch("/api/chats", {
         method: "POST",
@@ -218,7 +222,12 @@ export default function Vault() {
       });
 
       if (!chatResponse.ok) {
-        throw new Error("Failed to create chat");
+        const failure = await chatResponse.json().catch(() => null);
+        throw new Error(
+          typeof failure?.error === "string" && failure.error.trim()
+            ? failure.error
+            : "Failed to create chat",
+        );
       }
 
       const chat = await chatResponse.json();
@@ -253,10 +262,10 @@ export default function Vault() {
       queryClient.refetchQueries({ queryKey: ["/api/chats"] });
       setLocation(`/chat/${chat.id}`);
     },
-    onError: () => {
+    onError: (error: Error) => {
       toast({
         title: "Error",
-        description: "Failed to create analysis session",
+        description: error.message || "Failed to create analysis session",
         variant: "destructive",
       });
     },

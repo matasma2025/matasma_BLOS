@@ -11,7 +11,9 @@
     "test:security": "tsx --test tests/security/*.test.ts",
     "db:push": "tsx scripts/db-safe-push.ts",
     "db:push:check": "tsx scripts/db-safe-push.ts --dry-run",
-    "db:prepare": "tsx scripts/db-prepare.ts"
+    "db:prepare": "tsx scripts/db-prepare.ts",
+    "db:entity-pnl-plan": "tsx scripts/entity-pnl-cube-plan.ts --migrate",
+    "import:entity-pnl-plan": "tsx scripts/entity-pnl-cube-plan.ts"
   },
   "dependencies": {
     "@azure/identity": "^4.13.1",

@@ -1,6 +1,8 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ReportDownloadFooter } from "@/components/reports/ReportDownloadFooter";
+import { reportFrame, reportInsetHeader, reportTitle, reportMetricSurface, reportWarning, reportScroll, reportTh, reportTd } from "@/components/reports/reportStyles";
 import { ENTITY_PNL_CALCULATION_VERSION, type EntityPnlPlanningForecast, type EntityPnlForecastComparison, type EntityPnlFinancialPlanSource } from "@shared/entityPnlPlanning";
 
 interface EntityPnlLine {
@@ -45,6 +47,7 @@ interface EntityPnlTemplateReportProps {
   commentary?: Array<{ label: string; text: string }>;
   onExport: (format: "pdf" | "pptx") => void;
   isExporting?: boolean;
+  showDownloadFooter?: boolean;
 }
 
 const MONEY_LINES = new Set([
@@ -88,6 +91,7 @@ export function EntityPnlTemplateReport({
   commentary = [],
   onExport,
   isExporting = false,
+  showDownloadFooter = true,
 }: EntityPnlTemplateReportProps) {
   const chartSeries = report.chart?.series ?? [];
   const chartPeriods = chartSeries[0]?.values.map((item) => item.period) ?? [];
@@ -102,11 +106,11 @@ export function EntityPnlTemplateReport({
   };
 
   return (
-    <div className="space-y-4" data-testid="entity-pnl-template-report">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+    <div className={`${reportFrame} p-4 sm:p-6 space-y-5`} data-testid="entity-pnl-template-report">
+      <div className={`${reportInsetHeader} flex flex-wrap items-start justify-between gap-3`}>
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="text-lg font-semibold">{title}</h3>
+            <h3 className={reportTitle}>{title}</h3>
             <Badge variant="secondary">Entity P&amp;L</Badge>
             <Badge variant="outline">{report.entity}</Badge>
             <Badge variant="outline">{report.comparison.toUpperCase()}</Badge>
@@ -115,27 +119,21 @@ export function EntityPnlTemplateReport({
             {periodLabel || report.currentLabel} · Values in {report.units || report.currency}
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button size="sm" variant="outline" onClick={() => onExport("pdf")} disabled={isExporting}>
-            Export PDF
-          </Button>
-          <Button size="sm" onClick={() => onExport("pptx")} disabled={isExporting}>
-            Export PowerPoint
-          </Button>
-        </div>
       </div>
 
       {summary && <p className="text-sm leading-6">{summary}</p>}
       {report.calculationVersion !== ENTITY_PNL_CALCULATION_VERSION && (
-        <p role="status" className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+        <p role="status" className={`${reportWarning} text-sm`}>
           This saved report uses earlier Entity P&amp;L calculation rules. Generate a new analysis to apply the revised financial plan, corrected financial scope,
           signed costs and CF source comparisons. Existing saved figures have not been recalculated.
         </p>
       )}
       {report.financialPlanSource && (
-        <p data-testid="entity-pnl-financial-source" className="rounded-md border bg-muted/30 p-3 text-sm">
+        <p data-testid="entity-pnl-financial-source" className="rounded-xl border border-teal-900/15 bg-white p-4 text-sm leading-relaxed">
           Financial forecast: {report.financialPlanSource.sourceName} · {report.financialPlanSource.entity} only ·
-          source amounts in mINR · cumulative YTD.
+          source amounts in mINR · {report.financialPlanSource.periodBasis === "mtd"
+            ? "monthly MTD, summed over the report period." : "cumulative YTD."}
+          {report.financialPlanSource.storageScope === "cube" && ` Cube-linked · revision ${report.financialPlanSource.revision}.`}
           {report.currency === "USD" && report.financialPlanSource.usdExchangeRate
             ? ` ${report.financialPlanSource.scenario} converted at ${report.financialPlanSource.usdExchangeRate} INR/USD.`
             : ` Displayed in ${report.currency}.`}
@@ -145,10 +143,10 @@ export function EntityPnlTemplateReport({
       {kpis.length > 0 && (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {kpis.map((kpi) => (
-            <Card key={kpi.label}>
+            <Card key={kpi.label} className={reportMetricSurface}>
               <CardContent className="p-4">
                 <p className="text-xs text-muted-foreground">{kpi.label}</p>
-                <p className="mt-1 text-xl font-semibold tabular-nums">{kpi.value}</p>
+                <p className="mt-1 text-xl font-semibold tabular-nums text-teal-950">{kpi.value}</p>
                 {kpi.change && <p className="mt-1 text-xs text-muted-foreground">{kpi.change}</p>}
               </CardContent>
             </Card>
@@ -212,14 +210,14 @@ export function EntityPnlTemplateReport({
         <CardContent className="p-0">
           <div className="max-h-[560px] overflow-auto">
             <table className="w-full min-w-[900px] border-collapse text-xs">
-              <thead className="sticky top-0 z-10 bg-muted">
+              <thead className="sticky top-0 z-10 bg-teal-50">
                 <tr>
-                  <th className="border px-3 py-2 text-left font-semibold">Line item</th>
+                  <th className="border border-teal-900/15 bg-teal-50 px-3 py-2 text-left font-semibold text-teal-950">Line item</th>
                   {report.columns.map((column) => (
-                    <th key={column} className="border px-3 py-2 text-right font-semibold">{column}</th>
+                    <th key={column} className="border border-teal-900/15 bg-teal-50 px-3 py-2 text-right font-semibold text-teal-950">{column}</th>
                   ))}
-                  <th className="border px-3 py-2 text-right font-semibold">{report.comparison.toUpperCase()} variance</th>
-                  <th className="border px-3 py-2 text-right font-semibold">{report.comparison.toUpperCase()} %</th>
+                  <th className="border border-teal-900/15 bg-teal-50 px-3 py-2 text-right font-semibold text-teal-950">{report.comparison.toUpperCase()} variance</th>
+                  <th className="border border-teal-900/15 bg-teal-50 px-3 py-2 text-right font-semibold text-teal-950">{report.comparison.toUpperCase()} %</th>
                 </tr>
               </thead>
               <tbody>
@@ -227,16 +225,16 @@ export function EntityPnlTemplateReport({
                   const isSubtotal = ["Total Expenses", "EBIT", "Total End", "Total Average"].includes(line.label);
                   return (
                     <tr key={line.label} className={isSubtotal ? "bg-muted/40 font-semibold" : "hover:bg-muted/20"}>
-                      <td className="border px-3 py-2 text-left">{line.label}</td>
+                      <td className={`${reportTd} text-left`}>{line.label}</td>
                       {report.columns.map((column) => (
-                        <td key={column} className="border px-3 py-2 text-right tabular-nums">
+                        <td key={column} className={`${reportTd} text-right tabular-nums`}>
                           {formatCell(line, line.values[column], report.currency)}
                         </td>
                       ))}
-                      <td className="border px-3 py-2 text-right tabular-nums">
+                      <td className={`${reportTd} text-right tabular-nums`}>
                         {formatVariance(line, report.currency)}
                       </td>
-                      <td className="border px-3 py-2 text-right tabular-nums">
+                      <td className={`${reportTd} text-right tabular-nums`}>
                         {line.label === "EBIT%" || line.variancePercent === null ? "—" : `${line.variancePercent.toFixed(1)}%`}
                       </td>
                     </tr>
@@ -277,22 +275,22 @@ export function EntityPnlTemplateReport({
             </p>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
+            <div className={reportScroll}>
               <table className="w-full text-sm">
                 <thead><tr className="border-b">
-                  <th className="py-2 text-left">Source measure</th>
-                  <th className="py-2 text-right">Value</th>
-                  <th className="py-2 pl-4 text-left">Availability</th>
+                  <th className={reportTh}>Source measure</th>
+                  <th className="border border-teal-900/15 bg-teal-50 px-3 py-2 text-right font-semibold text-teal-950">Value</th>
+                  <th className={reportTh}>Availability</th>
                 </tr></thead>
                 <tbody>{(report.planningForecast.entityBreakdowns ?? [report.planningForecast]).flatMap((source) => source.metrics.map((metric) => (
                   <tr key={`${source.entity}:${metric.label}`} className="border-b">
-                    <td className="py-2">{report.planningForecast?.entityBreakdowns && <span className="block text-xs text-muted-foreground">{source.entity} · separate source scope</span>}{metric.label}</td>
-                    <td className="py-2 text-right tabular-nums">
+                    <td className={reportTd}>{report.planningForecast?.entityBreakdowns && <span className="block text-xs text-muted-foreground">{source.entity} · separate source scope</span>}{metric.label}</td>
+                    <td className={`${reportTd} text-right tabular-nums`}>
                       {metric.value === null ? "—" : metric.unit === "USD"
                         ? `${new Intl.NumberFormat("en-US", { maximumFractionDigits: 4 }).format(metric.value / 1_000_000)} mUSD`
                         : new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(metric.value)}
                     </td>
-                    <td className="py-2 pl-4 text-muted-foreground">
+                    <td className={`${reportTd} text-muted-foreground`}>
                       {metric.status === "conflicting" ? "Conflicting records — review required"
                         : metric.status === "missing" ? "Not supplied" : "Available"}
                     </td>
@@ -313,7 +311,7 @@ export function EntityPnlTemplateReport({
               Margins compare in percentage points; operational budgets are not substituted for financial revenue.
             </p>
           </CardHeader>
-          <CardContent className="overflow-x-auto">
+          <CardContent className="overflow-x-auto [&_th]:bg-teal-50 [&_th]:text-teal-950 [&_td]:align-top">
             <table className="w-full text-sm">
               <thead><tr className="border-b">
                 {["Line", "Actual", "CF", "Actual − CF / pp", "%", "Availability"].map((header) =>
@@ -375,6 +373,14 @@ export function EntityPnlTemplateReport({
           </CardContent>
         </Card>
       )}
+      {showDownloadFooter && <ReportDownloadFooter>
+        <Button size="sm" variant="outline" onClick={() => onExport("pdf")} disabled={isExporting}>
+          Export PDF
+        </Button>
+        <Button size="sm" onClick={() => onExport("pptx")} disabled={isExporting}>
+          Export PowerPoint
+        </Button>
+      </ReportDownloadFooter>}
     </div>
   );
 }

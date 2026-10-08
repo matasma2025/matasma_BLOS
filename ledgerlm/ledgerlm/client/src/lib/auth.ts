@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { clearLegacyAuthStorage } from './legacyAuthStorage';
 
 interface AuthUser {
   id: string;
@@ -11,15 +12,15 @@ interface AuthUser {
 // On page refresh, ProtectedRoute (App.tsx) falls back to GET /api/auth/me which
 // derives identity from the server-side HttpOnly session cookie.
 //
-// NOTE: device_token (remember-device for OTP skip) intentionally stays in
-// localStorage — it is a device fingerprint, not a session credential. The server
-// validates it independently and it cannot be used to bypass session auth.
+// Legacy persisted identity/device-token values are removed, never restored.
+// Active device proof uses separate IndexedDB keys, not these obsolete values.
 let _authUser: AuthUser | null = null;
 const AUTH_CHANGE_EVENT = 'ledgerlm_auth_change';
 const AUTH_BROADCAST_CHANNEL = 'ledgerlm_auth';
 const AUTH_STORAGE_EVENT = 'ledgerlm_auth_event';
 
 export function setAuthUser(user: AuthUser) {
+  clearLegacyAuthStorage();
   _authUser = user;
   // Notify all components in this tab of the auth change
   window.dispatchEvent(new Event(AUTH_CHANGE_EVENT));
@@ -30,6 +31,7 @@ export function getAuthUser(): AuthUser | null {
 }
 
 export function clearAuthUser() {
+  clearLegacyAuthStorage();
   _authUser = null;
   window.dispatchEvent(new Event(AUTH_CHANGE_EVENT));
 }

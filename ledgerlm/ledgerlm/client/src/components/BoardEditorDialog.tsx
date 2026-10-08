@@ -9,6 +9,8 @@
  */
 
 import { useState, useEffect } from 'react';
+import { boardTitleSchema } from '@shared/inputValidators';
+import { NameFieldFeedback, nameError, readableValidationError } from './NameFieldFeedback';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import {
   Dialog,
@@ -57,7 +59,7 @@ export function BoardEditorDialog({
   const isEntityPnlTemplate = templateSlug === 'entity-pnl';
 
   // ── Accessible cubes ───────────────────────────────────────────────────────
-  const { data: cubeAccess } = useQuery<CubeAccess>({
+  const { data: cubeAccess, isLoading: cubesLoading } = useQuery<CubeAccess>({
     queryKey: ['/api/user/accessible-cubes'],
     enabled: open,
   });
@@ -122,10 +124,11 @@ export function BoardEditorDialog({
   }, [open, template, board]);
 
   // ── Available versions for selected cube ───────────────────────────────────
-  const { data: cubeVersions = [] } = useQuery<string[]>({
-    queryKey: ['/api/cubes', formData.cubeId, 'versions'],
+  const { data: cubeVersions = [], isLoading: cubeVersionsLoading, error: cubeVersionsError } = useQuery<string[]>({
+    queryKey: ['/api/cubes', formData.cubeId, 'versions', isEntityPnlTemplate ? 'entity-pnl' : 'generic', isEntityPnlTemplate ? formData.scope.entity.trim() : ''],
     enabled: open && !!formData.cubeId,
-    queryFn: () => apiRequest('GET', `/api/cubes/${formData.cubeId}/versions`) as Promise<string[]>,
+    queryFn: () => apiRequest('GET', `/api/cubes/${formData.cubeId}/versions${isEntityPnlTemplate
+      ? `?templateKey=entity-pnl&entity=${encodeURIComponent(formData.scope.entity.trim())}` : ''}`) as Promise<string[]>,
   });
 
   const selectedCube = cubes.find((c) => c.id === formData.cubeId);
@@ -134,7 +137,7 @@ export function BoardEditorDialog({
   const saveMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
       const payload = {
-        title: data.title,
+        title: boardTitleSchema.parse(data.title),
         description: data.description,
         templateId: template?.id ?? null,
         settings: {
@@ -180,7 +183,7 @@ export function BoardEditorDialog({
       else queryClient.invalidateQueries({ queryKey: ['/api/boards', board?.id] });
     },
     onError: (error: Error) => {
-      toast({ title: 'Error', description: error.message || `Failed to ${isEditing ? 'update' : 'create'} board`, variant: 'destructive' });
+      toast({ title: 'Error', description: readableValidationError(error), variant: 'destructive' });
     },
   });
 
@@ -210,6 +213,9 @@ export function BoardEditorDialog({
     <BoardCreationWizard
       open={open}
       onOpenChange={onOpenChange}
+      cubesLoading={cubesLoading}
+      cubeVersionsLoading={cubeVersionsLoading}
+      cubeVersionsError={cubeVersionsError ? (cubeVersionsError as Error).message : undefined}
       isEditing={isEditing}
       isFromTemplate={isFromTemplate}
       templateName={template?.name}
@@ -239,8 +245,9 @@ export function BoardEditorDialog({
 
           <form onSubmit={(e) => {
             e.preventDefault();
-            if (!formData.title.trim()) {
-              toast({ title: 'Board name required', description: 'Enter a board name before saving.', variant: 'destructive' });
+            const error = nameError(formData.title, 'Board name');
+            if (error) {
+              toast({ title: 'Invalid Board name', description: error, variant: 'destructive' });
               return;
             }
             saveMutation.mutate(formData);
@@ -249,8 +256,14 @@ export function BoardEditorDialog({
           <div className="space-y-1.5">
             <Label htmlFor="title">Board Name</Label>
             <Input id="title" value={formData.title}
-              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+              onChange={(e) => { if (!saveMutation.isPending) saveMutation.reset(); setFormData({ ...formData, title: e.target.value }); }}
+              aria-invalid={!!nameError(formData.title, 'Board name')}
+              aria-describedby="board-name-feedback"
               placeholder="e.g. BGSW Monthly Variance" required maxLength={200} />
+            <NameFieldFeedback value={formData.title} label="Board name" id="board-name-feedback" />
+            {saveMutation.error && <p role="alert" className="mt-2 text-sm text-destructive">
+              {readableValidationError(saveMutation.error)}
+            </p>}
           </div>
 
           {/* Description */}

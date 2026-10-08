@@ -1,3 +1,5 @@
+import { cubeNameSchema } from '@shared/inputValidators';
+import { NameFieldFeedback } from './NameFieldFeedback';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient, getCsrfHeaders } from '@/lib/queryClient';
@@ -14,6 +16,7 @@ import { Trash2, Plus, Users, FileText, Edit, Box, Database, Cloud, Upload, Laye
 import { ColumnConfigDialog } from '@/components/ColumnConfigDialog';
 import { HierarchyConfigDialog } from '@/components/HierarchyConfigDialog';
 import { SchemaIntelligenceStudio } from '@/components/SchemaIntelligenceStudio';
+import { EntityPnlCubePlanDialog } from '@/components/EntityPnlCubePlanDialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -78,18 +81,9 @@ const SOURCE_TYPE_OPTIONS = [
 
 const CUBE_NAME_MAX = 60;
 const CUBE_DESCRIPTION_MAX = 280;
-const CUBE_NAME_CHARACTERS = /^[A-Za-z0-9 _&().,/'-]+$/;
-
 function validateCubeName(value: string): string | null {
-  const normalized = value.normalize('NFC').trim();
-  if (!normalized) return 'Cube name is required';
-  if (normalized.length > CUBE_NAME_MAX) {
-    return `Cube name must be at most ${CUBE_NAME_MAX} characters`;
-  }
-  if (!CUBE_NAME_CHARACTERS.test(normalized)) {
-    return "Cube name may contain letters, numbers, spaces, and . , - _ & ( ) / ' only";
-  }
-  return null;
+  const result = cubeNameSchema.safeParse(value);
+  return result.success ? null : result.error.issues[0]?.message || 'Invalid cube name';
 }
 
 function validateCubeDescription(value: string): string | null {
@@ -194,6 +188,7 @@ export function CubeManagement({ domainId, domainName, isSuperAdmin }: CubeManag
   // SQL Query Console state
   const [isQueryDialogOpen, setIsQueryDialogOpen] = useState(false);
   const [queryCube, setQueryCube] = useState<Cube | null>(null);
+  const [entityPnlPlanCube, setEntityPnlPlanCube] = useState<Cube | null>(null);
 
   // Scheduler dialog state
   const [isSchedulerDialogOpen, setIsSchedulerDialogOpen] = useState(false);
@@ -892,6 +887,12 @@ export function CubeManagement({ domainId, domainName, isSuperAdmin }: CubeManag
                           <Terminal className="h-4 w-4 mr-1" />
                           Query
                         </Button>
+                        {(!cube.schemaType || cube.schemaType === "kpi") && (
+                          <Button size="sm" variant="outline" onClick={() => setEntityPnlPlanCube(cube)}
+                            data-testid={`button-entity-pnl-plan-${cube.id}`}>
+                            Entity P&amp;L Plan
+                          </Button>
+                        )}
                         <Button
                           size="sm"
                           variant="outline"
@@ -937,6 +938,10 @@ export function CubeManagement({ domainId, domainName, isSuperAdmin }: CubeManag
           )}
         </CardContent>
       </Card>
+
+      {/* Create Cube Wizard Dialog */}
+      {entityPnlPlanCube && <EntityPnlCubePlanDialog key={entityPnlPlanCube.id}
+        cube={entityPnlPlanCube} onClose={() => setEntityPnlPlanCube(null)} />}
 
       {/* Create Cube Wizard Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={(open) => {
@@ -1003,10 +1008,13 @@ export function CubeManagement({ domainId, domainName, isSuperAdmin }: CubeManag
                   onChange={(e) => setNewCubeName(e.target.value)}
                   maxLength={CUBE_NAME_MAX}
                   data-testid="input-cube-name"
+                  aria-invalid={!!validateCubeName(newCubeName)}
+                  aria-describedby="cube-name-feedback"
                 />
                 <p className="mt-1 text-xs text-muted-foreground">
                   {newCubeName.length}/{CUBE_NAME_MAX} characters. Letters, numbers, spaces, and . , - _ &amp; ( ) / ' are allowed.
                 </p>
+                <NameFieldFeedback value={newCubeName} label="Cube name" max={60} id="cube-name-feedback" />
               </div>
 
               <div>
@@ -1598,10 +1606,13 @@ export function CubeManagement({ domainId, domainName, isSuperAdmin }: CubeManag
                 onChange={(e) => setEditCubeName(e.target.value)}
                 maxLength={CUBE_NAME_MAX}
                 data-testid="input-edit-cube-name"
+                aria-invalid={!!validateCubeName(editCubeName)}
+                aria-describedby="edit-cube-name-feedback"
               />
               <p className="mt-1 text-xs text-muted-foreground">
                 {editCubeName.length}/{CUBE_NAME_MAX} characters. Letters, numbers, spaces, and . , - _ &amp; ( ) / ' are allowed.
               </p>
+              <NameFieldFeedback value={editCubeName} label="Cube name" max={60} id="edit-cube-name-feedback" />
             </div>
             <div>
               <Label htmlFor="edit-cube-description">Description</Label>

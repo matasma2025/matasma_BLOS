@@ -103,7 +103,7 @@ test("Financial plan exports contain the same CF values and correct source/FX as
   const plan = await parseEntityPnlFinancialPlanWorkbook(await fixture(), options);
   const report = buildEntityPnlReport([...actuals, ...financialPlanAggregateRows(plan, request())], request(), undefined, source);
   const wrapper = { title: "BGSW plan", result: { entityPnl: report } };
-  const pptx = await exportEntityPnlPptx(wrapper);
+  const pptx = await exportEntityPnlPptx(wrapper, undefined, { includeSupplement: true });
   const pdf = exportEntityPnlPdf(wrapper);
   const files = unzipSync(pptx);
   const text = Object.keys(files).filter((name) => /^ppt\/slides\/slide\d+\.xml$/.test(name)).map((name) => strFromU8(files[name])).join("\n");

@@ -2,10 +2,22 @@ import { sql } from "drizzle-orm";
 import { db } from "../db";
 import { readEntityPnlPlanningForecast } from "./entityPnlPlanningService";
 import { ENTITY_PNL_CALCULATION_VERSION, type EntityPnlPlanningForecast, type EntityPnlForecastComparison, type EntityPnlFinancialPlanSource } from "../../shared/entityPnlPlanning";
-import { financialPlanAggregateRows, validateEntityPnlFinancialPlan } from "./entityPnlFinancialPlanService";
+import { financialPlanAggregateRows } from "./entityPnlFinancialPlanService";
+import { readCubeEntityPnlPlan, selectFinancialPlan } from "./entityPnlCubePlanService";
 
 export type EntityPnlComparison = "qoq" | "yoy";
 export type EntityPnlCurrency = "USD" | "INR";
+
+// Export the exact existing population predicate for regression tests.
+export const ENTITY_PNL_FINANCIAL_POPULATION = sql`(
+  (lower(trim(coalesce(cost_category, ''))) = 'revenue summary'
+    AND coalesce(trim(order_reason), '') NOT IN ('YEH', 'YEI', 'YEJ', 'YEK', 'YN2')
+    AND coalesce(trim(gl_account), '') NOT LIKE '139%')
+  OR (lower(trim(coalesce(cost_category, ''))) = 'cost summary'
+    AND trim(coalesce(entity_category, '')) <> ''
+    AND trim(coalesce(entity_sub_category, '')) <> '')
+  OR lower(trim(coalesce(cost_category, ''))) LIKE '%end capacity%'
+)`;
 
 export interface EntityPnlReportRequest {
   cubeId: string;
@@ -188,8 +200,19 @@ function amountForPeriod(
   scenario: string,
   line: string,
   comparison: EntityPnlComparison,
+  periodBasis: "ytd" | "mtd" = "ytd",
 ): number | null {
   const category: FinancialSnapshotCategory = line === "Revenue" ? "revenue" : "cost";
+  if (periodBasis === "mtd") {
+    const startMonth = comparison === "qoq" ? point[1] - 2 : 1;
+    let total = 0;
+    for (let month = startMonth; month <= point[1]; month++) {
+      const monthlyPoint: [number, number] = [point[0], month];
+      if (!financialCoverage.has(`${snapshotKey(monthlyPoint, scenario)}:${category}`)) return null;
+      total += snapshots.get(snapshotValueKey(monthlyPoint, scenario, line)) ?? 0;
+    }
+    return total;
+  }
   if (!financialCoverage.has(`${snapshotKey(point, scenario)}:${category}`)) return null;
   const current = snapshots.get(snapshotValueKey(point, scenario, line)) ?? 0;
   if (comparison === "yoy") return current;
@@ -235,8 +258,9 @@ function valueFrom(
   scenario: string,
   comparison: EntityPnlComparison,
   line: string,
+  periodBasis: "ytd" | "mtd" = "ytd",
 ): number | null {
-  return amountForPeriod(snapshots, financialCoverage, point, scenario, line, comparison);
+  return amountForPeriod(snapshots, financialCoverage, point, scenario, line, comparison, periodBasis);
 }
 
 function difference(current: number | null, prior: number | null): number | null {
@@ -318,7 +342,7 @@ export function buildEntityPnlReport(rows: AggregateRow[], request: EntityPnlRep
       financialCoverage.add(`${periodKey}:revenue`);
       const key = `${periodKey}:Revenue`;
       snapshots.set(key, (snapshots.get(key) ?? 0) + amount);
-    } else if (category === "cost summary") {
+    } else if (category === "cost summary" && entityCategory) {
       if (row.amount_complete === false || row.amount === null || String(row.amount).trim() === "" || !Number.isFinite(Number(row.amount))) {
         invalidFinancialCoverage.add(`${periodKey}:cost`);
         continue;
@@ -365,7 +389,7 @@ export function buildEntityPnlReport(rows: AggregateRow[], request: EntityPnlRep
     values[comparisonLabel] = valueFrom(snapshots, financialCoverage, comparisonPoint, "actual", request.comparison, label);
     values[yearEndLabel] = valueFrom(snapshots, financialCoverage, yearEndPoint, "actual", "yoy", label);
     if (request.cfVersion && forecastLabel) {
-      values[forecastLabel] = valueFrom(snapshots, financialCoverage, currentPoint, request.cfVersion, request.comparison, label);
+      values[forecastLabel] = valueFrom(snapshots, financialCoverage, currentPoint, request.cfVersion, request.comparison, label, financialPlanSource?.periodBasis);
     }
     valuesByLine.set(label, values);
   }
@@ -606,7 +630,9 @@ export function buildEntityPnlReport(rows: AggregateRow[], request: EntityPnlRep
     `${request.comparison.toUpperCase()} comparison: ${currentLabel} versus ${comparisonLabel}.`,
     "Total Expenses uses classified Entity P&L Cost Summary rows with nonblank entity category and subcategory; credits and reversals retain their signed contribution. Visible expense rows are a presentation subset.",
     "Revenue excludes order reasons YEH, YEI, YEJ, YEK, YN2 and GL accounts beginning 139, matching the existing Entity P&L rules.",
-    "Financial values use cumulative YTD snapshots, not a sum of monthly YTD snapshots. Calendar-quarter amounts use quarter-end differences.",
+    financialPlanSource?.periodBasis === "mtd"
+      ? "Actual financial values retain cumulative YTD snapshot rules and quarter-end differences. Financial CF uses monthly MTD flows: sum January through the selected month for YoY, or the selected quarter's months for QoQ."
+      : "Financial values use cumulative YTD snapshots, not a sum of monthly YTD snapshots. Calendar-quarter amounts use quarter-end differences.",
     "Actual and CF are queried as separate scenarios and are never combined.",
   ];
   if (request.cfVersion) {
@@ -705,28 +731,26 @@ export async function runEntityPnlReport(request: EntityPnlReportRequest, financ
       ${entityFilter}
       AND (${pointFilter})
       AND ${scenarioFilter}
-      AND (
-        (lower(trim(coalesce(cost_category, ''))) = 'revenue summary'
-          AND coalesce(trim(order_reason), '') NOT IN ('YEH', 'YEI', 'YEJ', 'YEK', 'YN2')
-          AND coalesce(trim(gl_account), '') NOT LIKE '139%')
-        OR (lower(trim(coalesce(cost_category, ''))) = 'cost summary'
-          AND trim(coalesce(entity_category, '')) <> ''
-          AND trim(coalesce(entity_sub_category, '')) <> '')
-        OR lower(trim(coalesce(cost_category, ''))) LIKE '%end capacity%'
-      )
+      AND ${ENTITY_PNL_FINANCIAL_POPULATION}
     GROUP BY year, month, scenario, cost_category, entity_category, resource_type, source_sub_category
   `);
   let rows = ((result as unknown as { rows?: unknown[] }).rows ?? []) as AggregateRow[];
-  const financialPlan = financialPlanData ? validateEntityPnlFinancialPlan(financialPlanData) : undefined;
+  const cubePlan = request.entity && request.cfVersion ? await readCubeEntityPnlPlan(request.cubeId, request.entity) : undefined;
+  const financialPlan = selectFinancialPlan(request.entity, cubePlan?.plan, financialPlanData);
   const matchingEntity = Boolean(financialPlan && request.entity
     && request.entity.trim().toLowerCase() === financialPlan.entity.trim().toLowerCase());
   const selectedScenario = Boolean(financialPlan && request.cfVersion
     && financialPlan.rows.some((row) => row.scenario.toLowerCase() === request.cfVersion!.toLowerCase() && row.value !== null));
   const useFinancialPlan = matchingEntity && selectedScenario;
+  if (cubePlan && request.cfVersion) {
+    // Missing cube-plan scenarios stay unavailable. Never leak an older cube CF
+    // population into the authoritative Entity P&L dataset.
+    rows = rows.filter((row) => normalizedScenario(String(row.scenario)) !== normalizedScenario(request.cfVersion!));
+  }
   let financialPlanSource: EntityPnlFinancialPlanSource | undefined;
   if (useFinancialPlan && financialPlan && request.cfVersion) {
     const pointKeys = new Set(points.map((point) => point.join(":")));
-    // Authoritative board-local source: never add the legacy cube CF population to it.
+    // One authoritative financial source: never add legacy cube CF or board-local rows.
     rows = rows.filter((row) => normalizedScenario(String(row.scenario)) !== normalizedScenario(request.cfVersion!));
     rows.push(...financialPlanAggregateRows(financialPlan, request)
       .filter((row) => pointKeys.has(`${row.year}:${row.month}`)));
@@ -734,16 +758,22 @@ export async function runEntityPnlReport(request: EntityPnlReportRequest, financ
       sourceName: financialPlan.sourceName, entity: financialPlan.entity,
       sourceUnit: financialPlan.sourceUnit, periodBasis: financialPlan.periodBasis,
       scenario: request.cfVersion,
+      storageScope: cubePlan ? "cube" : "board",
+      ...(cubePlan ? { revision: cubePlan.revision } : {}),
       ...(financialPlan.usdExchangeRates[request.cfVersion] ? { usdExchangeRate: financialPlan.usdExchangeRates[request.cfVersion] } : {}),
     };
   }
   const planningForecast = useFinancialPlan ? undefined : await readEntityPnlPlanningForecast(request);
   const report = buildEntityPnlReport(rows, request, planningForecast, financialPlanSource);
   if (financialPlan) {
+    if (cubePlan) report.evidence.push(`Cube-linked Entity P&L financial plan revision ${cubePlan.revision}. Replaces board-local financial CF for ${financialPlan.entity} only; shared Actual and operational datasets are unchanged.`);
     if (!matchingEntity) report.warnings.push(`The revised financial plan covers ${financialPlan.entity} only. Select ${financialPlan.entity}; it is not a consolidated All entities forecast.`);
     else if (!selectedScenario) report.warnings.push(`The revised financial plan has no populated ${request.cfVersion ?? "selected forecast"} values. Empty forecast columns are unavailable, not zero.`);
     if (financialPlanSource) {
-      report.evidence.push(`Financial forecast source: ${financialPlan.sourceName}, ${financialPlan.entity} only. Financial cells are mINR, normalized once to INR; cumulative YTD basis was confirmed by the user. Months are not summed.`);
+      report.evidence.push(`Financial forecast source: ${financialPlan.sourceName}, ${financialPlan.entity} only. Financial cells are mINR, normalized once to INR; ${
+        financialPlan.periodBasis === "mtd"
+          ? "source basis is monthly MTD. Required monthly financial amounts are summed for the report period; missing months remain unavailable."
+          : "cumulative YTD basis was confirmed by the user. Months are not summed."}`);
       report.evidence.push("Financial plan: Revenue maps to Revenue Summary; other financial categories retain the existing signed expense classification. Internal/Outsourcing End Capacity maps directly; averages use the required monthly end snapshots.");
       if (request.currency === "USD") {
         const rate = financialPlanSource.usdExchangeRate;

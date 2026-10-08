@@ -8,6 +8,7 @@ import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { CalendarDays, Check, ChevronLeft, ChevronRight, Database, Loader2, Upload } from 'lucide-react';
 import { extractPptxReportTemplate } from '@/lib/pptxTemplate';
+import { NameFieldFeedback, nameError, readableValidationError } from './NameFieldFeedback';
 
 interface BoardCreationWizardProps {
   open: boolean;
@@ -21,7 +22,10 @@ interface BoardCreationWizardProps {
   cubes: Array<{ id: string; name: string }>;
   selectedCube?: { id: string; name: string };
   cubeVersions: string[];
-  saveMutation: { mutate: (data: any) => void; isPending: boolean };
+  cubesLoading?: boolean;
+  cubeVersionsLoading?: boolean;
+  cubeVersionsError?: string;
+  saveMutation: { mutate: (data: any) => void; isPending: boolean; error?: unknown; reset?: () => void };
   resetForm: () => void;
 }
 
@@ -56,6 +60,9 @@ export function BoardCreationWizard({
   cubes,
   selectedCube,
   cubeVersions,
+  cubesLoading,
+  cubeVersionsLoading,
+  cubeVersionsError,
   saveMutation,
   resetForm,
 }: BoardCreationWizardProps) {
@@ -107,7 +114,7 @@ export function BoardCreationWizard({
   };
 
   const submit = () => {
-    if (!formData.title.trim()) {
+    if (nameError(formData.title, 'Board name')) {
       return;
     }
     saveMutation.mutate(formData);
@@ -225,7 +232,11 @@ export function BoardCreationWizard({
               <div className="space-y-5 max-w-3xl">
                 <div className="space-y-1.5">
                   <Label htmlFor="wizard-board-name">Board name</Label>
-                  <Input id="wizard-board-name" value={formData.title} onChange={(event) => update({ title: event.target.value })} maxLength={200} />
+                  <Input id="wizard-board-name" value={formData.title}
+                    onChange={(event) => { if (!saveMutation.isPending) saveMutation.reset?.(); update({ title: event.target.value }); }}
+                    maxLength={200} aria-invalid={!!nameError(formData.title, 'Board name')}
+                    aria-describedby="wizard-board-name-feedback" />
+                  <NameFieldFeedback value={formData.title} label="Board name" id="wizard-board-name-feedback" />
                 </div>
                 <div className="space-y-1.5">
                   <div className="flex justify-between"><Label htmlFor="wizard-board-description">Description</Label><span className="text-[11px] text-muted-foreground">Shown on the board card</span></div>
@@ -269,8 +280,10 @@ export function BoardCreationWizard({
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs">Enterprise cube</Label>
-                    <select value={formData.cubeId} onChange={(event) => update({ cubeId: event.target.value })} className="w-full h-9 rounded-md border bg-background px-3 text-sm">
+                    <select value={formData.cubeId} disabled={cubesLoading} onChange={(event) => update({ cubeId: event.target.value })} className="w-full h-9 rounded-md border bg-background px-3 text-sm">
                       <option value="">No cube selected</option>
+                      {formData.cubeId && !cubes.some((cube) => cube.id === formData.cubeId)
+                        && <option value={formData.cubeId} disabled>{cubesLoading ? 'Loading selected cube…' : 'Saved cube unavailable in your accessible list'}</option>}
                       {cubes.map((cube) => <option key={cube.id} value={cube.id}>{cube.name}</option>)}
                     </select>
                     {selectedCube && <p className="text-[11px] text-muted-foreground">Authorized source: {selectedCube.name}</p>}
@@ -322,13 +335,16 @@ export function BoardCreationWizard({
                         </div>
                         <div className="space-y-1.5">
                           <Label className="text-xs">Forecast scenario <span className="font-normal text-muted-foreground">(optional)</span></Label>
-                          <select value={formData.scope.forecastScenario ?? ''} onChange={(event) => updateScope({ forecastScenario: event.target.value })} className="w-full h-9 rounded-md border bg-background px-3 text-sm">
+                          <select value={formData.scope.forecastScenario ?? ''} disabled={cubeVersionsLoading} onChange={(event) => updateScope({ forecastScenario: event.target.value })} className="w-full h-9 rounded-md border bg-background px-3 text-sm">
                             <option value="">Actual only</option>
+                            {formData.scope.forecastScenario && !cubeVersions.includes(formData.scope.forecastScenario)
+                              && <option value={formData.scope.forecastScenario}>{formData.scope.forecastScenario} — {cubeVersionsLoading ? 'loading availability…' : 'saved selection; verify source coverage'}</option>}
                             {cubeVersions
                               .filter((version) => /\bCF\d{2}\b/i.test(version) || /forecast/i.test(version))
                               .map((scenario) => <option key={scenario} value={scenario}>{scenario}</option>)}
                           </select>
-                          {formData.cubeId && cubeVersions.filter((version) => /\bCF\d{2}\b/i.test(version) || /forecast/i.test(version)).length === 0
+                          {cubeVersionsError && <p role="alert" className="text-[11px] text-destructive">Unable to load forecast versions: {cubeVersionsError}</p>}
+                          {formData.cubeId && !cubeVersionsLoading && !cubeVersionsError && cubeVersions.filter((version) => /\bCF\d{2}\b/i.test(version) || /forecast/i.test(version)).length === 0
                             && <p className="text-[11px] text-muted-foreground">No supported forecast version is available in this cube.</p>}
                         </div>
                       </>
@@ -382,13 +398,16 @@ export function BoardCreationWizard({
           </div>
         </div>
 
+        {!!saveMutation.error && <p role="alert" className="px-6 py-2 text-sm text-destructive">
+          {readableValidationError(saveMutation.error)}
+        </p>}
         <DialogFooter className="border-t px-6 py-3 flex-row justify-between">
           <div className="text-xs text-muted-foreground">Step {step} of 3 · {stepTitle}</div>
           <div className="flex gap-2">
             {step > 1 && <Button type="button" variant="outline" onClick={() => setStep((step - 1) as 1 | 2 | 3)}><ChevronLeft className="w-4 h-4 mr-1" />Back</Button>}
             <Button type="button" variant="outline" onClick={() => close(false)} disabled={saveMutation.isPending}>{step === 3 ? 'Discard' : 'Cancel'}</Button>
-            {step < 3 && <Button type="button" variant="outline" onClick={submit} disabled={saveMutation.isPending || !formData.title.trim()}>{saveMutation.isPending ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Saving…</> : 'Save changes'}</Button>}
-            {step < 3 ? <Button type="button" onClick={() => setStep((step + 1) as 1 | 2 | 3)} disabled={step === 1 && !formData.title.trim()}>Next<ChevronRight className="w-4 h-4 ml-1" /></Button> : <Button type="button" onClick={submit} disabled={saveMutation.isPending || !formData.title.trim()}>{saveMutation.isPending ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Saving…</> : isEditing ? 'Save changes' : 'Submit'}</Button>}
+            {step < 3 && <Button type="button" variant="outline" onClick={submit} disabled={saveMutation.isPending || !!nameError(formData.title, 'Board name')}>{saveMutation.isPending ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Saving…</> : 'Save changes'}</Button>}
+            {step < 3 ? <Button type="button" onClick={() => setStep((step + 1) as 1 | 2 | 3)} disabled={step === 1 && !!nameError(formData.title, 'Board name')}>Next<ChevronRight className="w-4 h-4 ml-1" /></Button> : <Button type="button" onClick={submit} disabled={saveMutation.isPending || !!nameError(formData.title, 'Board name')}>{saveMutation.isPending ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Saving…</> : isEditing ? 'Save changes' : 'Submit'}</Button>}
           </div>
         </DialogFooter>
       </DialogContent>

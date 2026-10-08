@@ -22,6 +22,7 @@ import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { type CubeBoardReport } from '@shared/schema';
 import { SafeMarkdown } from '@/components/SafeMarkdown';
+import { ReportDownloadFooter } from '@/components/reports/ReportDownloadFooter';
 
 // ── Intent definitions ────────────────────────────────────────────────────────
 
@@ -158,9 +159,10 @@ export function BoardReport({ report, boardId, expanded: controlledExpanded, onE
       setPendingIntent(null);
       navigate(`/chat/${chatId}`);
     },
-    onError: () => {
+    onError: (error: Error & { status?: number }) => {
       setPendingIntent(null);
-      toast({ title: 'Error', description: 'Could not create follow-up chat', variant: 'destructive' });
+      toast({ title: 'Error', description: [429, 503].includes(error.status || 0)
+        ? error.message : 'Could not create follow-up chat', variant: 'destructive' });
     },
   });
 
@@ -267,17 +269,7 @@ export function BoardReport({ report, boardId, expanded: controlledExpanded, onE
             </div>
           </div>
 
-          {/* ── Export row ─────────────────────────────────────── */}
-          <div className="border-t pt-3 flex items-center justify-between flex-wrap gap-2">
-            <div className="flex gap-2">
-              <Button variant="ghost" size="sm" className="text-xs gap-1.5 h-8" onClick={handlePrint}>
-                <Printer className="w-3.5 h-3.5"/>Export PDF
-              </Button>
-              <Button variant="ghost" size="sm" className="text-xs gap-1.5 h-8" onClick={handleExportCsv}
-                disabled={!varData?.length}>
-                <FileSpreadsheet className="w-3.5 h-3.5"/>Export CSV
-              </Button>
-            </div>
+          <div className="border-t pt-3">
             <button
               type="button"
               onClick={() => setShowPrompt((v) => !v)}
@@ -297,6 +289,15 @@ export function BoardReport({ report, boardId, expanded: controlledExpanded, onE
               {report.userPromptFinal}
             </pre>
           )}
+          <ReportDownloadFooter>
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={handlePrint}>
+              <Printer className="w-3.5 h-3.5"/>Export PDF
+            </Button>
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={handleExportCsv}
+              disabled={!varData?.length}>
+              <FileSpreadsheet className="w-3.5 h-3.5"/>Export CSV
+            </Button>
+          </ReportDownloadFooter>
         </div>
       )}
     </Card>

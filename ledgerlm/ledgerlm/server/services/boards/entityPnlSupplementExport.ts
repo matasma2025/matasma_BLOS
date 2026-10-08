@@ -48,7 +48,10 @@ export function supplementNotes(payload: EntityPnlExportPayload): string[] {
   const source = payload.financialPlanSource;
   if (!source) return SUPPLEMENT_NOTES;
   return [
-    `Financial source: ${source.sourceName}, ${source.entity} only. Financial amounts are mINR; cumulative YTD basis is user-confirmed. Do not sum monthly financial snapshots.`,
+    `Financial source: ${source.sourceName}, ${source.entity} only. Financial amounts are mINR; ${
+      source.periodBasis === "mtd"
+        ? "monthly MTD basis is user-confirmed. Sum January through the selected month for YTD, or the selected quarter for QoQ; capacity remains point-in-time."
+        : "cumulative YTD basis is user-confirmed. Do not sum monthly financial snapshots."}`,
     payload.currency === "USD"
       ? source.usdExchangeRate
         ? `${source.scenario}: source mINR × 1,000,000 ÷ ${source.usdExchangeRate} INR/USD. Actual uses its own existing cube USD amounts. Capacity is never currency-converted.`

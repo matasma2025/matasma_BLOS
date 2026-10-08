@@ -46,6 +46,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { queryClient, apiRequest, getCsrfHeaders } from "@/lib/queryClient";
+import { responseError } from "@/lib/apiError";
 import { useToast } from "@/hooks/use-toast";
 import { useAuthUser } from "@/lib/auth";
 import type { Chat, Message, Document } from "@shared/schema";
@@ -645,7 +646,7 @@ export default function ChatDetail() {
       });
       
       if (!response.ok) {
-        throw new Error("Failed to send message");
+        throw await responseError(response);
       }
       
       const reader = response.body?.getReader();
@@ -755,6 +756,11 @@ export default function ChatDetail() {
       streamControllerRef.current = null;
       
       // Rollback optimistic update and refetch to get actual state
+      queryClient.setQueryData(
+        ["/api/chats", id, "messages"],
+        (old: Message[] = []) => old.filter((message) => message.id !== tempUserMsgId),
+      );
+      if (error?.status === 429 || error?.status === 503) setInput((current) => current || content);
       queryClient.invalidateQueries({
         queryKey: ["/api/chats", id, "messages"],
       });
@@ -763,8 +769,9 @@ export default function ChatDetail() {
       });
       
       toast({
-        title: "Error",
-        description: "Failed to send message. Please try again.",
+        title: error?.status === 429 ? "Please wait before trying again" : "Error",
+        description: error?.status === 429 || error?.status === 503
+          ? error.message : "Failed to send message. Please try again.",
         variant: "destructive",
       });
     }

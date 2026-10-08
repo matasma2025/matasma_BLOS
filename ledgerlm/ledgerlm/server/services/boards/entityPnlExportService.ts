@@ -117,12 +117,18 @@ function addPptxTable(slide: any, payload: EntityPnlExportPayload) {
   });
 }
 
-export async function exportEntityPnlPptx(report: EntityPnlExportReport, templateBytesBase64?: string): Promise<Buffer> {
+export async function exportEntityPnlPptx(
+  report: EntityPnlExportReport,
+  templateBytesBase64?: string,
+  options: { includeSupplement?: boolean } = {},
+): Promise<Buffer> {
   const payload = payloadFrom(report);
-  const supplement = supplementalRows(payload);
+  // The normal Board summary download is one selected P&L slide. Detailed
+  // planning/comparison pages are opt-in, not automatically appended.
+  const supplement = options.includeSupplement ? supplementalRows(payload) : [];
   const notes = supplementNotes(payload);
   const sourceCaption = payload.financialPlanSource
-    ? `${payload.financialPlanSource.scenario} · ${payload.entity} · source mINR · confirmed YTD · display ${payload.currency}`
+    ? `${payload.financialPlanSource.scenario} · ${payload.entity} · source mINR · confirmed ${payload.financialPlanSource.periodBasis === "mtd" ? "monthly MTD" : "cumulative YTD"} · display ${payload.currency}`
     : `${payload.planningForecast?.scenario ?? "Actual"} · ${payload.asOf} snapshot · Planning budgets shown in mUSD`;
   const pages = Array.from({ length: Math.ceil(supplement.length / 12) }, (_, index) => supplement.slice(index * 12, index * 12 + 12));
   const addSupplement = (deck: InstanceType<typeof PptxConstructor>, rows: string[][], page: number) => {

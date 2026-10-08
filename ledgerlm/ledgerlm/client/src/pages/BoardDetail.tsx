@@ -1,28 +1,28 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useLocation } from 'wouter';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
-  ArrowLeft, Loader2, MessageSquare, FolderPlus, ShieldCheck,
-  Sparkles, Database, BarChart3, FileText, ChevronRight, Clock3, History, SlidersHorizontal,
+  ArrowLeft, Loader2, ShieldCheck, PanelTop, ChevronDown,
+  Sparkles, Database, BarChart3, FileText, ChevronRight, Clock3, History, SlidersHorizontal, Download,
 } from 'lucide-react';
-import { type Board, type Chat, type CubeBoardReport } from '@shared/schema';
+import { type Board, type CubeBoardReport } from '@shared/schema';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { fetchApiFile } from '@/lib/apiFiles';
 import { useToast } from '@/hooks/use-toast';
 import { BoardEditorDialog } from '@/components/BoardEditorDialog';
 import { StandaloneBoardAnalysisDialog } from '@/components/StandaloneBoardAnalysisDialog';
 import { BoardReport } from '@/components/BoardReport';
-import { BoardSourceSelector } from '@/components/BoardSourceSelector';
+import { BoardDetailsPanel } from '@/components/BoardDetailsPanel';
 import { KpiTemplateReport, type KpiTemplateData } from '@/components/KpiTemplateReport';
 import { BalanceSheetTemplateReport } from '@/components/BalanceSheetTemplateReport';
 import type { BalanceSheetReport } from '@shared/boards/balanceSheet';
 import { EntityPnlTemplateReport } from '@/components/EntityPnlTemplateReport';
-
-type TabId = 'reports' | 'threads';
+import { ReportDownloadFooter } from '@/components/reports/ReportDownloadFooter';
 
 interface GenericRun {
   id: string;
@@ -99,7 +99,6 @@ export default function BoardDetail() {
   const { toast } = useToast();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isAnalysisEditorOpen, setIsAnalysisEditorOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<TabId>('reports');
   const [openReportId, setOpenReportId] = useState<string | null>(null);
   const [legacyReportsInitialized, setLegacyReportsInitialized] = useState(false);
   const [activeGenericReportId, setActiveGenericReportId] = useState<string | null>(null);
@@ -110,6 +109,23 @@ export default function BoardDetail() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [activeRunId, setActiveRunId] = useState<string | null>(null);
   const [finishedRunId, setFinishedRunId] = useState<string | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [detailsMounted, setDetailsMounted] = useState(false);
+  const detailsTriggerRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    setDetailsOpen(false);
+    setDetailsMounted(false);
+  }, [boardId]);
+
+  const toggleDetails = () => {
+    setDetailsMounted(true);
+    setDetailsOpen((open) => !open);
+  };
+  const closeDetails = () => {
+    setDetailsOpen(false);
+    detailsTriggerRef.current?.focus();
+  };
 
   const { data: recentRuns = [] } = useQuery<GenericRun[]>({
     queryKey: ['/api/boards', boardId, 'analysis-runs'],
@@ -127,11 +143,6 @@ export default function BoardDetail() {
 
   const { data: board, isLoading: boardLoading } = useQuery<Board>({
     queryKey: ['/api/boards', boardId],
-    enabled: !!boardId,
-  });
-
-  const { data: boardThreads = [], isLoading: threadsLoading } = useQuery<Chat[]>({
-    queryKey: ['/api/boards', boardId, 'threads'],
     enabled: !!boardId,
   });
 
@@ -286,28 +297,8 @@ export default function BoardDetail() {
     onError: (error: Error) => toast({ title: 'Export unavailable', description: error.message, variant: 'destructive' }),
   });
 
-  const createChatMutation = useMutation({
-    mutationFn: async () => {
-      if (!board) throw new Error('Board not found');
-      const boardSettings = board.settings as any;
-      const chatResponse = await apiRequest('POST', '/api/chats', {
-        title: `${board.title} — Analysis`,
-        templateMessage: boardSettings?.analysisPrompts || `Let's analyse using ${board.title}`,
-      }) as Chat;
-      await apiRequest('POST', `/api/boards/${board.id}/threads`, { chatId: chatResponse.id });
-      return chatResponse;
-    },
-    onSuccess: (data: Chat) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/boards', boardId, 'threads'] });
-      navigate(`/chat/${data.id}`);
-    },
-    onError: () =>
-      toast({ title: 'Error', description: 'Failed to create analysis chat', variant: 'destructive' }),
-  });
-
   const handleRunStarted = (run: { id: string }) => {
     setActiveRunId(run.id);
-    setActiveTab('reports');
     queryClient.invalidateQueries({ queryKey: ['/api/boards', boardId, 'reports', 'search'] });
   };
 
@@ -346,12 +337,13 @@ export default function BoardDetail() {
     <div className="h-full flex-1 bg-muted/20 p-4 lg:p-6 overflow-hidden">
       <div className="h-full bg-white rounded-2xl overflow-auto flex flex-col">
         {/* ── Header ─────────────────────────────────────────────────── */}
-        <div className="px-6 lg:px-8 py-3.5 flex items-center justify-between gap-3 bg-primary/40 flex-shrink-0">
-          <div className="flex items-center gap-3">
+        <div className="px-4 sm:px-6 lg:px-8 py-3.5 flex flex-wrap items-center justify-between gap-3 bg-primary/40 flex-shrink-0">
+          <div className="flex flex-wrap items-center gap-3 min-w-0">
+            <SidebarTrigger className="md:hidden" data-testid="button-sidebar-toggle-mobile" />
             <Button variant="ghost" size="icon" onClick={() => navigate('/boards')} data-testid="button-back-boards">
               <ArrowLeft className="w-4 h-4" />
             </Button>
-            <h1 className="text-xl font-semibold text-foreground" data-testid="text-board-title">
+            <h1 className="text-xl font-semibold text-foreground break-words" data-testid="text-board-title">
               {board.title}
             </h1>
             {hasCube && (
@@ -360,8 +352,22 @@ export default function BoardDetail() {
                 Cube linked
               </Badge>
             )}
+            <Button
+              ref={detailsTriggerRef}
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              onClick={toggleDetails}
+              aria-expanded={detailsOpen}
+              aria-controls="board-details-panel"
+              data-testid="button-board-details"
+            >
+              <PanelTop className="w-4 h-4" />
+              Board details
+              <ChevronDown className={`w-3.5 h-3.5 transition-transform ${detailsOpen ? 'rotate-180' : ''}`} />
+            </Button>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => setIsEditDialogOpen(true)} data-testid="button-edit-board">
               Edit Board
             </Button>
@@ -381,11 +387,27 @@ export default function BoardDetail() {
           </div>
         </div>
 
+        {detailsMounted && (
+          <BoardDetailsPanel
+            id="board-details-panel"
+            open={detailsOpen}
+            onClose={closeDetails}
+            boardId={board.id}
+            title={board.title}
+            description={board.description}
+            boardSettings={boardSettings}
+            boardTemplateKey={boardTemplateKey}
+            hasCube={hasCube}
+            isStandaloneBoard={isStandaloneBoard}
+            isEntityPnlBoard={isEntityPnlBoard}
+            mapping={mapping}
+          />
+        )}
+
         {/* ── Body ───────────────────────────────────────────────────── */}
-        <div className="flex-1 overflow-y-auto px-6 lg:px-8 py-6 space-y-6">
+        <div className="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-6 space-y-6">
           {/* Meta section */}
           <div className="space-y-4">
-            <BoardSourceSelector boardId={board.id} />
              {!hasCube && !isStandaloneBoard && (
               <Card className="p-4 border-amber-200 bg-amber-50">
                 <div className="flex items-start gap-2 text-sm text-amber-800">
@@ -417,116 +439,28 @@ export default function BoardDetail() {
                 )}
               </Card>
             )}
-            {board.description && (
-              <div className="space-y-1">
-                <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wide" data-testid="text-description-label">Description</h2>
-                <p className="text-sm" data-testid="text-board-description">{board.description}</p>
-              </div>
-            )}
-
-             {/* Standalone configuration summary */}
-             {isStandaloneBoard && (
-               <div className="rounded-lg border bg-muted/30 p-4 space-y-2">
-                 <div className="flex items-center gap-2">
-                   <Database className="w-4 h-4 text-primary" />
-                   <span className="text-sm font-medium">Standalone Board configuration</span>
-                 </div>
-                 <div className="flex flex-wrap gap-2">
-                   <Badge variant="secondary" className="text-xs">{boardTemplateKey === 'kpi-metrics' ? 'KPI Metrics' : boardTemplateKey === 'entity-pnl' ? 'Entity P&L' : 'Balance Sheet'}</Badge>
-                   {boardSettings.boardFlow?.scope?.version && <Badge variant="outline" className="text-xs">Version · {boardSettings.boardFlow.scope.version}</Badge>}
-                   {boardSettings.boardFlow?.scope?.entity && <Badge variant="outline" className="text-xs">Entity · {boardSettings.boardFlow.scope.entity}</Badge>}
-                   {isEntityPnlBoard && <Badge variant="outline" className="text-xs">{boardSettings.boardFlow?.scope?.pnlComparison === 'yoy' ? 'YoY' : 'QoQ'}</Badge>}
-                   {isEntityPnlBoard && <Badge variant="outline" className="text-xs">{boardSettings.boardFlow?.scope?.currency ?? 'INR'}</Badge>}
-                   {isEntityPnlBoard && boardSettings.boardFlow?.scope?.forecastScenario && <Badge variant="outline" className="text-xs">Forecast · {boardSettings.boardFlow.scope.forecastScenario}</Badge>}
-                 </div>
-                 <p className="text-xs text-muted-foreground">
-                   Runs use the selected authorized source and configured period. Actuals and Budget mappings are not required.
-                 </p>
-               </div>
-             )}
-
-             {/* Legacy compatibility summary */}
-             {!isStandaloneBoard && hasCube && (
-              <div className="rounded-lg border bg-muted/30 p-4 space-y-2">
-                <div className="flex items-center gap-2">
-                  <Database className="w-4 h-4 text-primary" />
-                  <span className="text-sm font-medium">Smart Analysis — Column Mapping</span>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {mapping.actuals && (
-                    <Badge className="text-xs bg-green-100 text-green-800 hover:bg-green-100">actuals → {mapping.actuals}</Badge>
-                  )}
-                  {mapping.budget && (
-                    <Badge className="text-xs bg-blue-100 text-blue-800 hover:bg-blue-100">budget → {mapping.budget}</Badge>
-                  )}
-                  {mapping.forecast && (
-                    <Badge className="text-xs bg-purple-100 text-purple-800 hover:bg-purple-100">forecast → {mapping.forecast}</Badge>
-                  )}
-                  {(mapping.rollingForecasts ?? []).map((rf: string) => (
-                    <Badge key={rf} variant="outline" className="text-xs">{rf}</Badge>
-                  ))}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                   Click <strong>Run Analysis</strong> to generate the configured Board report.
-                </p>
-              </div>
-            )}
-
-            {boardSettings?.dataSources && (
-              <div className="flex flex-wrap gap-2" data-testid="container-data-sources">
-                {boardSettings.dataSources.enterprise && (
-                  <Badge variant="secondary" className="text-xs" data-testid="badge-datasource-enterprise">Enterprise Data</Badge>
-                )}
-                {boardSettings.dataSources.vault && (
-                  <Badge variant="secondary" className="text-xs" data-testid="badge-datasource-vault">Vault Documents</Badge>
-                )}
-                {boardSettings.dataSources.webApis && (
-                  <Badge variant="secondary" className="text-xs" data-testid="badge-datasource-web">Web APIs</Badge>
-                )}
-                {boardSettings.dataSources.financialApis && (
-                  <Badge variant="secondary" className="text-xs" data-testid="badge-datasource-financial">Financial APIs</Badge>
-                )}
-              </div>
-            )}
           </div>
 
-          {/* ── Tabs ───────────────────────────────────────────────────── */}
+          {/* ── Reports ────────────────────────────────────────────────── */}
           <div className="space-y-4">
-            <div className="flex border-b gap-1">
-              {([
-                { id: 'reports' as TabId,  label: 'Reports',          icon: BarChart3,    count: genericReports.length + (isStandaloneBoard ? 0 : reports.length) },
-                { id: 'threads' as TabId,  label: 'Analysis Threads', icon: MessageSquare, count: boardThreads.length },
-              ] as { id: TabId; label: string; icon: any; count: number }[]).map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px ${
-                    activeTab === tab.id
-                      ? 'border-primary text-primary'
-                      : 'border-transparent text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  <tab.icon className="w-4 h-4" />
-                  {tab.label}
-                  {tab.count > 0 && (
-                    <span className={`text-xs px-1.5 py-0.5 rounded-full ${
-                      activeTab === tab.id ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'
-                    }`}>
-                      {tab.count}
-                    </span>
-                  )}
-                </button>
-              ))}
+            <div className="flex items-center gap-2 border-b px-4 py-2.5">
+              <BarChart3 className="w-4 h-4 text-primary" />
+              <h2 className="text-sm font-medium text-primary" data-testid="text-board-reports-title">
+                Reports
+              </h2>
+              {genericReports.length + (isStandaloneBoard ? 0 : reports.length) > 0 && (
+                <span className="text-xs px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">
+                  {genericReports.length + (isStandaloneBoard ? 0 : reports.length)}
+                </span>
+              )}
             </div>
 
-            {/* Reports tab */}
-            {activeTab === 'reports' && (
               <div className="flex flex-col gap-4">
                 {activeGenericReport && (() => {
                   const report = activeGenericReport;
                   const kpiReport = reportKpiData(report);
                   return (
-                    <section className="order-2 space-y-2" aria-labelledby="active-report-heading">
+                    <section className="order-2 space-y-3" aria-labelledby="active-report-heading">
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Active report</p>
@@ -537,8 +471,8 @@ export default function BoardDetail() {
                           {new Date(report.createdAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
                         </Badge>
                       </div>
-                      <Card className="p-5 space-y-3 border-primary/20 shadow-sm" data-testid={`card-governed-report-${report.id}`}>
-                        <div className="flex items-start justify-between gap-3">
+                      <Card className="rounded-2xl p-4 sm:p-6 space-y-4 border-teal-900/15 shadow-sm" data-testid={`card-governed-report-${report.id}`}>
+                        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-teal-900/10 pb-4">
                           <div>
                             <h3 className="font-semibold">{report.title}</h3>
                             <p className="text-xs text-muted-foreground">
@@ -554,10 +488,6 @@ export default function BoardDetail() {
                           <div className="space-y-2" aria-label="Verified deterministic metrics">
                             <div className="flex items-center justify-between gap-2">
                               <p className="text-xs font-semibold uppercase tracking-wide text-primary">Verified metrics</p>
-                              <div className="flex gap-1">
-                                <Button variant="outline" size="sm" onClick={() => exportMutation.mutate({ reportId: report.id, format: 'csv' })} disabled={exportMutation.isPending}>CSV</Button>
-                                <Button variant="outline" size="sm" onClick={() => exportMutation.mutate({ reportId: report.id, format: 'xlsx' })} disabled={exportMutation.isPending}>XLSX</Button>
-                              </div>
                            </div>
                             <div className="overflow-x-auto">
                               <table className="w-full text-xs border-collapse">
@@ -586,6 +516,7 @@ export default function BoardDetail() {
                             kpiReport={kpiReport}
                             onExport={(scopeCode) => exportMutation.mutate({ reportId: report.id, format: 'pptx', scopeCode })}
                             isExporting={exportMutation.isPending}
+                            showDownloadFooter={false}
                           />
                         ) : null}
                         {isStandaloneBoard && report.result?.balanceSheet ? (
@@ -594,6 +525,7 @@ export default function BoardDetail() {
                             report={report.result.balanceSheet}
                             onExport={() => exportMutation.mutate({ reportId: report.id, format: 'pptx' })}
                             isExporting={exportMutation.isPending}
+                            showDownloadFooter={false}
                           />
                         ) : null}
                         {isEntityPnlBoard && report.result?.entityPnl ? (
@@ -607,6 +539,7 @@ export default function BoardDetail() {
                             commentary={report.result.commentary}
                             onExport={(format) => exportMutation.mutate({ reportId: report.id, format })}
                             isExporting={exportMutation.isPending}
+                            showDownloadFooter={false}
                           />
                         ) : null}
                         {report.result?.summary && !report.result?.entityPnl && <p className="text-sm whitespace-pre-wrap">{report.result.summary}</p>}
@@ -623,14 +556,38 @@ export default function BoardDetail() {
                             </table>
                           </div>
                         )}
+                        {isStandaloneBoard && !report.result?.entityPnl && !report.result?.balanceSheet && kpiReport?.metrics?.length ? (
+                          <ReportDownloadFooter>
+                            <Button variant="secondary" size="sm" className="gap-1.5" onClick={() => exportMutation.mutate({ reportId: report.id, format: 'pptx' })} disabled={exportMutation.isPending} data-testid="button-download-summary-ppt">
+                              <Download className="h-3.5 w-3.5" />
+                              {exportMutation.isPending ? 'Preparing PPT…' : 'Download summary PPT'}
+                            </Button>
+                          </ReportDownloadFooter>
+                        ) : isStandaloneBoard && report.result?.balanceSheet ? (
+                          <ReportDownloadFooter>
+                            <Button variant="outline" size="sm" onClick={() => exportMutation.mutate({ reportId: report.id, format: 'pptx' })} disabled={exportMutation.isPending}>
+                              {exportMutation.isPending ? 'Exporting…' : 'PowerPoint'}
+                            </Button>
+                          </ReportDownloadFooter>
+                        ) : isEntityPnlBoard && report.result?.entityPnl ? (
+                          <ReportDownloadFooter>
+                            <Button variant="outline" size="sm" onClick={() => exportMutation.mutate({ reportId: report.id, format: 'pdf' })} disabled={exportMutation.isPending}>Export PDF</Button>
+                            <Button size="sm" onClick={() => exportMutation.mutate({ reportId: report.id, format: 'pptx' })} disabled={exportMutation.isPending}>Export PowerPoint</Button>
+                          </ReportDownloadFooter>
+                        ) : !isStandaloneBoard && report.deterministicMetrics?.measures?.length ? (
+                          <ReportDownloadFooter>
+                            <Button variant="outline" size="sm" onClick={() => exportMutation.mutate({ reportId: report.id, format: 'csv' })} disabled={exportMutation.isPending}>CSV</Button>
+                            <Button variant="outline" size="sm" onClick={() => exportMutation.mutate({ reportId: report.id, format: 'xlsx' })} disabled={exportMutation.isPending}>XLSX</Button>
+                          </ReportDownloadFooter>
+                        ) : null}
                       </Card>
                     </section>
                   );
                 })()}
 
                 {genericReports.length > 1 && (
-                  <Card className="order-1 overflow-hidden" data-testid="section-report-history">
-                    <div className="border-b bg-muted/20 px-4 py-3">
+                  <Card className="order-1 overflow-hidden rounded-2xl border-teal-900/15 shadow-sm" data-testid="section-report-history">
+                    <div className="border-b border-teal-900/15 bg-teal-50/80 px-4 py-4 sm:px-6">
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div className="flex items-center gap-2">
                           <History className="h-4 w-4 text-primary" />
@@ -762,69 +719,6 @@ export default function BoardDetail() {
                   </div>
                 )}
               </div>
-            )}
-
-            {/* Threads tab */}
-            {activeTab === 'threads' && (
-              <div className="space-y-4">
-                <div className="flex justify-end">
-                  <Button size="sm" onClick={() => createChatMutation.mutate()} disabled={createChatMutation.isPending}>
-                    {createChatMutation.isPending ? (
-                      <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Creating…</>
-                    ) : (
-                      <><MessageSquare className="w-4 h-4 mr-2" />New Chat</>
-                    )}
-                  </Button>
-                </div>
-
-                {threadsLoading ? (
-                  <div className="text-center py-10 text-muted-foreground" data-testid="text-loading-threads">
-                    Loading analysis threads…
-                  </div>
-                ) : boardThreads.length === 0 ? (
-                  <Card className="p-12 text-center" data-testid="card-empty-threads">
-                    <div className="w-16 h-16 rounded-full bg-muted mx-auto mb-4 flex items-center justify-center">
-                      <FolderPlus className="w-8 h-8 text-muted-foreground" />
-                    </div>
-                    <h3 className="text-lg font-semibold mb-2" data-testid="text-empty-title">No analysis threads yet</h3>
-                    <p className="text-sm text-muted-foreground mb-4" data-testid="text-empty-description">
-                      Start a conversation-based analysis with this board's configuration
-                    </p>
-                    <Button onClick={() => createChatMutation.mutate()} disabled={createChatMutation.isPending} data-testid="button-start-first-analysis">
-                      {createChatMutation.isPending ? (
-                        <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Creating…</>
-                      ) : (
-                        <><MessageSquare className="w-4 h-4 mr-2" />Start Analysis</>
-                      )}
-                    </Button>
-                  </Card>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {boardThreads.map((chat) => (
-                      <Card
-                        key={chat.id}
-                        className="p-5 space-y-3 hover:shadow-md cursor-pointer transition-shadow"
-                        onClick={() => navigate(`/chat/${chat.id}`)}
-                        data-testid={`card-thread-${chat.id}`}
-                      >
-                        <div className="flex items-start gap-3">
-                          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                            <MessageSquare className="w-5 h-5 text-primary" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h3 className="font-semibold text-foreground truncate" data-testid={`text-thread-title-${chat.id}`}>{chat.title}</h3>
-                            <p className="text-xs text-muted-foreground" data-testid={`text-thread-date-${chat.id}`}>
-                              {new Date(chat.createdAt).toLocaleDateString()} at{' '}
-                              {new Date(chat.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                            </p>
-                          </div>
-                        </div>
-                      </Card>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
           </div>
         </div>
       </div>

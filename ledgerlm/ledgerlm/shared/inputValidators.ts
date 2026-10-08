@@ -11,12 +11,25 @@ function decodedVariants(value: string): string[] {
   let decoded = value;
   // A small bounded decode catches normal and double-encoded transport payloads.
   for (let i = 0; i < 2; i += 1) {
+    const entities: Record<string, string> = {
+      lt: "<", gt: ">", amp: "&", quot: '"', apos: "'", colon: ":", tab: "\t", newline: "\n",
+    };
+    let candidate = decoded.replace(/&(#x[0-9a-f]+|#[0-9]+|lt|gt|amp|quot|apos|colon|tab|newline);/gi,
+      (raw, entity: string) => {
+        if (!entity.startsWith("#")) return entities[entity.toLowerCase()] ?? raw;
+        const code = entity[1].toLowerCase() === "x"
+          ? parseInt(entity.slice(2), 16) : parseInt(entity.slice(1), 10);
+        return Number.isSafeInteger(code) && code >= 0 && code <= 0x10ffff
+          ? String.fromCodePoint(code) : raw;
+      }).replace(/\\u([0-9a-f]{4})|\\x([0-9a-f]{2})/gi,
+        (_raw, unicode: string, hex: string) => String.fromCharCode(parseInt(unicode || hex, 16)));
     try {
-      decoded = decodeURIComponent(decoded.replace(/\+/g, "%20"));
+      candidate = decodeURIComponent(candidate.replace(/\+/g, "%20"));
     } catch {
-      break;
+      // A malformed percent sequence must not hide decoded entities/escapes.
     }
-    if (variants.includes(decoded)) break;
+    if (variants.includes(candidate)) break;
+    decoded = candidate;
     variants.push(decoded);
   }
   return variants;
@@ -53,14 +66,67 @@ export const boardPromptTemplateSchema = z.string()
       && isSafeDisplayText(withoutKnownPlaceholders);
   }, "Analysis prompt contains an unsupported placeholder or unsafe content");
 
-export const boardTitleSchema = z.string()
-  .max(200, "Board title must be at most 200 characters")
-  .transform((value) => value.normalize("NFC").trim())
-  .refine((value) => value.length > 0, "Board title is required")
-  .refine(isSafeDisplayText, "Board title contains unsafe characters or content");
+export const NAME_CHARACTERS_HINT = "Use letters, numbers, spaces, or . , - _ & ( ) / '.";
+const NAME_CHARACTERS = /^[\p{L}\p{M}\p{N} _&().,/'-]+$/u;
+export const displayNameSchema = (label: string, max = 200) => safeDisplayText(label, max, true)
+  .refine((value) => value.length > 0, `${label} is required`)
+  .refine((value) => NAME_CHARACTERS.test(value), `Name contains unsupported characters. ${NAME_CHARACTERS_HINT}`)
+  .refine((value) => /[\p{L}\p{N}]/u.test(value), "Name must contain at least one letter or number.");
+
+export const boardTitleSchema = displayNameSchema("Board name");
+export const templateNameSchema = displayNameSchema("Template name");
+export const createBoardTemplateDtoSchema = z.object({
+  slug: safeDisplayText("Template identifier", 100, true).refine((value) => value.length > 0, "Template identifier is required"),
+  name: templateNameSchema,
+  description: safeDisplayText("Template description", 2000),
+  defaultConfig: z.record(z.unknown()).nullable().optional(),
+}).strict();
+export const updateBoardTemplateDtoSchema = createBoardTemplateDtoSchema.partial().strict()
+  .refine((value) => Object.keys(value).length > 0, "At least one template field is required");
+
+export function normalizeBoardDisplayFields<T extends { title?: string }>(value: T): T {
+  return value.title === undefined ? { ...value } : { ...value, title: boardTitleSchema.parse(value.title) };
+}
+export function normalizeTemplateDisplayFields<T extends { name?: string }>(value: T): T {
+  return value.name === undefined ? { ...value } : { ...value, name: templateNameSchema.parse(value.name) };
+}
 export const boardDescriptionSchema = safeDisplayText("Board description", 2000, true)
   .nullable()
   .optional();
+
+export const chatTitleSchema = displayNameSchema("Chat name");
+export const chatPreviewSchema = safeDisplayText("Chat preview", 2000, true).nullable().optional();
+export const createChatDtoSchema = z.object({
+  title: chatTitleSchema, preview: chatPreviewSchema,
+  // Older Board clients send this ignored field. Accept it without persisting
+  // or executing it so a cached client does not lose its create-chat flow.
+  templateMessage: z.string().max(20_000).optional(),
+}).strict();
+export const renameChatDtoSchema = z.object({ title: chatTitleSchema }).strict();
+
+export function normalizeChatDisplayFields<T extends { title?: string; preview?: string | null }>(value: T): T {
+  const result = { ...value };
+  if (value.title !== undefined) result.title = chatTitleSchema.parse(value.title);
+  if (value.preview !== undefined) result.preview = chatPreviewSchema.parse(value.preview);
+  return result;
+}
+
+/** Display labels must never reject a legitimate message or alter its content. */
+export function generatedChatTitle(value: string, fallback = "New Analysis", max = 50): string {
+  const singleLine = value.normalize("NFC").replace(/\s+/g, " ").trim();
+  if (!isSafeDisplayText(singleLine) || !singleLine) return chatTitleSchema.parse(fallback);
+  const safeName = singleLine.replace(/[^\p{L}\p{M}\p{N} _&().,/'-]/gu, " ").replace(/\s+/g, " ").trim();
+  const length = Math.min(200, Math.max(4, max));
+  const shortened = safeName.length > length
+    ? safeName.slice(0, length - 3).replace(/[\uD800-\uDBFF]$/, "") + "..." : safeName;
+  const parsed = chatTitleSchema.safeParse(shortened);
+  return parsed.success ? parsed.data : chatTitleSchema.parse(fallback);
+}
+
+export function generatedChatPreview(value: unknown): string | null {
+  const parsed = chatPreviewSchema.safeParse(value);
+  return parsed.success ? parsed.data ?? null : null;
+}
 
 const boardSettingText = safeDisplayText("Board setting", 5000);
 const boardVersionName = safeDisplayText("Board version", 255);
@@ -139,7 +205,7 @@ export const createBoardDtoSchema = z.object({
   title: boardTitleSchema,
 }).strict();
 
-export const updateBoardDtoSchema = z.object(boardFields).strict()
+export const updateBoardDtoSchema = z.object({ ...boardFields, title: boardTitleSchema.optional() }).strict()
   .refine((value) => Object.keys(value).length > 0, "At least one board field is required");
 
 export const boardSourceSelectionSchema = z.discriminatedUnion("sourceType", [
@@ -203,17 +269,7 @@ export const boardAnalysisConfigSchema = z.object({
   comparisonBasis: z.record(z.unknown()).optional(),
 }).strict();
 
-const CUBE_NAME_CHARACTERS = /^[A-Za-z0-9 _&().,/'-]+$/;
-
-export const cubeNameSchema = z.string()
-  .max(60, "Cube name must be at most 60 characters")
-  .transform((value) => value.normalize("NFC").trim())
-  .refine((value) => value.length > 0, "Cube name is required")
-  .refine(isSafeDisplayText, "Cube name contains unsafe characters or content")
-  .refine(
-    (value) => CUBE_NAME_CHARACTERS.test(value),
-    "Cube name may contain letters, numbers, spaces, and . , - _ & ( ) / ' only",
-  );
+export const cubeNameSchema = displayNameSchema("Cube name", 60);
 
 export const cubeDescriptionSchema = safeDisplayText("Cube description", 280, true)
   .nullable()
@@ -237,6 +293,13 @@ export const createCubeDtoSchema = z.object({
 
 export const updateCubeDtoSchema = z.object(cubeMutableFields).strict()
   .refine((value) => Object.keys(value).length > 0, "At least one cube field is required");
+
+export function normalizeCubeDisplayFields<T extends { name?: string; description?: string | null }>(value: T): T {
+  const result = { ...value };
+  if (value.name !== undefined) result.name = cubeNameSchema.parse(value.name);
+  if (value.description !== undefined) result.description = cubeDescriptionSchema.parse(value.description);
+  return result;
+}
 
 export function validateEnterpriseDisplayName(name: string): string | null {
   if (!name || Buffer.byteLength(name, "utf8") > 255) {

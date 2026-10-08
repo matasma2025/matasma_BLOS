@@ -99,7 +99,7 @@ export function BoardSourceSelector({ boardId }: { boardId: string }) {
           <select
             value={selected}
             onChange={(event) => setSelected(event.target.value)}
-            className="h-9 flex-1 rounded-md border bg-background px-3 text-sm"
+            className="h-9 min-w-0 flex-1 rounded-md border bg-background px-3 text-sm"
             data-testid="select-board-source"
           >
             <option value="">Select a source</option>

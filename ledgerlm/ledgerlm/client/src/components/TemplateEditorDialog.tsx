@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { templateNameSchema } from '@shared/inputValidators';
+import { NameFieldFeedback, nameError, readableValidationError } from './NameFieldFeedback';
 import { useMutation } from '@tanstack/react-query';
 import {
   Dialog,
@@ -51,9 +53,10 @@ export function TemplateEditorDialog({
 
   const createTemplateMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
+      const name = templateNameSchema.parse(data.name);
       const payload = {
-        slug: data.name.toLowerCase().replace(/\s+/g, '-'),
-        name: data.name,
+        slug: name.toLowerCase().replace(/\s+/g, '-').slice(0, 100),
+        name,
         description: data.description,
         defaultConfig: {
           analysisPrompts: data.analysisPrompts,
@@ -87,10 +90,10 @@ export function TemplateEditorDialog({
         }, 500);
       }
     },
-    onError: () => {
+    onError: (error: Error) => {
       toast({
         title: 'Error',
-        description: `Failed to ${isEditing ? 'update' : 'create'} template`,
+        description: readableValidationError(error),
         variant: 'destructive',
       });
     },
@@ -116,8 +119,28 @@ export function TemplateEditorDialog({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (nameError(formData.name, 'Template name')) return;
     createTemplateMutation.mutate(formData);
   };
+
+  useEffect(() => {
+    if (!open) return;
+    createTemplateMutation.reset();
+    setFormData({
+      name: template?.name || '', description: template?.description || '',
+      analysisPrompts: template?.defaultConfig?.analysisPrompts || '',
+      dataSources: {
+        enterprise: template?.defaultConfig?.dataSources?.enterprise ?? true,
+        vault: template?.defaultConfig?.dataSources?.vault ?? true,
+        webApis: template?.defaultConfig?.dataSources?.webApis ?? false,
+        financialApis: template?.defaultConfig?.dataSources?.financialApis ?? false,
+      },
+      settings: {
+        resultLimit: template?.defaultConfig?.settings?.resultLimit || 10,
+        timeout: template?.defaultConfig?.settings?.timeout || 30,
+      },
+    });
+  }, [open, template]);
 
   const handleClose = () => {
     onOpenChange(false);
@@ -144,10 +167,17 @@ export function TemplateEditorDialog({
                 id="name"
                 placeholder="e.g., Monthly Expense Analysis"
                 value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                onChange={(e) => { if (!createTemplateMutation.isPending) createTemplateMutation.reset(); setFormData({ ...formData, name: e.target.value }); }}
+                maxLength={200}
+                aria-invalid={!!nameError(formData.name, 'Template name')}
+                aria-describedby="template-name-feedback"
                 required
                 data-testid="input-template-name"
               />
+              <NameFieldFeedback value={formData.name} label="Template name" id="template-name-feedback" />
+              {createTemplateMutation.error && <p role="alert" className="mt-2 text-sm text-destructive">
+                {readableValidationError(createTemplateMutation.error)}
+              </p>}
             </div>
 
             <div className="space-y-2">

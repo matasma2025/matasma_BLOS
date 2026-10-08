@@ -1,3 +1,4 @@
+import { chatTitleSchema, normalizeChatDisplayFields, normalizeCubeDisplayFields, normalizeBoardDisplayFields, normalizeTemplateDisplayFields } from "../shared/inputValidators";
 import { type User, type InsertUser, type Chat, type InsertChat, type Message, type InsertMessage, type Document, type InsertDocument, type Board, type InsertBoard, type BoardTemplate, type InsertBoardTemplate, type BoardThread, type InsertBoardThread, type BoardDocument, type InsertBoardDocument, type BoardDataSource, type InsertBoardDataSource, type InsertQueryAudit, type QueryAudit, type Company, type InsertCompany, type CompanyMembership, type InsertCompanyMembership, type UserSettings, type InsertUserSettings, type TermsAcceptance, type InsertTermsAcceptance, type EnterpriseDocument, type InsertEnterpriseDocument, type OtpCode, type InsertOtpCode, type DeviceTrust, type InsertDeviceTrust, type UserDeviceCredential, type InsertUserDeviceCredential, type DeviceProofNonce, type InsertDeviceProofNonce, type SchedulerConfig, type InsertSchedulerConfig, type Domain, type InsertDomain, type DomainUser, type InsertDomainUser, type DomainSchedulerConfig, type InsertDomainSchedulerConfig, type KioskFaqDocument, type InsertKioskFaqDocument, type KioskChat, type InsertKioskChat, type KioskMessage, type InsertKioskMessage, type KioskFaqEntry, type InsertKioskFaqEntry, type DomainApiConnector, type InsertDomainApiConnector, type Cube, type InsertCube, type CubeUserAccess, type InsertCubeUserAccess, type CubeMetadata, type InsertCubeMetadata, type AzureBlobFileRegistry, users, chats, messages, documents, boards, boardTemplates, boardThreads, boardDocuments, boardDataSources, chatDocuments, queryAudit, companies, companyMemberships, userSettings, termsAcceptances, enterpriseDocuments, enterpriseDocumentProcessing, otpCodes, deviceTrust, userDeviceCredentials, deviceProofNonces, schedulerConfig, domains, domainUsers, domainSchedulerConfig, kioskFaqDocuments, kioskChats, kioskMessages, kioskFaqEntries, domainApiConnectors, cubes, cubeBalanceSheetData, cubeUserAccess, cubeMetadata, azureBlobFileRegistry } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, asc, count, and, isNull, sql as sqlOp, inArray } from "drizzle-orm";
@@ -284,11 +285,13 @@ export class DbStorage implements IStorage {
   }
 
   async createChat(insertChat: InsertChat): Promise<Chat> {
-    const result = await db.insert(chats).values(insertChat).returning();
+    const safeChat = normalizeChatDisplayFields(insertChat);
+    const result = await db.insert(chats).values(safeChat).returning();
     return result[0];
   }
 
   async updateChatTitle(id: string, title: string): Promise<Chat | undefined> {
+    title = chatTitleSchema.parse(title);
     const result = await db.update(chats).set({ title }).where(eq(chats.id, id)).returning();
     return result[0];
   }
@@ -338,12 +341,14 @@ export class DbStorage implements IStorage {
   }
 
   async createBoard(insertBoard: InsertBoard): Promise<Board> {
-    const result = await db.insert(boards).values(insertBoard).returning();
+    const safeBoard = normalizeBoardDisplayFields(insertBoard);
+    const result = await db.insert(boards).values(safeBoard).returning();
     return result[0];
   }
 
   async updateBoard(id: string, updates: Partial<InsertBoard>): Promise<Board | undefined> {
-    const result = await db.update(boards).set(updates).where(eq(boards.id, id)).returning();
+    const safeUpdates = normalizeBoardDisplayFields(updates);
+    const result = await db.update(boards).set(safeUpdates).where(eq(boards.id, id)).returning();
     return result[0];
   }
 
@@ -361,12 +366,14 @@ export class DbStorage implements IStorage {
   }
 
   async createBoardTemplate(template: InsertBoardTemplate): Promise<BoardTemplate> {
-    const result = await db.insert(boardTemplates).values(template).returning();
+    const safeTemplate = normalizeTemplateDisplayFields(template);
+    const result = await db.insert(boardTemplates).values(safeTemplate).returning();
     return result[0];
   }
 
   async updateBoardTemplate(id: string, updates: Partial<InsertBoardTemplate>): Promise<BoardTemplate | undefined> {
-    const result = await db.update(boardTemplates).set(updates).where(eq(boardTemplates.id, id)).returning();
+    const safeUpdates = normalizeTemplateDisplayFields(updates);
+    const result = await db.update(boardTemplates).set(safeUpdates).where(eq(boardTemplates.id, id)).returning();
     return result[0];
   }
 
@@ -1158,7 +1165,8 @@ export class DbStorage implements IStorage {
   }
 
   async createKioskChat(chat: InsertKioskChat): Promise<KioskChat> {
-    const result = await db.insert(kioskChats).values(chat).returning();
+    const safeChat = normalizeChatDisplayFields(chat);
+    const result = await db.insert(kioskChats).values(safeChat).returning();
     return result[0];
   }
 
@@ -1167,6 +1175,7 @@ export class DbStorage implements IStorage {
   }
 
   async updateKioskChatTitle(id: string, title: string): Promise<KioskChat | undefined> {
+    title = chatTitleSchema.parse(title);
     const result = await db.update(kioskChats).set({ title }).where(eq(kioskChats.id, id)).returning();
     return result[0];
   }
@@ -1292,12 +1301,14 @@ export class DbStorage implements IStorage {
   }
 
   async createCube(cube: InsertCube): Promise<Cube> {
-    const result = await db.insert(cubes).values(cube).returning();
+    const safeCube = normalizeCubeDisplayFields(cube);
+    const result = await db.insert(cubes).values(safeCube).returning();
     return result[0];
   }
 
   async updateCube(id: string, updates: Partial<InsertCube>): Promise<Cube | undefined> {
-    const result = await db.update(cubes).set(updates).where(eq(cubes.id, id)).returning();
+    const safeUpdates = normalizeCubeDisplayFields(updates);
+    const result = await db.update(cubes).set(safeUpdates).where(eq(cubes.id, id)).returning();
     return result[0];
   }
 

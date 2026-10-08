@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -13,7 +14,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  Grid3x3,
   ArrowRight,
   FilePlus2,
   Folder,
@@ -21,6 +21,9 @@ import {
   Edit,
   MessageCircle,
   Building2,
+  BarChart3,
+  Scale,
+  Landmark,
 } from "lucide-react";
 import { useLocation } from "wouter";
 import { type BoardTemplate, type Board } from "@shared/schema";
@@ -29,6 +32,12 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuthUser } from "@/lib/auth";
 import { KioskChatDialog } from "@/components/KioskChatDialog";
+
+const TEMPLATE_ICONS: Record<string, typeof BarChart3> = {
+  "kpi-metrics": BarChart3,
+  "balance-sheet-tracker": Scale,
+  "entity-pnl": Landmark,
+};
 
 interface DomainInfo {
   domain?: { id: string; name: string };
@@ -64,6 +73,13 @@ export default function Boards() {
   const { data: boards = [], isLoading: boardsLoading } = useQuery<Board[]>({
     queryKey: ["/api/boards"],
   });
+
+  // Presentation only: keep the full catalog and all existing boards intact.
+  const boschTemplates = [
+    "kpi-metrics",
+    "balance-sheet-tracker",
+    "entity-pnl",
+  ].flatMap((slug) => templates.filter((template) => template.slug === slug));
 
   const deleteBoardMutation = useMutation({
     mutationFn: async (boardId: string) => {
@@ -127,51 +143,88 @@ export default function Boards() {
     <div className="h-full flex flex-col overflow-hidden bg-primary/10">
       <div className="flex-1 overflow-auto p-6">
         <div className="h-full bg-white rounded-2xl overflow-auto flex flex-col">
-          <div className="px-6 lg:px-8 py-4 flex items-center justify-between gap-3 bg-primary/40 flex-shrink-0">
+          <div className="px-6 lg:px-8 py-4 flex flex-wrap items-center justify-between gap-3 bg-primary/40 flex-shrink-0">
             <h1
               className="text-xl font-semibold text-foreground"
               data-testid="text-vault-title"
             >
               Boards
             </h1>
+            <Button
+              onClick={handleCreateNewBoard}
+              className="flex-shrink-0"
+              data-testid="button-create-new-board"
+            >
+              Create New Board
+            </Button>
           </div>
 
           <div className="flex-1 overflow-y-auto px-6 lg:px-8 py-8 space-y-8">
-            <Card
-              className="p-6 bg-primary/5 border-primary/20"
-              data-testid="card-create-board"
-            >
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                    <Grid3x3 className="w-5 h-5 text-primary" />
-                  </div>
-                  <div>
-                    <h2
-                      className="text-lg font-semibold text-foreground mb-1"
-                      data-testid="text-create-board-title"
-                    >
-                      Create a new Board
-                    </h2>
-                    <p
-                      className="text-sm text-muted-foreground"
-                      data-testid="text-create-board-description"
-                    >
-                      Group analyses, documents, and insights into one
-                      centralized financial workspace.
-                    </p>
-                  </div>
-                </div>
-                <Button
-                  onClick={handleCreateNewBoard}
-                  className="flex-shrink-0"
-                  data-testid="button-create-new-board"
-                >
-                  Create New Board
-                </Button>
-              </div>
-            </Card>
+            <div className="space-y-4">
+              <h2
+                className="text-xl font-semibold text-foreground"
+                data-testid="text-templates-title"
+              >
+                Browse Templates
+              </h2>
 
+              {templatesLoading ? (
+                <div
+                  className="text-center py-12 text-muted-foreground"
+                  data-testid="text-loading-templates"
+                >
+                  Loading templates...
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {boschTemplates.map((template) => (
+                    <Card
+                      key={template.id}
+                      className="p-6 flex flex-col gap-5 hover-elevate border-t-4 border-t-primary"
+                      data-testid={`card-template-${template.slug}`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="w-11 h-11 rounded-lg bg-primary/10 flex items-center justify-center">
+                          {(() => {
+                            const Icon = TEMPLATE_ICONS[template.slug] ?? FilePlus2;
+                            return <Icon className="w-5 h-5 text-primary" />;
+                          })()}
+                        </div>
+                        <Badge
+                          variant="outline"
+                          className="text-xs font-bold tracking-widest text-primary border-primary/40 bg-primary/10"
+                          data-testid={`badge-bosch-${template.slug}`}
+                        >
+                          BOSCH
+                        </Badge>
+                      </div>
+                      <div className="space-y-2 flex-1">
+                        <h3
+                          className="text-base font-semibold text-foreground"
+                          data-testid={`text-template-title-${template.slug}`}
+                        >
+                          {template.name}
+                        </h3>
+                        <p
+                          className="text-sm leading-relaxed text-muted-foreground line-clamp-3"
+                          data-testid={`text-template-description-${template.slug}`}
+                        >
+                          {template.description}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => handleUseTemplate(template)}
+                        className="w-full rounded-md border border-primary/30 px-3 py-2 text-sm text-primary hover:bg-primary/10 font-medium flex items-center justify-center gap-1 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                        data-testid={`button-use-template-${template.slug}`}
+                      >
+                        Use Template
+                        <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                      </button>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
 
             {boards.length > 0 && (
               <div className="space-y-4">
@@ -190,11 +243,11 @@ export default function Boards() {
                     Loading your boards...
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     {boards.map((board) => (
                       <Card
                         key={board.id}
-                        className="p-5 space-y-4 hover-elevate"
+                        className="p-6 flex flex-col gap-4 hover-elevate"
                         data-testid={`card-board-${board.id}`}
                       >
                         <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -202,22 +255,22 @@ export default function Boards() {
                         </div>
                         <div className="space-y-2">
                           <h3
-                            className="font-semibold text-foreground"
+                            className="text-base font-semibold text-foreground line-clamp-2"
                             data-testid={`text-board-title-${board.id}`}
                           >
                             {board.title}
                           </h3>
                           <p
-                            className="text-sm text-muted-foreground line-clamp-2"
+                            className="text-sm leading-relaxed text-muted-foreground line-clamp-2"
                             data-testid={`text-board-description-${board.id}`}
                           >
                             {board.description || "No description"}
                           </p>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <button
                             onClick={() => navigate(`/board/${board.id}`)}
-                            className="flex-1 text-sm text-primary hover:text-primary/80 font-medium flex items-center justify-center gap-1 group"
+                            className="flex-1 min-w-[100px] rounded-md px-3 py-2 text-sm text-primary hover:bg-primary/10 font-medium flex items-center justify-center gap-1 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                             data-testid={`button-open-board-${board.id}`}
                           >
                             Open Board
@@ -231,6 +284,7 @@ export default function Boards() {
                               handleEditBoard(board);
                             }}
                             className="h-8 w-8 flex-shrink-0"
+                            aria-label={`Edit ${board.title}`}
                             data-testid={`button-edit-board-${board.id}`}
                           >
                             <Edit className="w-4 h-4" />
@@ -240,6 +294,7 @@ export default function Boards() {
                             size="icon"
                             onClick={(e) => handleDeleteBoard(board, e)}
                             className="h-8 w-8 flex-shrink-0 text-destructive hover:text-destructive"
+                            aria-label={`Delete ${board.title}`}
                             data-testid={`button-delete-board-${board.id}`}
                           >
                             <Trash2 className="w-4 h-4" />
@@ -252,59 +307,6 @@ export default function Boards() {
               </div>
             )}
 
-            <div className="space-y-4">
-              <h2
-                className="text-xl font-semibold text-foreground"
-                data-testid="text-templates-title"
-              >
-                Browse Templates
-              </h2>
-
-              {templatesLoading ? (
-                <div
-                  className="text-center py-12 text-muted-foreground"
-                  data-testid="text-loading-templates"
-                >
-                  Loading templates...
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {templates.map((template) => (
-                    <Card
-                      key={template.id}
-                      className="p-5 space-y-4 hover-elevate"
-                      data-testid={`card-template-${template.slug}`}
-                    >
-                      <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
-                        <FilePlus2 className="w-5 h-5 text-muted-foreground" />
-                      </div>
-                      <div className="space-y-2">
-                        <h3
-                          className="font-semibold text-foreground"
-                          data-testid={`text-template-title-${template.slug}`}
-                        >
-                          {template.name}
-                        </h3>
-                        <p
-                          className="text-sm text-muted-foreground line-clamp-3"
-                          data-testid={`text-template-description-${template.slug}`}
-                        >
-                          {template.description}
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => handleUseTemplate(template)}
-                        className="text-sm text-primary hover:text-primary/80 font-medium flex items-center gap-1 group"
-                        data-testid={`button-use-template-${template.slug}`}
-                      >
-                        Use Template
-                        <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                      </button>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </div>
           </div>
         </div>
       </div>

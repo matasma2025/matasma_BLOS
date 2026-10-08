@@ -14,7 +14,7 @@ export const entityPnlFinancialPlanSchema = z.object({
   entity: z.string().min(1).max(200),
   sourceName: z.string().min(1).max(200),
   sourceUnit: z.literal("mINR"),
-  periodBasis: z.literal("ytd"),
+  periodBasis: z.enum(["ytd", "mtd"]),
   usdExchangeRates: z.record(z.string().max(100), z.number().finite().positive().max(1_000_000)),
   rows: z.array(z.object({
     year: z.number().int().min(1900).max(2200),
@@ -56,7 +56,7 @@ function cellValue(cell: ExcelJS.Cell): string | number | null {
 /** Import only the explicitly confirmed financial sheet, never an operational budget sheet. */
 export async function parseEntityPnlFinancialPlanWorkbook(
   bytes: Buffer,
-  options: { entity: string; sourceName: string; usdExchangeRates: Record<string, number> },
+  options: { entity: string; sourceName: string; usdExchangeRates: Record<string, number>; periodBasis?: EntityPnlFinancialPlan["periodBasis"] },
 ): Promise<EntityPnlFinancialPlan> {
   if (bytes.length > 10_000_000) throw new Error("Entity P&L financial workbook exceeds 10 MB.");
   const workbook = new ExcelJS.Workbook();
@@ -96,7 +96,7 @@ export async function parseEntityPnlFinancialPlanWorkbook(
   const populated = new Set(rows.filter((row) => row.value !== null).map((row) => row.scenario));
   return validateEntityPnlFinancialPlan({
     version: 1, entity: options.entity, sourceName: options.sourceName,
-    sourceUnit: "mINR", periodBasis: "ytd", usdExchangeRates: options.usdExchangeRates,
+    sourceUnit: "mINR", periodBasis: options.periodBasis ?? "ytd", usdExchangeRates: options.usdExchangeRates,
     rows: rows.filter((row) => populated.has(row.scenario)),
   });
 }
@@ -116,8 +116,30 @@ export function financialPlanAggregateRows(
   const populated = new Set(source.filter((row) => row.value !== null)
     .map((row) => `${row.year}:${normalize(row.category)}:${normalize(row.subcategory)}`));
   const rate = financialPlanUsdRate(plan, request.cfVersion);
-  return source.filter((row) => populated.has(`${row.year}:${normalize(row.category)}:${normalize(row.subcategory)}`))
-    .filter((row) => normalize(row.category) !== "average capacity")
+  const retained = source.filter((row) => populated.has(`${row.year}:${normalize(row.category)}:${normalize(row.subcategory)}`))
+    .filter((row) => normalize(row.category) !== "average capacity");
+  // MTD sublines must cover every required month. Make absent records explicitly
+  // missing rather than allowing the other sublines to hide an understated total.
+  // Stock capacity records remain the original monthly snapshots.
+  const amounts: Array<EntityPnlFinancialPlan["rows"][number] & { sourceRows: number }> = [];
+  if (plan.periodBasis === "mtd") {
+    const groups = new Map<string, EntityPnlFinancialPlan["rows"]>();
+    for (const row of retained) {
+      if (normalize(row.category) === "end capacity") { amounts.push({ ...row, sourceRows: 1 }); continue; }
+      const key = `${row.year}:${normalize(row.category)}:${normalize(row.subcategory)}`;
+      const group = groups.get(key) ?? [];
+      group.push(row);
+      groups.set(key, group);
+    }
+    for (const group of Array.from(groups.values())) {
+      const byMonth = new Map(group.map((row) => [row.month, row]));
+      for (let month = 1; month <= 12; month++) {
+        const row = byMonth.get(month);
+        amounts.push({ ...(row ?? { ...group[0], month, value: null }), sourceRows: row ? 1 : 0 });
+      }
+    }
+  } else amounts.push(...retained.map((row) => ({ ...row, sourceRows: 1 })));
+  return amounts
     .map((row) => {
       const isCapacity = normalize(row.category) === "end capacity";
       const converted = row.value === null ? null
@@ -134,7 +156,7 @@ export function financialPlanAggregateRows(
         amount_complete: isCapacity || converted !== null,
         capacity: isCapacity ? converted : null,
         capacity_complete: !isCapacity || converted !== null,
-        source_rows: 1,
+        source_rows: row.sourceRows,
       };
     });
 }

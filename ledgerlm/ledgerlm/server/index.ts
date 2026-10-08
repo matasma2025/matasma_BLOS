@@ -2,7 +2,6 @@ import 'dotenv/config'; // Load .env file before anything else
 import crypto from 'crypto';
 import express, { type Request, Response, NextFunction } from "express";
 import helmet from "helmet";
-import cors from "cors";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
 import pkg from "pg";
@@ -55,18 +54,28 @@ import { addSessionRevocationTimestamp } from "./migrations/add-session-revocati
 import { runRetentionEngine } from "./services/retentionEngine";
 import { runBackup } from "./services/backupService";
 import { startSsoSyncJob } from "./services/ssoSyncJob";
-import rateLimit from "express-rate-limit";
+import { createOperationLimitMiddleware } from "./security/operationLimitMiddleware";
+import { concurrencyLimits, operationPolicies, operationRateStore, startRateCounterCleanup } from "./security/rateLimitRuntime";
+import { operationScopeResolver } from "./security/operationLimitScope";
+import { resolveActiveAdmin } from "./routes";
+import { configureTrustedProxy } from "./security/trustedProxy";
+import { createOperationRateLimitTables } from "./migrations/create-operation-rate-limit-tables";
 import { enforceSessionBinding } from "./middleware/sessionBinding";
 import { discardClientIdentityHeaders } from "./middleware/clientIdentity";
 import { enforceSessionRevocation } from "./middleware/auth";
 import { createDeviceProofTables } from "./migrations/create-device-proof-tables";
 import { enforceDeviceProof } from "./security/deviceProof";
+import { createHttpMethodPolicy, apiNotFound } from "./security/httpMethodPolicy";
+import { createPythonMethodCatalog } from "./security/pythonMethodCatalog";
 
 const app = express();
 app.set("case sensitive routing", true);
 
-// Trust Replit's reverse proxy so express-rate-limit reads X-Forwarded-For correctly
-app.set('trust proxy', 1);
+const proxyMode = configureTrustedProxy(app, process.env.TRUSTED_PROXY_CIDRS);
+if (proxyMode === "compatibility-one-hop") {
+  logger.warn({ event: "trusted_proxy_configuration_required" },
+    "Verify the edge proxy chain and set TRUSTED_PROXY_CIDRS before security closure.");
+}
 
 // ── Security headers (Helmet) ────────────────────────────────────────────────
 app.use(helmet({
@@ -99,24 +108,17 @@ const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
   .map((o) => o.trim())
   .filter(Boolean);
 
-app.use(cors({
-  origin: (origin, callback) => {
-    // Allow same-origin requests (no Origin header)
-    if (!origin) {
-      return callback(null, true);
-    }
-    // If no allowed origins configured, deny all cross-origin requests
-    if (allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('CORS: origin not allowed'));
-    }
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  // Keep x-user-id temporarily for older clients; it is discarded below and
-  // never participates in authentication or authorization.
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-user-id', 'x-csrf-token'],
+const developmentOrigins = app.get("env") === "development"
+  ? ["http://localhost", "http://127.0.0.1",
+      ...[process.env.REPLIT_DEV_DOMAIN, ...(process.env.REPLIT_DOMAINS || "").split(",")]
+        .filter((host): host is string => !!host?.trim())
+        .map(host => `https://${host.trim()}`)]
+  : [];
+app.use(createHttpMethodPolicy(app, {
+  allowedOrigins,
+  publicUrl: process.env.APP_URL,
+  developmentOrigins,
+  resolveDelegatedMethods: createPythonMethodCatalog(process.env.PYTHON_API_URL || "http://localhost:8000"),
 }));
 
 // Identity comes exclusively from the validated server-side session. A client
@@ -143,10 +145,7 @@ app.use((req, res, next) => {
   res.on("finish", () => {
     const duration_ms = Date.now() - start;
     if (path.startsWith("/api")) {
-      const ip =
-        (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ||
-        req.socket?.remoteAddress ||
-        "unknown";
+      const ip = req.ip || req.socket?.remoteAddress || "unknown";
 
       logger.info({
         method: req.method,
@@ -253,44 +252,6 @@ app.use("/api", (_req, res, next) => {
 app.use(enforceSessionBinding);
 app.use(enforceDeviceProof);
 
-// ── Rate limiting ─────────────────────────────────────────────────────────────
-const globalApiLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 100,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: 'Too many requests, please try again in a minute.' },
-  // Security: OTP endpoints must NOT be exempt from rate limiting — the
-  // hardcoded skip was the only thing separating the 6-digit space from
-  // a brute-force attack. The OTP service's own MAX_OTP_ATTEMPTS=5 per-token
-  // counter and the global 100 req/min limiter provide the correct controls.
-  // (SAST Finding 3)
-});
-
-const chatApiLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 20,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: 'Too many AI queries, please wait before sending more.' },
-});
-
-const uploadApiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 10,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: 'Too many file uploads, please wait 15 minutes.' },
-});
-
-app.use('/api/', globalApiLimiter);
-app.use('/api/chats', chatApiLimiter);
-// Only rate-limit uploads (POST), never reads — GET /api/documents must always work
-app.use('/api/documents', (req: Request, res: Response, next: NextFunction) => {
-  if (req.method === 'GET' || req.method === 'HEAD') return next();
-  return uploadApiLimiter(req, res, next);
-});
-
 // ── SG-35: Geo-fencing (India only) ──────────────────────────────────────────
 // Azure Application Gateway / WAF sets X-Country-Code on each request once the
 // geo-filter WAF rule is configured (see SG-35 Azure setup guide).
@@ -356,6 +317,16 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   next();
 });
 
+// Sessions/device proof and CSRF are validated before any operation is admitted.
+// One gate covers normal creation routes and template/follow-up alternatives.
+app.use("/api", createOperationLimitMiddleware({
+  store: operationRateStore,
+  policies: operationPolicies,
+  concurrency: concurrencyLimits,
+  resolveScope: operationScopeResolver(resolveActiveAdmin),
+  log: (event) => logger.warn(event),
+}));
+
 (async () => {
   // ── Step 0: ensure required PostgreSQL extensions exist ──────────────────
   // Must run first — the schema has vector(1024) / vector(3072) columns that
@@ -373,6 +344,8 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   }
 
   // Ensure scheduler_config table exists (required for scheduler service)
+  await createOperationRateLimitTables(async (query) => db.execute(query));
+  startRateCounterCleanup();
   await createSchedulerConfig();
   
   // Run domain enhancements migration (adds company_id, user_quota, domain_scheduler_config)
@@ -543,6 +516,9 @@ app.use((req: Request, res: Response, next: NextFunction) => {
     res.status(status).json({ message });
     throw err;
   });
+
+  // API misses must never become successful HTML responses in either runtime.
+  app.use(/^\/api(?:\/|$)/i, apiNotFound);
 
   // importantly only setup vite in development and after
   // setting up all the other routes so the catch-all route

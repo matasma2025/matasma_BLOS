@@ -1,3 +1,5 @@
+import { boardTitleSchema } from '@shared/inputValidators';
+import { NameFieldFeedback, nameError, readableValidationError } from './NameFieldFeedback';
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -33,7 +35,7 @@ export function BoardCreateWizard({ open, onOpenChange }: BoardCreateWizardProps
   });
 
   const form = useForm<InsertBoard>({
-    resolver: zodResolver(insertBoardSchema),
+    resolver: zodResolver(insertBoardSchema.extend({ title: boardTitleSchema })),
     defaultValues: {
       userId: currentUser?.id || '',
       title: '',
@@ -63,10 +65,10 @@ export function BoardCreateWizard({ open, onOpenChange }: BoardCreateWizardProps
         description: 'Board created successfully',
       });
     },
-    onError: () => {
+    onError: (error: Error) => {
       toast({
         title: 'Error',
-        description: 'Failed to create board',
+        description: readableValidationError(error),
         variant: 'destructive',
       });
     },
@@ -158,8 +160,11 @@ export function BoardCreateWizard({ open, onOpenChange }: BoardCreateWizardProps
                     <FormItem>
                       <FormLabel>Title</FormLabel>
                       <FormControl>
-                        <Input placeholder="Q4 Financial Analysis" {...field} data-testid="input-board-title" />
+                        <Input placeholder="Q4 Financial Analysis" {...field} maxLength={200}
+                          aria-invalid={!!nameError(field.value, 'Board name')}
+                          aria-describedby="legacy-board-name-feedback" data-testid="input-board-title" />
                       </FormControl>
+                      <NameFieldFeedback value={field.value} label="Board name" id="legacy-board-name-feedback" />
                       <FormMessage />
                     </FormItem>
                   )}

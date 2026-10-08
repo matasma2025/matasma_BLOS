@@ -1,5 +1,6 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 import { clearAuthUser } from "./auth";
+import { responseError } from "./apiError";
 
 // ── SG-41: CSRF token (Synchronizer Token Pattern) ───────────────────────────
 // Stored in memory only (never localStorage). Fetched once after login via
@@ -43,18 +44,7 @@ async function throwIfResNotOk(res: Response) {
     if (res.status === 401) {
       handleSessionExpiry();
     }
-    const text = (await res.text()) || res.statusText;
-    const error = new Error(`${res.status}: ${text}`) as Error & {
-      status?: number;
-      code?: string;
-    };
-    error.status = res.status;
-    try {
-      error.code = JSON.parse(text)?.code;
-    } catch {
-      // Preserve the response text for non-JSON errors.
-    }
-    throw error;
+    throw await responseError(res);
   }
 }
 

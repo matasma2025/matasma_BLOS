@@ -1,6 +1,8 @@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Download, ShieldCheck, Sparkles } from 'lucide-react';
+import { ReportDownloadFooter } from '@/components/reports/ReportDownloadFooter';
+import { reportFrame, reportHeader, reportTitle, reportEyebrow, reportMetricCard, reportWarning } from '@/components/reports/reportStyles';
 
 interface KpiMetric {
   label: string;
@@ -43,6 +45,7 @@ interface KpiTemplateReportProps {
   kpiReport: KpiTemplateData;
   onExport?: (scopeCode?: string) => void;
   isExporting?: boolean;
+  showDownloadFooter?: boolean;
 }
 
 const SCOPE_COLORS = [
@@ -79,6 +82,7 @@ export function KpiTemplateReport({
   kpiReport,
   onExport,
   isExporting = false,
+  showDownloadFooter = true,
 }: KpiTemplateReportProps) {
   const scopes: KpiScope[] = kpiReport.scopeBadges?.length
     ? kpiReport.scopeBadges
@@ -93,33 +97,33 @@ export function KpiTemplateReport({
 
   return (
     <div
-      className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 shadow-sm"
+      className={reportFrame}
       data-testid="kpi-template-report"
     >
-      <div className="bg-gradient-to-r from-[#073b4c] via-[#0f766e] to-[#155e75] px-5 py-5 text-white sm:px-7">
+      <div className={reportHeader}>
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-teal-100">
+            <div className={`${reportEyebrow} mb-2 flex items-center gap-2`}>
               <Sparkles className="h-3.5 w-3.5" />
               Imported KPI presentation
             </div>
-            <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-              Business Metrics <span className="text-teal-200">{reportPeriod}</span>
+            <h2 className={reportTitle}>
+              Business Metrics <span className="text-teal-700">{reportPeriod}</span>
             </h2>
-            <p className="mt-1 text-sm text-teal-50/90">{title}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{title}</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Badge className="border-white/20 bg-white/15 text-white hover:bg-white/20">
+            <Badge className="border-teal-900/15 bg-white text-teal-800 hover:bg-teal-100">
               {scopes.length} slides
             </Badge>
             {kpiReport.forecastScenario && (
-              <Badge className="border-white/20 bg-white/15 text-white hover:bg-white/20">
+              <Badge className="border-teal-900/15 bg-white text-teal-800 hover:bg-teal-100">
                 {kpiReport.forecastScenario}
               </Badge>
             )}
           </div>
         </div>
-        <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-white/20 pt-3 text-xs text-teal-50/90">
+        <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-teal-900/15 pt-3 text-xs text-muted-foreground">
           <span className="inline-flex items-center gap-1.5">
             <ShieldCheck className="h-3.5 w-3.5" />
             Internal · Governed Enterprise Data · KPI Metrics Board
@@ -129,7 +133,7 @@ export function KpiTemplateReport({
         </div>
       </div>
 
-      <div className="border-b border-slate-200 bg-white px-5 py-4 sm:px-7">
+      <div className="border-b border-teal-900/15 bg-white px-4 py-4 sm:px-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Decision / info to GLs</p>
@@ -144,8 +148,8 @@ export function KpiTemplateReport({
         </div>
       </div>
 
-      <div className="space-y-4 p-4 sm:p-6">
-        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4" data-testid="kpi-report-catalog">
+      <div className="space-y-5 p-4 sm:p-6">
+        <div className="rounded-xl border border-teal-900/15 bg-white p-4" data-testid="kpi-report-catalog">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Report catalog</p>
@@ -195,21 +199,6 @@ export function KpiTemplateReport({
               );
             })}
           </div>
-          {onExport && (
-            <div className="mt-3 flex justify-end border-t border-slate-200 pt-3">
-              <Button
-                variant="secondary"
-                size="sm"
-                className="gap-1.5"
-                onClick={() => onExport()}
-                disabled={isExporting}
-                data-testid="button-download-summary-ppt"
-              >
-                <Download className="h-3.5 w-3.5" />
-                {isExporting ? 'Preparing PPT…' : 'Download summary PPT'}
-              </Button>
-            </div>
-          )}
         </div>
 
         <div className="flex items-center justify-between">
@@ -227,7 +216,7 @@ export function KpiTemplateReport({
               <section
                 key={scope.id}
                 id={`kpi-slide-${scope.code.toLowerCase()}`}
-                className="scroll-mt-4 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"
+                className="scroll-mt-4 overflow-hidden rounded-xl border border-teal-900/15 bg-white shadow-sm"
                 style={{ borderTop: `4px solid ${colors.accent}` }}
                 data-testid={`kpi-template-slide-${scope.code}`}
               >
@@ -261,11 +250,11 @@ export function KpiTemplateReport({
                   {scope.metrics.map((metric) => (
                     <div
                       key={`${scope.id}-${metricKey(metric.label)}`}
-                      className="rounded-lg border p-4"
+                       className={reportMetricCard}
                       style={{ borderColor: `${colors.accent}33`, backgroundColor: colors.surface }}
                     >
                       <p className="text-xs font-medium text-slate-500">{metric.label}</p>
-                      <p className="mt-1 text-xl font-semibold tracking-tight text-slate-900">
+                       <p className="mt-1 text-xl font-semibold tabular-nums text-teal-950">
                         {metricValue(metric, metric.actual)}
                       </p>
                       <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-500">
@@ -289,12 +278,27 @@ export function KpiTemplateReport({
         </div>
 
         {!!kpiReport.warnings?.length && (
-          <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900">
+          <div className={`${reportWarning} text-xs`}>
             <p className="font-semibold">Warnings / data-quality notes</p>
             <ul className="mt-1 list-disc space-y-0.5 pl-4">
               {kpiReport.warnings.slice(0, 8).map((warning) => <li key={warning}>{warning}</li>)}
             </ul>
           </div>
+        )}
+        {onExport && showDownloadFooter && (
+          <ReportDownloadFooter>
+            <Button
+              variant="secondary"
+              size="sm"
+              className="gap-1.5"
+              onClick={() => onExport()}
+              disabled={isExporting}
+              data-testid="button-download-summary-ppt"
+            >
+              <Download className="h-3.5 w-3.5" />
+              {isExporting ? 'Preparing PPT…' : 'Download summary PPT'}
+            </Button>
+          </ReportDownloadFooter>
         )}
       </div>
     </div>

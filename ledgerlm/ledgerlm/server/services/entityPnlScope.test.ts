@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { ENTITY_PNL_CALCULATION_VERSION } from "../../shared/entityPnlPlanning";
 import test from "node:test";
 import { PgDialect } from "drizzle-orm/pg-core";
 import { buildEntityPnlPlanningBreakdown, type PlanningRow } from "./entityPnlPlanningService";
@@ -59,7 +60,7 @@ test("Signed credits reduce expense totals; blank-category cost is excluded", ()
   assert.equal(report.metrics["Total Expenses"], 80);
   assert.equal(report.metrics.EBIT, 120);
   assert.equal(report.metrics["EBIT%"], 60);
-  assert.equal(report.calculationVersion, "entity-pnl-financial-plan-v3");
+  assert.equal(report.calculationVersion, ENTITY_PNL_CALCULATION_VERSION);
 });
 
 test("YoY and Actual-CF variances are independent and margins use pp only", () => {
@@ -101,7 +102,7 @@ test("Forecast breakdown and comparisons paginate in both export formats", async
   ], scope);
   const report = buildEntityPnlReport([financial("Revenue Summary", 200), financial("Cost Summary", 100)], request, planning);
   const exported = { title: "Entity scope regression", result: { entityPnl: report } };
-  const [pptx, pdf] = await Promise.all([exportEntityPnlPptx(exported), exportEntityPnlPdf(exported)]);
+  const [pptx, pdf] = await Promise.all([exportEntityPnlPptx(exported, undefined, { includeSupplement: true }), exportEntityPnlPdf(exported)]);
   const files = unzipSync(new Uint8Array(pptx));
   const slides = Object.keys(files).filter((name) => /^ppt\/slides\/slide\d+\.xml$/.test(name));
   assert.equal(slides.length, 1 + Math.ceil(supplementalRows(report).length / 12));
@@ -113,7 +114,7 @@ test("Forecast breakdown and comparisons paginate in both export formats", async
     title: "Legacy single-slide template",
     result: { entityPnl: { ...report, planningForecast: undefined, forecastComparison: undefined, expenseReconciliation: undefined } },
   });
-  const templated = await exportEntityPnlPptx(exported, base.toString("base64"));
+  const templated = await exportEntityPnlPptx(exported, base.toString("base64"), { includeSupplement: true });
   const templatedFiles = unzipSync(new Uint8Array(templated));
   const templatedSlides = Object.keys(templatedFiles).filter((name) => /^ppt\/slides\/slide\d+\.xml$/.test(name));
   assert.equal(templatedSlides.length, slides.length);

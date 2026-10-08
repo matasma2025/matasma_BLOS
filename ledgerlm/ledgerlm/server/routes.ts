@@ -1,5 +1,6 @@
 import type { Express, RequestHandler } from "express";
 import { createServer, type Server } from "http";
+import { rejectHttpConnect } from "./security/httpMethodPolicy";
 import { storage } from "./storage";
 import { db, dbAuthMode } from "./db";
 import { getTokenStatus } from "./utils/entraToken";
@@ -27,6 +28,7 @@ import { runBoardAnalysis, getCubeVersions, previewBoardData, FOLLOW_UP_INTENTS 
 import { cubeBoardReports } from "@shared/schema";
 import { queryOrchestrator } from "./services/queryOrchestrator";
 import { evidenceBroker } from "./services/evidenceBroker";
+import { resolveChatDatasetFallback, UNSUPPORTED_DATASET_QUESTION } from "./services/chatDatasetFallback";
 import { requireAdmin } from "./middleware/rbac";
 import {
   requireAdmin as requireAdminAuth,
@@ -37,6 +39,8 @@ import { emailService } from "./services/emailService";
 import { otpService } from "./services/otpService";
 import { strongPasswordSchema } from "@shared/schema";
 import rateLimit from "express-rate-limit";
+import { sharedExpressStore } from "./security/rateLimitRuntime";
+import { retainOperationLease } from "./security/operationLimitMiddleware";
 import { scheduler } from "./services/scheduler";
 import { anaplanAutomation } from "./services/anaplanAutomation";
 import { versionManager } from "./services/versionManager";
@@ -70,6 +74,7 @@ import {
 } from "./middleware/sessionBinding";
 import { areAllOwnedBy, isOwnedBy } from "./security/ownership";
 import { requireRecentAdminStepUp } from "./middleware/adminStepUp";
+import { registerEntityPnlCubePlanRoutes } from "./routes/entityPnlCubePlan";
 import { revokeUserSessions } from "./security/sessionRevocation";
 import { runBackup, listBackups } from "./services/backupService";
 import { parseRegistration, fingerprintJwk } from "./security/deviceProof";
@@ -78,6 +83,13 @@ import { CURRENT_TERMS_EFFECTIVE_DATE, CURRENT_TERMS_VERSION } from "@shared/ter
 import {
   createBoardDtoSchema,
   createCubeDtoSchema,
+  createChatDtoSchema,
+  createBoardTemplateDtoSchema,
+  updateBoardTemplateDtoSchema,
+  templateNameSchema,
+  renameChatDtoSchema,
+  generatedChatTitle,
+  generatedChatPreview,
   updateBoardDtoSchema,
   boardSourceSelectionSchema,
   boardAnalysisRequestSchema,
@@ -158,7 +170,7 @@ async function requireKpiCubeAccess(userId: string, cubeId: string) {
   return cube;
 }
 
-async function resolveActiveAdmin(userId: string, authenticatedAt?: number) {
+export async function resolveActiveAdmin(userId: string, authenticatedAt?: number) {
   const user = await storage.getUser(userId);
   if (!user) return null;
   if (
@@ -1210,6 +1222,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   const adminStepUpRequestLimiter = rateLimit({
+    store: sharedExpressStore("admin-step-up-request"),
     windowMs: 60 * 1000,
     max: 2,
     standardHeaders: true,
@@ -1260,6 +1273,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   );
 
   const adminStepUpVerifyLimiter = rateLimit({
+    store: sharedExpressStore("admin-step-up-verify"),
     windowMs: 5 * 60 * 1000,
     max: 5,
     standardHeaders: true,
@@ -1315,6 +1329,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   );
 
   const resendOtpLimiter = rateLimit({
+    store: sharedExpressStore("login-otp-resend"),
     windowMs: 1 * 60 * 1000, // 1 minute
     max: 2, // limit each email to 2 requests per minute
     message: "Too many requests. Please wait before requesting another code.",
@@ -1427,8 +1442,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: "Unauthorized - please sign in" });
       }
 
-      console.log("Creating chat with body:", req.body);
-
       // Verify user exists
       const user = await storage.getUser(userId);
       if (!user) {
@@ -1437,15 +1450,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .json({ error: "Session expired - please sign in again" });
       }
 
-      const data = insertChatSchema.parse({
-        ...req.body,
+      const validation = createChatDtoSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({
+          error: validation.error.issues[0]?.message || "Invalid chat data",
+          details: validation.error.flatten().fieldErrors,
+        });
+      }
+      const { templateMessage: _legacyPrompt, ...displayData } = validation.data;
+      const data = {
+        ...displayData,
         userId: userId,
-      });
+      };
 
       const chat = await storage.createChat(data);
       res.status(201).json(toPublicChat(chat));
     } catch (error) {
-      console.error("Chat creation error:", error);
+      // Node 24's object inspector can throw while formatting a ZodError.
+      // Never give this logger the raw exception or request payload.
+      console.error(
+        "Chat creation error:",
+        error instanceof Error ? error.message.slice(0, 1000) : "Unknown error",
+      );
 
       // Check if it's a foreign key error
       if (
@@ -1457,11 +1483,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .json({ error: "Session expired - please sign in again" });
       }
 
-      res
-        .status(400)
-        .json({
-          error: "Invalid chat data",
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({
+          error: error.issues[0]?.message || "Invalid chat data",
+          details: error.flatten().fieldErrors,
         });
+      }
+      res.status(400).json({ error: "Invalid chat data" });
     }
   });
 
@@ -1484,10 +1512,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .json({ error: "Forbidden - you don't have access to this chat" });
       }
 
-      const { title } = req.body;
-      if (!title || typeof title !== "string") {
-        return res.status(400).json({ error: "Title is required" });
+      const parsed = renameChatDtoSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({
+          error: parsed.error.issues[0]?.message || "Invalid chat title",
+          details: parsed.error.flatten().fieldErrors,
+        });
       }
+      const { title } = parsed.data;
 
       const updatedChat = await storage.updateChatTitle(
         req.params.id,
@@ -1586,10 +1618,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
         if (messageCount <= 1) {
           // Generate title from first message (first 50 chars)
-          const newTitle =
-            data.content.length > 50
-              ? data.content.slice(0, 47) + "..."
-              : data.content;
+          const newTitle = generatedChatTitle(data.content);
           await storage.updateChatTitle(req.params.chatId, newTitle);
         }
       }
@@ -1632,8 +1661,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             db: storage.db,
           });
 
+          const chatEvidence = resolveChatDatasetFallback(data.content, orchestratorResult.evidence);
           const rankedEvidence = evidenceBroker.rankEvidence(
-            orchestratorResult.evidence,
+            chatEvidence.evidence,
           );
           const context = evidenceBroker.buildContext(rankedEvidence, data.content);
           const multiSourcePrompt = evidenceBroker.generatePromptWithCitations(
@@ -1667,7 +1697,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             },
           }).catch(() => {});
 
-          if (context.text && context.text.trim().length > 0) {
+          if (chatEvidence.unsupported) {
+            fullResponse = UNSUPPORTED_DATASET_QUESTION;
+          } else if (context.text && context.text.trim().length > 0) {
             for await (const chunk of streamFinancialAnalysis({
               query: data.content,
               conversationHistory: historyFormatted,
@@ -1690,6 +1722,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
 
           const nonStreamMeta: Record<string, unknown> = {};
+          if (chatEvidence.unsupported) nonStreamMeta.answerStatus = "unsupported_dataset_metric";
           if (context.citations.length > 0) nonStreamMeta.citations = context.citations;
           if (context.dataCoverage) nonStreamMeta.dataCoverage = context.dataCoverage;
           const assistantMessage = await storage.createMessage({
@@ -1757,10 +1790,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
         if (messageCount <= 1) {
           // Generate title from first message (first 50 chars)
-          const newTitle =
-            data.content.length > 50
-              ? data.content.slice(0, 47) + "..."
-              : data.content;
+          const newTitle = generatedChatTitle(data.content);
           await storage.updateChatTitle(req.params.chatId, newTitle);
           console.log(`Updated chat title to: ${newTitle}`);
         }
@@ -1806,8 +1836,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             queryContext: incomingQueryContext,
           });
 
+          const chatEvidence = resolveChatDatasetFallback(data.content, orchestratorResult.evidence);
           const rankedEvidence = evidenceBroker.rankEvidence(
-            orchestratorResult.evidence,
+            chatEvidence.evidence,
           );
           const context = evidenceBroker.buildContext(rankedEvidence, data.content);
           const multiSourcePrompt = evidenceBroker.generatePromptWithCitations(
@@ -1877,7 +1908,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   domainAiConfig,
                 };
 
-          for await (const chunk of streamFinancialAnalysis(streamParams)) {
+          // A fallback refusal is generated by the backend, never by the LLM.
+          const responseChunks = chatEvidence.unsupported
+            ? [UNSUPPORTED_DATASET_QUESTION]
+            : streamFinancialAnalysis(streamParams);
+          for await (const chunk of responseChunks) {
             if (streamAbortController.signal.aborted) break;
             fullResponse += chunk;
             // Send each chunk as an SSE event and flush immediately
@@ -1909,6 +1944,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           // Save assistant message to database
           const msgMeta: Record<string, unknown> = {};
+          if (chatEvidence.unsupported) msgMeta.answerStatus = "unsupported_dataset_metric";
           if (citations.length > 0) msgMeta.citations = citations;
           if (context.tableData) msgMeta.tableData = context.tableData;
           if (context.tableSections) msgMeta.tableSections = context.tableSections;
@@ -2061,6 +2097,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } catch (_) { /* fallback to Python's get_default_ai_config() */ }
 
       // Handle bulk replacement (new behavior)
+      const documentProcessing: Array<() => Promise<unknown>> = [];
       if (documentIds !== undefined) {
         if (!Array.isArray(documentIds)) {
           return res
@@ -2090,7 +2127,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           // Trigger document processing in the background
           if (document && document.filePath) {
-            fetch(`http://localhost:8000/api/v2/documents/process/${docId}`, {
+            documentProcessing.push(() => fetch(`http://localhost:8000/api/v2/documents/process/${docId}`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ file_path: document.filePath, ai_config: vaultAiConfig }),
@@ -2099,10 +2136,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 `Failed to trigger processing for document ${docId}:`,
                 err,
               ),
-            );
+            ));
           }
         }
 
+        void retainOperationLease(req, Promise.all(documentProcessing.map((start) => start())));
         return res
           .status(200)
           .json({ success: true, count: documentIds.length });
@@ -2127,11 +2165,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Trigger document processing in the background
       if (document && document.filePath) {
-        fetch(`http://localhost:8000/api/v2/documents/process/${documentId}`, {
+        void retainOperationLease(req, fetch(`http://localhost:8000/api/v2/documents/process/${documentId}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ file_path: document.filePath, ai_config: vaultAiConfig }),
-        }).catch((err) =>
+        })).catch((err) =>
           console.error(
             `Failed to trigger processing for document ${documentId}:`,
             err,
@@ -2503,14 +2541,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       // Trigger automatic processing
-      fetch(
+      void retainOperationLease(req, fetch(
         `http://localhost:${process.env.PYTHON_PORT || 8000}/api/v2/process`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ file_path: document.filePath }),
         },
-      ).catch((err) => console.error("Failed to trigger processing:", err));
+      )).catch((err) => console.error("Failed to trigger processing:", err));
 
       res.status(201).json({
         success: true,
@@ -3011,7 +3049,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Selected board template does not exist" });
       }
       const updated = await storage.updateBoard(req.params.id, {
-        title:       changes.title ?? board.title,
+        ...(changes.title !== undefined ? { title: changes.title } : {}),
         description: "description" in changes ? changes.description : board.description,
         templateId:  "templateId" in changes ? changes.templateId : board.templateId,
         settings:    ("settings" in changes ? changes.settings : board.settings) as any,
@@ -3104,7 +3142,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const run = await createBoardAnalysisRun({ boardId: req.params.id, userId, request: parsed });
       // The run is persisted before execution starts, so a browser reload can
       // recover it. Execution remains server-side and never exposes raw source rows.
-      void executeBoardAnalysis(run.id).catch((error) => {
+      void retainOperationLease(req, executeBoardAnalysis(run.id)).catch((error) => {
         console.error(`Board analysis run ${run.id} failed:`, error);
       });
       res.status(202).json(run);
@@ -3170,10 +3208,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = (req.session?.userId ?? "");
       if (!userId) return res.status(401).json({ error: "Unauthorized" });
-      await assertBoardSourceAccess(userId, { sourceType: "enterprise", cubeId: req.params.cubeId });
-      const versions = await getCubeVersions(req.params.cubeId);
+      try {
+        await assertBoardSourceAccess(userId, { sourceType: "enterprise", cubeId: req.params.cubeId });
+      } catch {
+        return res.status(403).json({ error: "You do not have access to this Enterprise Data cube" });
+      }
+      const entity = req.query.templateKey === "entity-pnl" ? req.query.entity : undefined;
+      if (entity !== undefined && (typeof entity !== "string" || entity.length > 200)) {
+        return res.status(400).json({ error: "Specify a valid Entity P&L entity." });
+      }
+      const versions = await getCubeVersions(req.params.cubeId,
+        typeof entity === "string" ? { entityPnlEntity: entity } : undefined);
       res.json(versions);
     } catch (error) {
+      if (req.query.templateKey === "entity-pnl") {
+        return res.status(503).json({ error: "Unable to load Entity P&L forecast sources. Retry; no data or board settings were changed." });
+      }
       res.status(403).json({ error: "You do not have access to this Enterprise Data cube" });
     }
   });
@@ -3378,7 +3428,9 @@ ${summary}
 ${intentDef.question}`;
 
       // Create the linked chat + seed it with the context message
-      const chatTitle = `${intentDef.icon} ${intentDef.label} — ${report.periodLabel}`;
+      const chatTitle = generatedChatTitle(
+        `${intentDef.icon} ${intentDef.label} — ${report.periodLabel}`, "Board follow-up", 200,
+      );
       const chat = await storage.createChat({ userId, title: chatTitle });
 
       // Insert a seeded user message so the context is pre-loaded when opened
@@ -3420,7 +3472,7 @@ ${intentDef.question}`;
       const { userId } = await requireOwnedBoard(req, req.params.id);
       const request = boardAnalysisRequestSchema.parse(req.body);
       const run = await createBoardAnalysisRun({ boardId: req.params.id, userId, request });
-      const completed = await executeBoardAnalysis(run.id);
+      const completed = await retainOperationLease(req, executeBoardAnalysis(run.id));
       if (!completed.legacyReport) {
         return res.status(409).json({ error: "The Board analysis did not produce a report" });
       }
@@ -3469,11 +3521,14 @@ ${intentDef.question}`;
         return res.status(401).json({ error: "Unauthorized - please sign in" });
       }
 
-      const template = await storage.createBoardTemplate(req.body);
+      const template = await storage.createBoardTemplate(createBoardTemplateDtoSchema.parse(req.body));
       res.status(201).json(template);
     } catch (error) {
       console.error("Failed to create template:", error);
-      res.status(400).json({ error: "Failed to create template" });
+      res.status(400).json({
+        error: error instanceof z.ZodError ? error.issues[0]?.message : "Failed to create template",
+        details: error instanceof z.ZodError ? error.flatten().fieldErrors : undefined,
+      });
     }
   });
 
@@ -3486,7 +3541,7 @@ ${intentDef.question}`;
 
       const template = await storage.updateBoardTemplate(
         req.params.id,
-        req.body,
+        updateBoardTemplateDtoSchema.parse(req.body),
       );
       if (!template) {
         return res.status(404).json({ error: "Template not found" });
@@ -3494,7 +3549,10 @@ ${intentDef.question}`;
       res.json(template);
     } catch (error) {
       console.error("Failed to update template:", error);
-      res.status(400).json({ error: "Failed to update template" });
+      res.status(400).json({
+        error: error instanceof z.ZodError ? error.issues[0]?.message : "Failed to update template",
+        details: error instanceof z.ZodError ? error.flatten().fieldErrors : undefined,
+      });
     }
   });
 
@@ -3524,6 +3582,13 @@ ${intentDef.question}`;
       if (!template) {
         return res.status(404).json({ error: "Template not found" });
       }
+      const nameCheck = templateNameSchema.safeParse(template.name);
+      if (!nameCheck.success) {
+        return res.status(400).json({
+          error: `Template name is invalid. ${nameCheck.error.issues[0]?.message}`,
+          details: nameCheck.error.flatten().formErrors,
+        });
+      }
 
       const defaultConfig = template.defaultConfig as any;
       const analysisPrompts = defaultConfig?.analysisPrompts || "";
@@ -3531,8 +3596,8 @@ ${intentDef.question}`;
 
       const chat = await storage.createChat({
         userId,
-        title: template.name,
-        preview: template.description,
+        title: generatedChatTitle(template.name, "Template analysis", 200),
+        preview: generatedChatPreview(template.description),
       });
 
       if (analysisPrompts) {
@@ -7942,9 +8007,7 @@ ${faqContext ? `FAQ KNOWLEDGE BASE:\n${faqContext}` : "No FAQ documentation is c
 
       // Update chat title based on first message
       if (chat.title === "Billing Query") {
-        const shortTitle =
-          message.substring(0, 50) + (message.length > 50 ? "..." : "");
-        await storage.updateKioskChatTitle(chatId, shortTitle);
+        await storage.updateKioskChatTitle(chatId, generatedChatTitle(message, "Billing Query"));
       }
 
       res.end();
@@ -8284,7 +8347,10 @@ ${faqContext ? `FAQ KNOWLEDGE BASE:\n${faqContext}` : "No FAQ documentation is c
     try {
       const cubeParsed = createCubeDtoSchema.safeParse(req.body);
       if (!cubeParsed.success) {
-        return res.status(400).json({ error: "Invalid request", details: cubeParsed.error.flatten().fieldErrors });
+        return res.status(400).json({
+          error: cubeParsed.error.issues[0]?.message || "Invalid request",
+          details: cubeParsed.error.flatten().fieldErrors,
+        });
       }
 
       const isSuperAdmin = (req as any).isSuperAdmin;
@@ -8441,6 +8507,9 @@ ${faqContext ? `FAQ KNOWLEDGE BASE:\n${faqContext}` : "No FAQ documentation is c
   });
 
   // Dedicated Balance Sheet ingestion. This endpoint intentionally does not
+  registerEntityPnlCubePlanRoutes(app, requireDomainAdmin, requireRecentAdminStepUp);
+
+  // Dedicated Balance Sheet ingestion. This endpoint intentionally does not
   // write to cube_plan_data; each row is a point-in-time account balance.
   app.post("/api/domain-admin/cubes/:cubeId/balance-sheet-data", requireDomainAdmin, async (req, res) => {
     try {
@@ -8465,7 +8534,7 @@ ${faqContext ? `FAQ KNOWLEDGE BASE:\n${faqContext}` : "No FAQ documentation is c
         const cubeParsed = updateCubeDtoSchema.safeParse(req.body);
         if (!cubeParsed.success) {
           return res.status(400).json({
-            error: "Invalid request",
+            error: cubeParsed.error.issues[0]?.message || "Invalid request",
             details: cubeParsed.error.flatten().fieldErrors,
           });
         }
@@ -10109,7 +10178,7 @@ ${faqContext ? `FAQ KNOWLEDGE BASE:\n${faqContext}` : "No FAQ documentation is c
         }
 
         // Execute with 15-second application-level timeout
-        const queryPromise = db.execute(sqlTag.raw(finalQuery));
+        const queryPromise = retainOperationLease(req, db.execute(sqlTag.raw(finalQuery)));
         const timeoutPromise = new Promise<never>((_, reject) =>
           setTimeout(
             () => reject(new Error("Query exceeded 15-second timeout. Add more specific WHERE filters to narrow results.")),
@@ -10590,7 +10659,7 @@ ${faqContext ? `FAQ KNOWLEDGE BASE:\n${faqContext}` : "No FAQ documentation is c
       const triggeredBy = user?.username || "super-admin";
       // Fire async — respond immediately so UI doesn't hang
       res.json({ message: "Backup started", triggeredBy });
-      runBackup(triggeredBy).catch((e) => logger.error({ e }, "Manual backup error"));
+      retainOperationLease(req, runBackup(triggeredBy)).catch((e) => logger.error({ e }, "Manual backup error"));
     } catch (e: any) {
       res.status(500).json({ error: e.message });
     }
@@ -10668,7 +10737,7 @@ ${faqContext ? `FAQ KNOWLEDGE BASE:\n${faqContext}` : "No FAQ documentation is c
     try {
       const user = (req as any).user;
       res.json({ message: "Retention engine started" });
-      runRetentionEngine(user?.username || "manual").catch((e) => logger.error({ e }, "Manual retention error"));
+      retainOperationLease(req, runRetentionEngine(user?.username || "manual")).catch((e) => logger.error({ e }, "Manual retention error"));
     } catch (e: any) {
       res.status(500).json({ error: e.message });
     }
@@ -10766,6 +10835,7 @@ ${faqContext ? `FAQ KNOWLEDGE BASE:\n${faqContext}` : "No FAQ documentation is c
   });
 
   const httpServer = createServer(app);
+  rejectHttpConnect(httpServer);
 
   return httpServer;
 }

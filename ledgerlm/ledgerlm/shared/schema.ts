@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, index, uniqueIndex, unique, integer, jsonb, customType, doublePrecision, boolean, numeric, bigint, json } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, index, uniqueIndex, unique, primaryKey, check, integer, jsonb, customType, doublePrecision, boolean, numeric, bigint, json } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
@@ -692,6 +692,22 @@ export const cubes = pgTable("cubes", {
   sourceTypeIdx: index("cubes_source_type_idx").on(table.sourceType),
   connectorIdIdx: index("cubes_connector_id_idx").on(table.connectorId),
   uniqueDomainName: uniqueIndex("cubes_domain_name_unique").on(table.domainId, table.name), // No duplicate cube names per domain
+}));
+
+// User access to cubes - controls which users can query data from specific cubes
+// Parsed Entity P&L scenario records only, not raw workbook bytes.
+// No other board/chat consumer joins this table.
+export const cubeEntityPnlPlanData = pgTable("cube_entity_pnl_plan_data", {
+  cubeId: varchar("cube_id", { length: 255 }).notNull().references(() => cubes.id, { onDelete: "cascade" }),
+  entityKey: varchar("entity_key", { length: 200 }).notNull(),
+  planData: jsonb("plan_data").notNull(),
+  contentHash: varchar("content_hash", { length: 64 }).notNull(),
+  revision: integer("revision").notNull().default(1),
+  uploadedBy: varchar("uploaded_by", { length: 255 }).notNull(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, (table) => ({
+  scopePk: primaryKey({ columns: [table.cubeId, table.entityKey] }),
+  revisionPositive: check("cube_entity_pnl_plan_data_revision_check", sql`${table.revision} > 0`),
 }));
 
 // User access to cubes - controls which users can query data from specific cubes

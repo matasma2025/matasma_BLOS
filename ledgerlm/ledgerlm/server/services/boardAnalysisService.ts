@@ -11,6 +11,7 @@ import { db } from '../db';
 import { sql } from 'drizzle-orm';
 import { cubeBoardReports, type CubeBoardReport } from '@shared/schema';
 import { streamFinancialAnalysis, type DomainAiConfig } from '../openai';
+import { readCubeEntityPnlPlan } from './entityPnlCubePlanService';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -438,11 +439,19 @@ export async function runBoardAnalysis(request: AnalysisRequest): Promise<CubeBo
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-export async function getCubeVersions(cubeId: string): Promise<string[]> {
+export async function getCubeVersions(cubeId: string, options?: { entityPnlEntity?: string }): Promise<string[]> {
   const result = await db.execute(
     sql`SELECT DISTINCT version FROM cube_fact_data WHERE cube_id = ${cubeId} AND version IS NOT NULL ORDER BY version`
   );
-  return ((result.rows ?? result) as unknown as { version: string }[]).map((r) => r.version);
+  const versions = ((result.rows ?? result) as unknown as { version: string }[]).map((r) => r.version);
+  // Only the Entity P&L selector opts into this separate financial dataset.
+  // Generic/KPI selectors retain their existing source and version semantics.
+  const entity = options?.entityPnlEntity?.trim();
+  if (!entity) return versions;
+  const saved = await readCubeEntityPnlPlan(cubeId, entity);
+  if (!saved) return versions;
+  const scenarios = saved.plan.rows.filter((row) => row.value !== null).map((row) => row.scenario);
+  return Array.from(new Set([...versions, ...scenarios])).sort();
 }
 
 // Intent catalogue for follow-up chat seeding

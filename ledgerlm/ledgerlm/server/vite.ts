@@ -29,13 +29,9 @@ export async function setupVite(app: Express, server: Server) {
   const vite = await createViteServer({
     ...viteConfig,
     configFile: false,
-    customLogger: {
-      ...viteLogger,
-      error: (msg, options) => {
-        viteLogger.error(msg, options);
-        process.exit(1);
-      },
-    },
+    // Vite also forwards browser console errors here. Rejected requests must
+    // remain visible in the UI, not terminate the entire Express server.
+    customLogger: viteLogger,
     server: serverOptions,
     appType: "custom",
   });
