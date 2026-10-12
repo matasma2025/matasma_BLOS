@@ -40,49 +40,56 @@ async function exported(balanceSheet: BalanceSheetReport) {
   return unzipSync(await exportBalanceSheetPptx({ title: "Balance Sheet", result: { balanceSheet } }));
 }
 
-test("both slides use statement totals in the totals box and bold total row without mutating data", async () => {
+test("both slides use prominent statement totals with no repeated table or data mutation", async () => {
   const balanceSheet = fixture();
   const before = JSON.stringify(balanceSheet);
   const files = await exported(balanceSheet);
   for (let index = 1; index <= 2; index++) {
     const xml = strFromU8(files[`ppt/slides/slide${index}.xml`]);
     const label = index === 1 ? "Total Assets" : "Total Liabilities + Equity";
-    assert.equal(xml.match(/<a:t>94,164<\/a:t>/g)?.length, 2);
-    assert.equal(xml.match(/<a:t>98,946<\/a:t>/g)?.length, 2);
-    assert.ok(xml.includes(`${label} (mINR)`));
-    assert.ok(xml.includes(`<a:t>${label}</a:t>`));
-    const totalRow = xml.match(/<a:tr\b[^>]*>[\s\S]*?<\/a:tr>/g)?.at(-1);
-    assert.ok(totalRow?.includes(label));
-    assert.ok(totalRow?.includes('b="1"'));
-    assert.ok(totalRow?.includes("<a:t>-4,782</a:t>"));
-    assert.ok(xml.includes("MANAGEMENT ATTENTION"));
+    assert.ok(xml.includes(`${label}: 94,164 mINR (Jun-26) vs 98,946 mINR (Mar-26)`));
+    assert.ok(!xml.includes("<a:tbl>"));
+    assert.ok(!xml.includes("CATEGORY COMPARISON"));
+    assert.ok(xml.includes('sz="2800"'));
+    assert.ok(xml.includes("Key pointers on old balances:"));
+    assert.ok(!xml.includes("separate scale"));
+    assert.ok(xml.includes("Factual commentary"));
     const objectIds = Array.from(xml.matchAll(/<p:cNvPr\b[^>]*\bid="(\d+)"/g), ([, id]) => id);
     assert.equal(objectIds.length, new Set(objectIds).size, "slide object IDs must be unique");
   }
   assert.equal(JSON.stringify(balanceSheet), before);
 });
 
-test("charts have horizontal wrapped categories, no gridlines or visible value axis, and above-bar values", async () => {
+test("reference charts keep equity first in the main plot, with top legends and unwrapped above-bar values", async () => {
   const files = await exported(fixture());
   const chartNames = Object.keys(files).filter((name) => /^ppt\/charts\/chart\d+\.xml$/.test(name));
   assert.equal(chartNames.length, 2);
   for (const name of chartNames) {
     const xml = strFromU8(files[name]);
-    assert.ok(!xml.includes("<c:majorGridlines"));
-    assert.ok(!xml.includes("<c:minorGridlines"));
     const categoryAxis = xml.match(/<c:catAx\b[^>]*>[\s\S]*?<\/c:catAx>/)?.[0];
     assert.ok(categoryAxis?.includes('<a:bodyPr rot="0"/>'));
     const valueAxis = xml.match(/<c:valAx\b[^>]*>[\s\S]*?<\/c:valAx>/)?.[0];
     assert.ok(valueAxis?.includes('<c:delete val="1"/>'));
-    assert.ok(valueAxis?.includes("<a:noFill/>"));
-    assert.ok(xml.includes('<c:legendPos val="b"/>'));
+    assert.ok(valueAxis?.includes('<c:min val="0"/>'));
+    assert.ok(xml.includes('<c:legendPos val="t"/>'));
     assert.ok(xml.includes('<c:dLblPos val="outEnd"/>'));
+    assert.ok(!xml.includes('<c:dLblPos val="inBase"/>'));
+    assert.ok(xml.includes('wrap="none"'));
     assert.ok(xml.includes('<c:showVal val="1"/>'));
+    assert.ok(xml.includes('sz="600"'));
     assert.ok(xml.includes("439798") && xml.includes("BC4096"));
     assert.ok(xml.includes("Jun-26") && xml.includes("Mar-26"));
   }
-  assert.ok(strFromU8(files[chartNames[0]]).includes("Investments in Group\nEntities"));
-  assert.ok(strFromU8(files[chartNames[1]]).includes("Non-current\nliabilities &amp;\nprovisions"));
+  assert.ok(strFromU8(files[chartNames[0]]).includes("Investments"));
+  const mainLiabilities = strFromU8(files[chartNames[1]]);
+  assert.ok(mainLiabilities.includes("Non-current\nliab. &amp; prov."));
+  assert.ok(mainLiabilities.includes("Equity"));
+  assert.ok(mainLiabilities.indexOf("Equity") < mainLiabilities.indexOf("Non-current"));
+  for (let i = 1; i <= 2; i++) {
+    const xml = strFromU8(files[`ppt/slides/slide${i}.xml`]);
+    assert.ok(xml.includes('<a:off x="429768" y="996696"/>'), "reference chart origin");
+    assert.ok(xml.includes('<a:ext cx="4892040" cy="2724912"/>'), "reference chart dimensions");
+  }
 });
 
 test("missing comparison totals are shown as unavailable rather than invented from chart categories", async () => {
@@ -91,9 +98,22 @@ test("missing comparison totals are shown as unavailable rather than invented fr
   const files = await exported(balanceSheet);
   for (let index = 1; index <= 2; index++) {
     const xml = strFromU8(files[`ppt/slides/slide${index}.xml`]);
-    const totalRow = xml.match(/<a:tr\b[^>]*>[\s\S]*?<\/a:tr>/g)?.at(-1);
-    assert.equal(totalRow?.match(/<a:t>—<\/a:t>/g)?.length, 2);
-    assert.ok(totalRow?.includes("<a:t>n/a</a:t>"));
+    assert.ok(xml.includes("— (comparison unavailable)"));
+    assert.ok(!xml.includes("<a:tbl>"));
+  }
+  for (const [name, bytes] of Object.entries(files).filter(([name]) => /^ppt\/charts\/chart\d+\.xml$/.test(name))) {
+    assert.equal((strFromU8(bytes).match(/<c:ser>/g) ?? []).length, 2, name);
+  }
+});
+
+test("a report without any prior balances does not plot invented comparison zeros", async () => {
+  const report = fixture();
+  report.comparisonTotals = null;
+  report.comparisonPeriodLabel = null;
+  report.categoryBreakdowns.forEach((item) => { item.previousValue = 0; });
+  const files = await exported(report);
+  for (const [name, bytes] of Object.entries(files).filter(([name]) => /^ppt\/charts\/chart\d+\.xml$/.test(name))) {
+    assert.equal((strFromU8(bytes).match(/<c:ser>/g) ?? []).length, 1, name);
   }
 });
 
@@ -104,10 +124,7 @@ test("zero comparison totals have no misleading infinite change percentage", asy
   const files = await exported(balanceSheet);
   for (let index = 1; index <= 2; index++) {
     const xml = strFromU8(files[`ppt/slides/slide${index}.xml`]);
-    const totalRow = xml.match(/<a:tr\b[^>]*>[\s\S]*?<\/a:tr>/g)?.at(-1);
-    assert.ok(totalRow?.includes("<a:t>0</a:t>"));
-    assert.ok(totalRow?.includes("<a:t>+94,164</a:t>"));
-    assert.ok(totalRow?.includes("<a:t>n/a</a:t>"));
+    assert.ok(xml.includes("vs 0 mINR"));
     assert.ok(!xml.includes("Infinity") && !xml.includes("NaN"));
   }
 });

@@ -20,6 +20,7 @@ import { executeEnterpriseDeterministicAnalysis } from "./sources/enterpriseDete
 import { deterministicAnalysisResultSchema } from "@shared/boards/deterministicAnalysis";
 import { runKpiReport, validateKpiReportRequest } from "../kpiReportService";
 import { runBalanceSheetReport } from "../balanceSheetService";
+import { enrichBalanceSheetCommentary } from "./balanceSheetAiCommentaryService";
 import {
   runEntityPnlReport,
   entityPnlResultPayload,
@@ -403,6 +404,15 @@ export async function executeBoardAnalysis(runId: string) {
           plan: preparedSource.plan, sourceName: preparedSource.source.name,
         }));
       }
+    }
+    if (governedBalanceSheetReport) {
+      let customerAiConfig;
+      try {
+        customerAiConfig = await resolveDomainAiConfigForUser(run.requestedBy);
+      } catch {
+        console.warn("[BalanceSheet] Customer AI configuration unavailable; retaining factual commentary.");
+      }
+      governedBalanceSheetReport = await enrichBalanceSheetCommentary(governedBalanceSheetReport, customerAiConfig);
     }
     const primaryMeasure = preparedSource.plan.measures[0];
     const legacyCompatible = !standaloneTemplate && !!mapping.actuals && !!mapping.budget && primaryMeasure?.column === "amount_usd"

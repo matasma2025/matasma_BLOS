@@ -1,6 +1,7 @@
 import PptxGenJS from "pptxgenjs";
 import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 import type { BalanceSheetCategoryBreakdown, BalanceSheetLineItem, BalanceSheetReport } from "@shared/boards/balanceSheet";
+import { addBalanceSheetReferenceSlide } from "./balanceSheetPptxLayout";
 
 interface BalanceSheetExportReport {
   title: string;
@@ -374,7 +375,10 @@ function finalizeBalanceSheetPptx(pptxBytes: Buffer): Buffer {
     const aboveBarLabels = xml.replace(/<c:dLblPos\b[^>]*\/>/g, '<c:dLblPos val="outEnd"/>');
     // PptxGenJS treats a zero rotation as automatic. Force horizontal labels
     // explicitly so PowerPoint cannot rotate long category names on opening.
-    files[path] = strToU8(aboveBarLabels.replace(
+    const unwrappedLabels = aboveBarLabels.replace(/<c:dLbls\b[^>]*>[\s\S]*?<\/c:dLbls>/g,
+      (block) => block.replace(/<a:bodyPr\b[^>]*\/?>/g,
+          (tag) => tag.replace(/\s+wrap="[^"]*"/g, "").replace("<a:bodyPr", '<a:bodyPr wrap="none"')));
+    files[path] = strToU8(unwrappedLabels.replace(
       /<c:catAx\b[^>]*>[\s\S]*?<\/c:catAx>/g,
       (axis) => axis.replace(/<a:bodyPr\b[^>]*\/>/, '<a:bodyPr rot="0"/>'),
     ));
@@ -414,8 +418,10 @@ export async function exportBalanceSheetPptx(
   pptx.subject = "Balance Sheet standalone analysis";
   pptx.title = report.title;
   const periodLabel = compactPeriodLabel(balanceSheet.periodLabel);
-  addSectionSlide(pptx, report, balanceSheet, "assets", `Balance Sheet – Assets as of ${periodLabel}`);
-  addSectionSlide(pptx, report, balanceSheet, "liabilities", `Balance Sheet – Liabilities as of ${periodLabel}`);
+  addBalanceSheetReferenceSlide(pptx, report, balanceSheet, "assets",
+    `Balance Sheet – Assets as of ${periodLabel}`, chartCategories(balanceSheet, "assets"));
+  addBalanceSheetReferenceSlide(pptx, report, balanceSheet, "liabilities",
+    `Balance Sheet – Liabilities as of ${periodLabel}`, chartCategories(balanceSheet, "liabilities"));
   const output = await pptx.write({ outputType: "nodebuffer" });
   const pptxBytes = Buffer.isBuffer(output) ? output : Buffer.from(output as Uint8Array);
   return finalizeBalanceSheetPptx(pptxBytes);

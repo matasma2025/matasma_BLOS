@@ -80,6 +80,21 @@ export const balanceSheetReportSchema = z.object({
   warnings: z.array(z.string().max(1_000)).max(100).default([]),
   insights: z.array(z.string().max(1_000)).max(30).default([]),
   risks: z.array(z.string().max(1_000)).max(30).default([]),
+  commentaryFacts: z.array(z.object({
+    id: z.string().max(200),
+    category: z.string().max(255),
+    section: z.enum(["assets", "liabilities", "equity"]),
+    kind: z.enum(["movement", "drivers", "composition", "coverage"]),
+    text: z.string().max(800),
+  }).strict()).max(200).optional(),
+  categoryCommentary: z.array(z.object({
+    category: z.string().max(255),
+    section: z.enum(["assets", "liabilities", "equity"]),
+    text: z.string().max(1_600),
+    evidenceIds: z.array(z.string().max(200)).max(3),
+    source: z.enum(["ai-selected", "factual-fallback"]),
+  }).strict()).max(50).optional(),
+  commentaryStatus: z.enum(["ai-selected", "factual-fallback"]).optional(),
   actions: z.array(z.object({
     label: z.string().max(200),
     owner: z.string().max(200).optional(),

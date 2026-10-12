@@ -7,6 +7,7 @@ import { unzipSync } from "fflate";
 import { db } from "../db";
 import { cubeBalanceSheetData, cubes } from "@shared/schema";
 import { rollUpBalanceSheetDetailRows } from "./balanceSheetRollup";
+import { buildBalanceSheetCommentaryFacts, applyBalanceSheetCommentary } from "./boards/balanceSheetCommentaryService";
 import type {
   BalanceSheetLineItem,
   BalanceSheetPeriod,
@@ -858,7 +859,7 @@ export async function runBalanceSheetReport(request: BalanceSheetReportRequest):
     ...(!balanced ? ["Investigate account completeness or classification before relying on liquidity ratios."] : []),
   ];
 
-  return {
+  const report: BalanceSheetReport = {
     balanced,
     difference: round(totals.balanceDifference),
     tolerance,
@@ -882,4 +883,27 @@ export async function runBalanceSheetReport(request: BalanceSheetReportRequest):
       ...(previousRows.length ? [] : [{ label: "Load prior period", detail: "Ingest the prior month into the Balance Sheet cube to enable movement comparisons." }]),
     ],
   };
+  const evidenceAccounts = (sourceRows: typeof currentDetailRows, statementRows: typeof currentRows) => {
+    const signFor = (section: string) => {
+      if (section === "assets") return 1;
+      const labels = section === "equity" ? ["total: equity"] : ["total: liabilities", "total: liabilities and equity"];
+      const total = statementRows.find((row) => labels.includes(row.accountName.trim().toLowerCase()));
+      const signedTotal = total ? numberValue(total.amountReporting)
+        : sourceRows.filter((row) => row.section === section).reduce((sum, row) => sum + numberValue(row.amountReporting), 0);
+      return signedTotal < 0 ? -1 : 1;
+    };
+    const signs = { assets: 1, liabilities: signFor("liabilities"), equity: signFor("equity") };
+    // Evidence alone retains contra-account signs. Absolute leaf values can
+    // double-count offsets and cannot substantiate statement-level attribution.
+    return sourceRows.map((row) => ({
+      identity: lineItemKey(row),
+      name: row.accountName,
+      section: row.section as "assets" | "liabilities" | "equity",
+      category: reportCategoryLabel(row.section, row.category, row.accountName),
+      value: numberValue(row.amountReporting) * signs[row.section as keyof typeof signs],
+    }));
+  };
+  report.commentaryFacts = buildBalanceSheetCommentaryFacts(report,
+    evidenceAccounts(currentDetailRows, currentRows), evidenceAccounts(previousDetailRows, previousRows));
+  return applyBalanceSheetCommentary(report);
 }
