@@ -68,6 +68,9 @@ export default function Boards() {
     BoardTemplate[]
   >({
     queryKey: ["/api/board-templates"],
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchInterval: 30_000,
   });
 
   const { data: boards = [], isLoading: boardsLoading } = useQuery<Board[]>({

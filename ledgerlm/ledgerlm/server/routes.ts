@@ -75,6 +75,9 @@ import {
 import { areAllOwnedBy, isOwnedBy } from "./security/ownership";
 import { requireRecentAdminStepUp } from "./middleware/adminStepUp";
 import { registerEntityPnlCubePlanRoutes } from "./routes/entityPnlCubePlan";
+import { getBoschBoardDomain, isBoschBoardUser, registerBoardTemplateAdministration, updateBoardIfUnchanged } from "./routes/boardTemplateAdministration";
+import { BoardTemplateError, protectBoardTemplateSettings, protectBoardTemplateIdentity, stripUnchangedFinancialPlanEcho, reportTemplateForExport } from "./services/boards/boardTemplateGovernance";
+import { boschTemplateDefaults, getBoschMasterTemplate, inheritBoschMasterTemplate, isBoschTemplateSlug } from "./services/boards/boschTemplateCatalog";
 import { revokeUserSessions } from "./security/sessionRevocation";
 import { runBackup, listBackups } from "./services/backupService";
 import { parseRegistration, fingerprintJwk } from "./security/deviceProof";
@@ -2931,6 +2934,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  registerBoardTemplateAdministration(app, requireActiveAdmin);
+  app.get("/api/boards/template-policy", async (req, res) => {
+    try {
+      const userId = req.session?.userId;
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      res.setHeader("Cache-Control", "no-store");
+      res.json({ locked: await isBoschBoardUser(userId), managementUrl: "/admin/boards" });
+    } catch {
+      res.status(500).json({ error: "Unable to determine the Board template policy." });
+    }
+  });
+
   app.get("/api/boards", async (req, res) => {
     try {
       const userId = (req.session?.userId ?? "");
@@ -2990,14 +3005,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const parsed = createBoardDtoSchema.parse(req.body);
-      if (parsed.templateId && !(await storage.getBoardTemplate(parsed.templateId))) {
+      const boschDomainId = await getBoschBoardDomain(userId);
+      if (boschDomainId) {
+        parsed.settings = protectBoardTemplateSettings({}, parsed.settings) as typeof parsed.settings;
+      }
+      const selectedTemplate = parsed.templateId ? await storage.getBoardTemplate(parsed.templateId) : undefined;
+      if (parsed.templateId && !selectedTemplate) {
         return res.status(400).json({ error: "Selected board template does not exist" });
+      }
+      if (boschDomainId) {
+        const selectedSlug = selectedTemplate?.slug ?? parsed.settings?.templateKey;
+        if (selectedTemplate && parsed.settings?.templateKey && parsed.settings.templateKey !== selectedTemplate.slug) {
+          throw new BoardTemplateError("The selected template and Board template type do not match.", 400);
+        }
+        if (isBoschTemplateSlug(selectedSlug)) {
+          parsed.settings = inheritBoschMasterTemplate(parsed.settings,
+            await getBoschMasterTemplate(boschDomainId, selectedSlug)) as typeof parsed.settings;
+        }
       }
       const data = { ...parsed, userId };
 
       const board = await storage.createBoard(data);
       res.status(201).json(toPublicBoard(board));
     } catch (error) {
+      if (error instanceof BoardTemplateError) return res.status(error.status).json({ error: error.message });
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: boardValidationError(error) });
       }
@@ -3040,7 +3071,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!board) return res.status(404).json({ error: "Board not found" });
       if (board.userId !== userId) return res.status(403).json({ error: "Forbidden" });
 
-      const changes = updateBoardDtoSchema.parse(req.body);
+      const lockedTemplate = await isBoschBoardUser(board.userId);
+      let changes = updateBoardDtoSchema.parse(lockedTemplate
+        ? stripUnchangedFinancialPlanEcho(board.settings, req.body) : req.body);
+      if (lockedTemplate) changes = protectBoardTemplateIdentity(board, changes);
+      if (lockedTemplate && "settings" in changes) {
+        changes.settings = protectBoardTemplateSettings(board.settings, changes.settings) as typeof changes.settings;
+      }
       if (
         "templateId" in changes &&
         changes.templateId &&
@@ -3048,14 +3085,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       ) {
         return res.status(400).json({ error: "Selected board template does not exist" });
       }
-      const updated = await storage.updateBoard(req.params.id, {
+      const update = {
         ...(changes.title !== undefined ? { title: changes.title } : {}),
         description: "description" in changes ? changes.description : board.description,
         templateId:  "templateId" in changes ? changes.templateId : board.templateId,
         settings:    ("settings" in changes ? changes.settings : board.settings) as any,
-      });
+      };
+      const updated = lockedTemplate
+        ? await updateBoardIfUnchanged(board, update)
+        : await storage.updateBoard(req.params.id, update);
       res.json(updated ? toPublicBoard(updated) : updated);
     } catch (error) {
+      if (error instanceof BoardTemplateError) return res.status(error.status).json({ error: error.message });
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: boardValidationError(error) });
       }
@@ -3143,7 +3184,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // The run is persisted before execution starts, so a browser reload can
       // recover it. Execution remains server-side and never exposes raw source rows.
       void retainOperationLease(req, executeBoardAnalysis(run.id)).catch((error) => {
-        console.error(`Board analysis run ${run.id} failed:`, error);
+        // Node 24 can throw while inspecting raw Zod exceptions and crash the API.
+        console.error(`Board analysis run ${run.id} failed:`,
+          error instanceof Error ? error.message.slice(0, 2000) : "Unknown analysis error");
       });
       res.status(202).json(run);
     } catch (error: any) {
@@ -3338,9 +3381,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (format === "pdf" && String(report.templateKey) !== "entity-pnl") {
         return res.status(400).json({ error: "PDF export is currently available for Entity P&L reports." });
       }
-      const boardSettings = (board.settings ?? {}) as {
-        boardFlow?: { reportTemplatePptxBase64?: string };
-      };
+      // A Bosch admin replacement must not change exports of previously saved reports.
+      // Preserve legacy export behaviour for other domains.
+      const templateBytes = await isBoschBoardUser(board.userId)
+        ? reportTemplateForExport(report, board.settings)
+        : (board.settings as any)?.boardFlow?.reportTemplatePptxBase64;
       const dir = path.resolve(process.cwd(), "data", "board-exports");
       await fs.mkdir(dir, { recursive: true });
       const id = randomUUID();
@@ -3351,13 +3396,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           : format === "pdf"
             ? exportEntityPnlPdf(report as any)
             : String(report.templateKey) === "balance-sheet-tracker"
-              ? await exportBalanceSheetPptx(report as any, boardSettings.boardFlow?.reportTemplatePptxBase64)
+              ? await exportBalanceSheetPptx(report as any, templateBytes)
               : String(report.templateKey) === "entity-pnl"
-                ? await exportEntityPnlPptx(report as any, boardSettings.boardFlow?.reportTemplatePptxBase64)
+                ? await exportEntityPnlPptx(report as any, templateBytes)
                 : await exportKpiReportPptx(
                     report as any,
                     typeof req.body?.scopeCode === "string" ? req.body.scopeCode : undefined,
-                    boardSettings.boardFlow?.reportTemplatePptxBase64,
+                    templateBytes,
                   );
       const storageKey = path.join(dir, `${id}.${format}`);
       await fs.writeFile(storageKey, bytes, { flag: "wx" });
@@ -3505,10 +3550,12 @@ ${intentDef.question}`;
     }
   });
 
-  app.get("/api/board-templates", async (_req, res) => {
+  app.get("/api/board-templates", async (req, res) => {
     try {
       const templates = await storage.getBoardTemplates();
-      res.json(templates);
+      const boschDomainId = req.session?.userId ? await getBoschBoardDomain(req.session.userId) : null;
+      res.setHeader("Cache-Control", "no-store");
+      res.json(boschDomainId ? await boschTemplateDefaults(boschDomainId, templates) : templates);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch board templates" });
     }
@@ -3521,9 +3568,13 @@ ${intentDef.question}`;
         return res.status(401).json({ error: "Unauthorized - please sign in" });
       }
 
+      if (await isBoschBoardUser(userId)) {
+        throw new BoardTemplateError("Bosch report templates can only be managed in Board Administration.");
+      }
       const template = await storage.createBoardTemplate(createBoardTemplateDtoSchema.parse(req.body));
       res.status(201).json(template);
     } catch (error) {
+      if (error instanceof BoardTemplateError) return res.status(error.status).json({ error: error.message });
       console.error("Failed to create template:", error);
       res.status(400).json({
         error: error instanceof z.ZodError ? error.issues[0]?.message : "Failed to create template",
@@ -3539,6 +3590,9 @@ ${intentDef.question}`;
         return res.status(401).json({ error: "Unauthorized - please sign in" });
       }
 
+      if (await isBoschBoardUser(userId)) {
+        throw new BoardTemplateError("Bosch report templates can only be managed in Board Administration.");
+      }
       const template = await storage.updateBoardTemplate(
         req.params.id,
         updateBoardTemplateDtoSchema.parse(req.body),
@@ -3548,6 +3602,7 @@ ${intentDef.question}`;
       }
       res.json(template);
     } catch (error) {
+      if (error instanceof BoardTemplateError) return res.status(error.status).json({ error: error.message });
       console.error("Failed to update template:", error);
       res.status(400).json({
         error: error instanceof z.ZodError ? error.issues[0]?.message : "Failed to update template",
@@ -3563,9 +3618,13 @@ ${intentDef.question}`;
         return res.status(401).json({ error: "Unauthorized - please sign in" });
       }
 
+      if (await isBoschBoardUser(userId)) {
+        throw new BoardTemplateError("Bosch report templates can only be managed in Board Administration.");
+      }
       await storage.deleteBoardTemplate(req.params.id);
       res.status(204).send();
     } catch (error) {
+      if (error instanceof BoardTemplateError) return res.status(error.status).json({ error: error.message });
       console.error("Failed to delete template:", error);
       res.status(500).json({ error: "Failed to delete template" });
     }

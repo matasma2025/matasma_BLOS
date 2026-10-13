@@ -1,3 +1,5 @@
+import { publicBoardSettings } from "./services/boards/boardTemplateGovernance";
+
 /**
  * Explicit allow-list serializers for records returned from public API routes.
  * Database records must remain complete because internal processing uses their
@@ -84,7 +86,7 @@ export const toPublicBoard = (board: {
   settings: unknown; createdAt: Date;
 }): PublicBoardDto => ({
   id: board.id, templateId: board.templateId, title: board.title,
-  description: board.description, settings: board.settings, createdAt: board.createdAt,
+  description: board.description, settings: publicBoardSettings(board.settings), createdAt: board.createdAt,
 });
 
 export const toPublicDocument = (document: {

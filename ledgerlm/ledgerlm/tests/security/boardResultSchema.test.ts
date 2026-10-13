@@ -78,6 +78,36 @@ test("rejects unknown and unbounded Board result fields", () => {
   }).success, false);
 });
 
+test("persists the governed Balance Sheet commentary without dropping evidence", () => {
+  const commentaryFacts = [{
+    id: "assets-cash", category: "Cash", section: "assets" as const,
+    kind: "composition" as const, text: "Cash forms part of current assets.",
+  }];
+  const categoryCommentary = [{
+    category: "Cash", section: "assets" as const, text: "Cash forms part of current assets.",
+    evidenceIds: ["assets-cash"], source: "factual-fallback" as const,
+  }];
+  const payload = {
+    summary: "Balance Sheet",
+    balanceSheet: { balanced: true, difference: 0,
+      totals: { assets: 100, liabilities: 60, equity: 40 }, ratios: {},
+      unmappedRows: [], commentaryFacts, categoryCommentary,
+      commentaryStatus: "factual-fallback",
+    },
+  };
+  const result = boardAnalysisResultSchema.parse(payload);
+  assert.deepEqual(result.balanceSheet?.commentaryFacts, commentaryFacts);
+  assert.deepEqual(result.balanceSheet?.categoryCommentary, categoryCommentary);
+  assert.equal(result.balanceSheet?.commentaryStatus, "factual-fallback");
+  assert.equal(boardAnalysisResultSchema.safeParse({
+    ...payload, balanceSheet: { ...payload.balanceSheet, commentaryStatus: "invented" },
+  }).success, false);
+  assert.equal(boardAnalysisResultSchema.safeParse({
+    ...payload, balanceSheet: { ...payload.balanceSheet,
+      commentaryFacts: Array.from({ length: 201 }, () => commentaryFacts[0]) },
+  }).success, false);
+});
+
 test("keeps legacy markdown conversion compatible", () => {
   const result = markdownToBoardAnalysisResult("- Revenue was above budget.", [{
     k: "Revenue",

@@ -1,4 +1,5 @@
 import { db } from "../../db";
+import { publicBoardSettings } from "../boards/boardTemplateGovernance";
 import { storage } from "../../storage";
 import {
   boardAnalysisConfigs,
@@ -128,7 +129,7 @@ export async function createBoardAnalysisRun(params: {
   const board = await storage.getBoard(params.boardId);
   if (!board || board.userId !== params.userId) throw new Error("Board not found");
   const config = await getOrCreateBoardAnalysisConfig(params.boardId);
-  const boardSettings = (board.settings as any) ?? {};
+  const boardSettings = (publicBoardSettings(board.settings) as any) ?? {};
   const selection = params.request.sourceSelection
     ?? (config?.sourceConfig as BoardSourceSelection | undefined)
     ?? (boardSettings.cubeId ? { sourceType: "enterprise", cubeId: boardSettings.cubeId } : undefined);

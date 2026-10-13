@@ -20,6 +20,7 @@ import {
   Pencil,
   Trash2,
   ScrollText,
+  FileText,
 } from "lucide-react";
 import { LuLayoutDashboard } from "react-icons/lu";
 import { GoHomeFill } from "react-icons/go";
@@ -115,6 +116,11 @@ const adminMenuItems = [
     title: "Agentic Workflow",
     url: "/admin/agentic-workflow",
     icon: Bot,
+  },
+  {
+    title: "Board Administration",
+    url: "/admin/boards",
+    icon: FileText,
   },
 ];
 

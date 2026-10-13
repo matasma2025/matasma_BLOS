@@ -27,6 +27,9 @@ interface BoardCreationWizardProps {
   cubeVersionsError?: string;
   saveMutation: { mutate: (data: any) => void; isPending: boolean; error?: unknown; reset?: () => void };
   resetForm: () => void;
+  reportTemplateLocked?: boolean;
+  reportTemplatePolicyLoading?: boolean;
+  reportTemplatePolicyError?: boolean;
 }
 
 const MONTHS = [
@@ -65,7 +68,11 @@ export function BoardCreationWizard({
   cubeVersionsError,
   saveMutation,
   resetForm,
+  reportTemplateLocked = false,
+  reportTemplatePolicyLoading = false,
+  reportTemplatePolicyError = false,
 }: BoardCreationWizardProps) {
+  const templateUnavailable = reportTemplateLocked || reportTemplatePolicyLoading || reportTemplatePolicyError;
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [templateError, setTemplateError] = useState<string | null>(null);
   const [templateImporting, setTemplateImporting] = useState(false);
@@ -373,13 +380,24 @@ export function BoardCreationWizard({
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label htmlFor="wizard-report-template">Report template <span className="font-normal text-muted-foreground">optional</span></Label>
-                    <label className="cursor-pointer inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs hover:bg-muted">
+                    {!reportTemplateLocked && (
+                    <label className={`inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs ${templateUnavailable ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-muted'}`}>
                       <Upload className="w-3.5 h-3.5" /> {templateImporting ? 'Loading template…' : 'Upload template file'}
-                      <input type="file" accept=".pptx,.txt,.md,.csv" className="sr-only" onChange={loadTextTemplate} disabled={templateImporting} />
+                      <input type="file" accept=".pptx,.txt,.md,.csv" className="sr-only" onChange={loadTextTemplate} disabled={templateImporting || templateUnavailable} />
                     </label>
+                    )}
                   </div>
-                   <Textarea id="wizard-report-template" rows={9} maxLength={5000} value={formData.reportTemplate || ''} onChange={(event) => update({ reportTemplate: event.target.value })} placeholder={'Define how the analysis should be captured — sections, tables, order, tone. e.g.\n\n1. Executive Summary (3 bullets)\n2. Variance Table: Period | Actual | Budget | Var | Var %\n3. Top 3 adverse variances with likely drivers\n4. Recommended actions'} className="font-mono text-xs" />
+                  {reportTemplateLocked ? (
+                    <div className="space-y-2" data-testid="panel-template-locked">
+                      <Textarea id="wizard-report-template" rows={9} readOnly value={formData.reportTemplate || ''} placeholder="No report template set." className="font-mono text-xs bg-muted/40" />
+                      <p className="text-xs text-muted-foreground">Report templates for this domain are managed by your administrator under Board Administration (/admin/boards). They cannot be changed here.</p>
+                    </div>
+                  ) : (<>
+                   {reportTemplatePolicyLoading && <p className="text-xs text-muted-foreground" role="status">Checking template policy…</p>}
+                   {!reportTemplatePolicyLoading && reportTemplatePolicyError && <p className="text-xs text-destructive" role="alert">Template policy could not be verified, so template editing is disabled. Close and reopen this dialog to retry.</p>}
+                   <Textarea id="wizard-report-template" rows={9} maxLength={5000} disabled={templateUnavailable} value={formData.reportTemplate || ''} onChange={(event) => update({ reportTemplate: event.target.value })} placeholder={'Define how the analysis should be captured — sections, tables, order, tone. e.g.\n\n1. Executive Summary (3 bullets)\n2. Variance Table: Period | Actual | Budget | Var | Var %\n3. Top 3 adverse variances with likely drivers\n4. Recommended actions'} className="font-mono text-xs" />
                     {templateError ? <p className="text-xs text-destructive" role="alert" data-testid="text-board-template-error">{templateError}</p> : templateSourceLabel ? <p className="text-xs text-primary" role="status">{templateSourceLabel}. Slide text and placeholders were imported; the original PowerPoint styling is not stored in this text template.</p> : <p className="text-xs text-muted-foreground">The generated report follows this structure. PowerPoint, text, Markdown, and CSV templates are supported in this flow.</p>}
+                  </>)}
                 </div>
                 <div className="rounded-lg border p-4 flex items-center justify-between">
                   <div className="flex items-center gap-3"><CalendarDays className="w-5 h-5 text-primary" /><div><p className="text-sm font-medium">Scheduled Run</p><p className="text-xs text-muted-foreground">Automatically run the analysis and file the report under Reports.</p></div></div>

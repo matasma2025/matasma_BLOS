@@ -23,6 +23,7 @@ import Boards from "@/pages/Boards";
 import BoardDetail from "@/pages/BoardDetail";
 import MarketIntelligence from "@/pages/MarketIntelligence";
 import AdminEnterprise from "@/pages/AdminEnterprise";
+import AdminBoardTemplates from "@/pages/AdminBoardTemplates";
 import AdminUsers from "@/pages/AdminUsers";
 import AcceptInvitation from "@/pages/AcceptInvitation";
 import SuperAdmin from "@/pages/SuperAdmin";
@@ -215,6 +216,11 @@ function Router() {
       <Route path="/admin/agentic-workflow">
         <DashboardLayout>
           <AdminRoute><AdminAgenticWorkflow /></AdminRoute>
+        </DashboardLayout>
+      </Route>
+      <Route path="/admin/boards">
+        <DashboardLayout>
+          <AdminRoute><AdminBoardTemplates /></AdminRoute>
         </DashboardLayout>
       </Route>
       <Route path="/super-admin">

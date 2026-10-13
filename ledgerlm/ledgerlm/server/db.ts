@@ -4,6 +4,7 @@ import { neon } from '@neondatabase/serverless';
 import { Pool } from 'pg';
 import * as schema from '@shared/schema';
 import { getEntraToken } from './utils/entraToken';
+import { utcDatabaseConfig } from './utils/databaseTime';
 
 // ── Auth mode ──────────────────────────────────────────────────────────────────
 // DB_AUTH_MODE controls which connection strategy is used at startup.
@@ -36,7 +37,7 @@ if (authMode === 'entra' || authMode === 'hybrid') {
     );
   }
 
-  const pool = new Pool({
+  const pool = new Pool(utcDatabaseConfig({
     host: dbHost,
     user: dbUser,
     database: dbName,
@@ -46,7 +47,7 @@ if (authMode === 'entra' || authMode === 'hybrid') {
     // DB_TLS_REJECT_UNAUTHORIZED=false must be set explicitly in Azure private VNet environments
     // where the PostgreSQL cert is signed by a private CA not in the container trust store.
     ssl: { rejectUnauthorized: process.env.DB_TLS_REJECT_UNAUTHORIZED !== 'false' },
-  });
+  }));
 
   db = drizzlePg(pool, { schema });
   console.log(
@@ -66,7 +67,7 @@ if (authMode === 'entra' || authMode === 'hybrid') {
     );
   }
 
-  const pool = new Pool({
+  const pool = new Pool(utcDatabaseConfig({
     host: dbHost,
     user: dbUser,
     database: dbName,
@@ -74,7 +75,7 @@ if (authMode === 'entra' || authMode === 'hybrid') {
     port: 5432,
     // DB_TLS_REJECT_UNAUTHORIZED=false must be set explicitly in Azure private VNet environments
     ssl: { rejectUnauthorized: process.env.DB_TLS_REJECT_UNAUTHORIZED !== 'false' },
-  });
+  }));
 
   db = drizzlePg(pool, { schema });
   console.log(
@@ -98,7 +99,7 @@ if (authMode === 'entra' || authMode === 'hybrid') {
     dbUrl.includes('127.0.0.1');
 
   if (isLocalDb) {
-    const pool = new Pool({ connectionString: dbUrl, ssl: false });
+    const pool = new Pool(utcDatabaseConfig({ connectionString: dbUrl, ssl: false }));
     db = drizzlePg(pool, { schema });
     console.log('[DB] Using local PostgreSQL connection (SSL disabled)');
   } else {

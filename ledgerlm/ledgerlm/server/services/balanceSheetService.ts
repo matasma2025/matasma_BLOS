@@ -164,9 +164,37 @@ function periodFromCell(value: unknown): { fiscalYear: number; month: number; pe
   }
   const text = cellText(value);
   const match = text.match(/^(?:(\d{1,2})[\/-])?(\d{4})$/);
-  if (!match) return null;
-  const month = Number(match[1] ?? 1);
-  const fiscalYear = Number(match[2]);
+  let month: number;
+  let fiscalYear: number;
+  if (match) {
+    month = Number(match[1] ?? 1);
+    fiscalYear = Number(match[2]);
+  } else {
+    const namedMonthMatch = text.match(/^([a-z]{3,9})(?:\s*['’]\s*|\s+|\s*-\s*)(\d{2}|\d{4})$/i);
+    if (!namedMonthMatch) return null;
+
+    const namedMonths: Record<string, number> = {
+      jan: 1, january: 1,
+      feb: 2, february: 2,
+      mar: 3, march: 3,
+      apr: 4, april: 4,
+      may: 5,
+      jun: 6, june: 6,
+      jul: 7, july: 7,
+      aug: 8, august: 8,
+      sep: 9, sept: 9, september: 9,
+      oct: 10, october: 10,
+      nov: 11, november: 11,
+      dec: 12, december: 12,
+    };
+    const parsedMonth = namedMonths[namedMonthMatch[1].toLowerCase()];
+    if (!parsedMonth) return null;
+    month = parsedMonth;
+    const yearText = namedMonthMatch[2];
+    fiscalYear = Number(yearText);
+    // Financial workbook headers such as Sep'26 use the 2000s shorthand.
+    if (yearText.length === 2) fiscalYear += 2000;
+  }
   if (month < 1 || month > 12) return null;
   return {
     fiscalYear,

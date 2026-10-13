@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { storage } from '../storage';
 import { emailService, DomainEmailConfig } from './emailService';
+import { expiresAfter } from '../utils/databaseTime';
 
 const OTP_LENGTH = 6;
 const OTP_EXPIRY_MINUTES = 5;
@@ -19,10 +20,13 @@ export class OtpService {
     return crypto.randomInt(min, max).toString();
   }
 
-  private logDevelopmentLoginOtp(email: string, otpCode: string, expiresAt: Date): void {
+  private logDevelopmentOtp(email: string, otpCode: string, expiresAt: Date, context: OtpContext): void {
     if (process.env.NODE_ENV !== 'development') {
       return;
     }
+    const label = context === 'login' ? 'Login'
+      : context.startsWith('admin_step_up:') ? 'Admin verification' : null;
+    if (!label) return;
 
     const [localPart, domain] = email.split('@');
     const maskedEmail = domain
@@ -30,7 +34,7 @@ export class OtpService {
       : '***';
 
     console.log(
-      `[DEV ONLY] Login OTP for ${maskedEmail}: ${otpCode} ` +
+      `[DEV ONLY] ${label} OTP for ${maskedEmail}: ${otpCode} ` +
       `(expires at ${expiresAt.toISOString()})`,
     );
   }
@@ -39,8 +43,7 @@ export class OtpService {
     const otpCode = this.generateOtpCode();
     const codeHash = await bcrypt.hash(otpCode, 10);
     
-    const expiresAt = new Date();
-    expiresAt.setMinutes(expiresAt.getMinutes() + OTP_EXPIRY_MINUTES);
+    const expiresAt = expiresAfter(OTP_EXPIRY_MINUTES * 60 * 1000);
 
     await storage.createOtpCode({
       userId,
@@ -51,9 +54,7 @@ export class OtpService {
       consumedAt: null,
     });
 
-    if (context === 'login') {
-      this.logDevelopmentLoginOtp(email, otpCode, expiresAt);
-    }
+    this.logDevelopmentOtp(email, otpCode, expiresAt, context);
 
     await emailService.sendOtpCode(email, otpCode, userName, domainConfig);
   }
@@ -129,8 +130,7 @@ export class OtpService {
     const deviceToken = crypto.randomBytes(32).toString('hex');
     const deviceTokenHash = await bcrypt.hash(deviceToken, 10);
 
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + DEVICE_TRUST_DAYS);
+    const expiresAt = expiresAfter(DEVICE_TRUST_DAYS * 24 * 60 * 60 * 1000);
 
     await storage.createDeviceTrust({
       userId,

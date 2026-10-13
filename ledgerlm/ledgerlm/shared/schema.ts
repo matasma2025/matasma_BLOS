@@ -23,8 +23,8 @@ export const users = pgTable("users", {
   password: text("password"),
   displayName: text("display_name").notNull(),
   role: varchar("role", { length: 20 }).notNull().default('standard'), // 'admin' or 'standard'
-  lastLoginAt: timestamp("last_login_at"),
-  sessionsRevokedAt: timestamp("sessions_revoked_at"),
+  lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
+  sessionsRevokedAt: timestamp("sessions_revoked_at", { withTimezone: true }),
 });
 
 export const invitations = pgTable("invitations", {
@@ -32,10 +32,10 @@ export const invitations = pgTable("invitations", {
   email: text("email").notNull().unique(),
   token: text("token").notNull().unique(),
   invitedBy: varchar("invited_by").notNull().references(() => users.id, { onDelete: 'cascade' }),
-  expiresAt: timestamp("expires_at").notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   status: varchar("status", { length: 20 }).notNull().default('pending'), // 'pending', 'accepted', 'expired'
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  acceptedAt: timestamp("accepted_at"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  acceptedAt: timestamp("accepted_at", { withTimezone: true }),
 }, (table) => ({
   emailIdx: index("invitations_email_idx").on(table.email),
   tokenIdx: index("invitations_token_idx").on(table.token),
@@ -47,11 +47,11 @@ export const otpCodes = pgTable("otp_codes", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
   codeHash: text("code_hash").notNull(),
-  expiresAt: timestamp("expires_at").notNull(),
-  consumedAt: timestamp("consumed_at"),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  consumedAt: timestamp("consumed_at", { withTimezone: true }),
   attempts: integer("attempts").notNull().default(0),
   context: varchar("context", { length: 50 }).notNull(), // 'login', 'password_reset'
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   userIdIdx: index("otp_codes_user_id_idx").on(table.userId),
   expiresAtIdx: index("otp_codes_expires_at_idx").on(table.expiresAt),
@@ -79,9 +79,9 @@ export const deviceTrust = pgTable("device_trust", {
   deviceFingerprint: text("device_fingerprint"),
   userAgent: text("user_agent"),
   ipAddress: varchar("ip_address", { length: 45 }),
-  expiresAt: timestamp("expires_at").notNull(),
-  lastUsedAt: timestamp("last_used_at").notNull().defaultNow(),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  lastUsedAt: timestamp("last_used_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   userIdIdx: index("device_trust_user_id_idx").on(table.userId),
   deviceTokenHashIdx: index("device_trust_device_token_hash_idx").on(table.deviceTokenHash),
@@ -96,9 +96,9 @@ export const userDeviceCredentials = pgTable("user_device_credentials", {
   publicKeyJwk: jsonb("public_key_jwk").notNull(),
   fingerprint: varchar("fingerprint", { length: 64 }).notNull().unique(),
   status: varchar("status", { length: 20 }).notNull().default("active"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  lastUsedAt: timestamp("last_used_at"),
-  revokedAt: timestamp("revoked_at"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+  revokedAt: timestamp("revoked_at", { withTimezone: true }),
 }, (table) => ({
   userIdx: index("user_device_credentials_user_idx").on(table.userId),
   statusIdx: index("user_device_credentials_status_idx").on(table.status),
@@ -110,9 +110,9 @@ export const deviceProofNonces = pgTable("device_proof_nonces", {
   sessionId: text("session_id").notNull(),
   credentialId: varchar("credential_id").notNull().references(() => userDeviceCredentials.id, { onDelete: "cascade" }),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  expiresAt: timestamp("expires_at").notNull(),
-  consumedAt: timestamp("consumed_at"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  consumedAt: timestamp("consumed_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   sessionIdx: index("device_proof_nonces_session_idx").on(table.sessionId),
   expiryIdx: index("device_proof_nonces_expiry_idx").on(table.expiresAt),
@@ -124,7 +124,7 @@ export const chats = pgTable("chats", {
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
   title: text("title").notNull(),
   preview: text("preview"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   userIdIdx: index("chats_user_id_idx").on(table.userId),
 }));
@@ -135,7 +135,7 @@ export const messages = pgTable("messages", {
   content: text("content").notNull(),
   role: text("role").notNull(), // 'user' or 'assistant'
   metadata: jsonb("metadata"), // Stores citations, sources, and other metadata
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   chatIdIdx: index("messages_chat_id_idx").on(table.chatId),
 }));
@@ -150,7 +150,7 @@ export const documents = pgTable("documents", {
   cloudSource: text("cloud_source"), // 'google_drive' | 'onedrive' | 'dropbox' | null
   cloudFileId: text("cloud_file_id"), // Original file ID from cloud provider
   cloudUrl: text("cloud_url"), // Original share link
-  uploadedAt: timestamp("uploaded_at").notNull().defaultNow(),
+  uploadedAt: timestamp("uploaded_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   userIdIdx: index("documents_user_id_idx").on(table.userId),
 }));
@@ -161,7 +161,7 @@ export const boardTemplates = pgTable("board_templates", {
   name: text("name").notNull(),
   description: text("description").notNull(),
   defaultConfig: jsonb("default_config"), // Template-specific default settings
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   slugIdx: index("board_templates_slug_idx").on(table.slug),
 }));
@@ -174,7 +174,7 @@ export const boards = pgTable("boards", {
   description: text("description"),
   analysisTemplate: varchar("analysis_template", { length: 50 }), // 'income_statement', 'balance_sheet', 'cash_flow', 'comparative', 'other'
   settings: jsonb("settings"), // Custom board settings and layout preferences
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   userIdIdx: index("boards_user_id_idx").on(table.userId),
   templateIdIdx: index("boards_template_id_idx").on(table.templateId),
@@ -184,7 +184,7 @@ export const boardThreads = pgTable("board_threads", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   boardId: varchar("board_id").notNull().references(() => boards.id, { onDelete: 'cascade' }),
   chatId: varchar("chat_id").notNull().references(() => chats.id, { onDelete: 'cascade' }),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   boardIdIdx: index("board_threads_board_id_idx").on(table.boardId),
   chatIdIdx: index("board_threads_chat_id_idx").on(table.chatId),
@@ -195,7 +195,7 @@ export const boardDocuments = pgTable("board_documents", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   boardId: varchar("board_id").notNull().references(() => boards.id, { onDelete: 'cascade' }),
   documentId: varchar("document_id").notNull().references(() => documents.id, { onDelete: 'cascade' }),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   boardIdIdx: index("board_documents_board_id_idx").on(table.boardId),
   documentIdIdx: index("board_documents_document_id_idx").on(table.documentId),
@@ -212,7 +212,7 @@ export const boardDataSources = pgTable("board_data_sources", {
   position: integer("position").notNull().default(0), // For drag-and-drop ordering
   config: jsonb("config"), // Source-specific configuration
   manageUrl: text("manage_url"), // Link to manage this data source
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   boardIdIdx: index("board_data_sources_board_id_idx").on(table.boardId),
   positionIdx: index("board_data_sources_position_idx").on(table.boardId, table.position),
@@ -234,7 +234,7 @@ export const cubeBoardReports = pgTable("cube_board_reports", {
   comparisonPeriodLabel: text("comparison_period_label"), // e.g. "Feb 2025" (if comparison was run)
   status: varchar("status", { length: 20 }).notNull().default('complete'), // 'generating'|'complete'|'error'
   errorMessage: text("error_message"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   boardIdIdx: index("cube_board_reports_board_id_idx").on(table.boardId),
   createdAtIdx: index("cube_board_reports_created_at_idx").on(table.createdAt),
@@ -262,8 +262,8 @@ export const boardAnalysisConfigs = pgTable("board_analysis_configs", {
   fiscalCalendar: jsonb("fiscal_calendar").notNull().default({}),
   varianceThreshold: text("variance_threshold"),
   reportInstructions: text("report_instructions"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   boardIdx: index("board_analysis_configs_board_idx").on(table.boardId),
   templateIdx: index("board_analysis_configs_template_idx").on(table.templateKey),
@@ -286,15 +286,15 @@ export const boardAnalysisRuns = pgTable("board_analysis_runs", {
   resultSchemaVersion: integer("result_schema_version").notNull().default(1),
   formulaEngineVersion: varchar("formula_engine_version", { length: 100 }),
   promptVersion: varchar("prompt_version", { length: 100 }),
-  workerHeartbeatAt: timestamp("worker_heartbeat_at"),
-  cancelRequestedAt: timestamp("cancel_requested_at"),
+  workerHeartbeatAt: timestamp("worker_heartbeat_at", { withTimezone: true }),
+  cancelRequestedAt: timestamp("cancel_requested_at", { withTimezone: true }),
   retryCount: integer("retry_count").notNull().default(0),
   failureCategory: varchar("failure_category", { length: 100 }),
   errorMessage: text("error_message"),
-  startedAt: timestamp("started_at"),
-  completedAt: timestamp("completed_at"),
+  startedAt: timestamp("started_at", { withTimezone: true }),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
   durationMs: integer("duration_ms"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   boardIdx: index("board_analysis_runs_board_idx").on(table.boardId),
   requesterIdx: index("board_analysis_runs_requester_idx").on(table.requestedBy),
@@ -322,7 +322,7 @@ export const boardReports = pgTable("board_reports", {
   modelMetadata: jsonb("model_metadata").notNull().default({}),
   supersedesReportId: varchar("supersedes_report_id"),
   status: varchar("status", { length: 20 }).notNull().default("complete"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   boardIdx: index("board_reports_board_idx").on(table.boardId),
   templateIdx: index("board_reports_template_idx").on(table.templateKey),
@@ -338,14 +338,14 @@ export const boardSchedules = pgTable("board_schedules", {
   interval: integer("interval"),
   intervalUnit: varchar("interval_unit", { length: 20 }),
   timezone: varchar("timezone", { length: 100 }).notNull().default("UTC"),
-  startAt: timestamp("start_at").notNull(),
-  nextRunAt: timestamp("next_run_at"),
-  lastRunAt: timestamp("last_run_at"),
+  startAt: timestamp("start_at", { withTimezone: true }).notNull(),
+  nextRunAt: timestamp("next_run_at", { withTimezone: true }),
+  lastRunAt: timestamp("last_run_at", { withTimezone: true }),
   lastRunStatus: varchar("last_run_status", { length: 30 }),
   retryPolicy: jsonb("retry_policy").notNull().default({}),
   createdBy: varchar("created_by").notNull().references(() => users.id, { onDelete: "cascade" }),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   boardIdx: index("board_schedules_board_idx").on(table.boardId),
   enabledNextRunIdx: index("board_schedules_enabled_next_run_idx").on(table.enabled, table.nextRunAt),
@@ -360,9 +360,9 @@ export const boardExports = pgTable("board_exports", {
   storageKey: text("storage_key"),
   errorCategory: varchar("error_category", { length: 100 }),
   createdBy: varchar("created_by").notNull().references(() => users.id, { onDelete: "cascade" }),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  completedAt: timestamp("completed_at"),
-  expiresAt: timestamp("expires_at"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+  expiresAt: timestamp("expires_at", { withTimezone: true }),
 }, (table) => ({
   reportIdx: index("board_exports_report_idx").on(table.reportId),
   creatorIdx: index("board_exports_creator_idx").on(table.createdBy),
@@ -376,7 +376,7 @@ export const documentChunks = pgTable("document_chunks", {
   chunkIndex: integer("chunk_index").notNull(),
   tokenCount: integer("token_count"),
   metadata: jsonb("metadata"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   documentIdIdx: index("document_chunks_document_id_idx").on(table.documentId),
 }));
@@ -391,7 +391,7 @@ export const documentEmbeddings = pgTable("document_embeddings", {
     fromDriver(value: string): number[] { return JSON.parse(value); },
   })("embedding_3072"), // pgvector vector(3072) — used by Azure OpenAI domains
   modelName: varchar("model_name", { length: 100 }).default('mxbai-embed-large'),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   chunkIdIdx: index("document_embeddings_chunk_id_idx").on(table.chunkId),
 }));
@@ -404,9 +404,9 @@ export const documentProcessing = pgTable("document_processing", {
   processedChunks: integer("processed_chunks"),
   companyName: text("company_name"), // Extracted company name
   errorMessage: text("error_message"),
-  startedAt: timestamp("started_at"),
-  completedAt: timestamp("completed_at"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  startedAt: timestamp("started_at", { withTimezone: true }),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   documentIdIdx: index("document_processing_document_id_idx").on(table.documentId),
 }));
@@ -415,7 +415,7 @@ export const chatDocuments = pgTable("chat_documents", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   chatId: varchar("chat_id").notNull().references(() => chats.id, { onDelete: 'cascade' }),
   documentId: varchar("document_id").notNull().references(() => documents.id, { onDelete: 'cascade' }),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   chatIdIdx: index("chat_documents_chat_id_idx").on(table.chatId),
   documentIdIdx: index("chat_documents_document_id_idx").on(table.documentId),
@@ -428,8 +428,8 @@ export const dataSources = pgTable("data_sources", {
   label: text("label").notNull(),
   config: jsonb("config").notNull(), // Source-specific configuration
   status: varchar("status", { length: 50 }).notNull().default('active'), // 'active', 'inactive', 'error'
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   userIdIdx: index("data_sources_user_id_idx").on(table.userId),
   typeIdx: index("data_sources_type_idx").on(table.type),
@@ -440,7 +440,7 @@ export const chatSources = pgTable("chat_sources", {
   chatId: varchar("chat_id").notNull().references(() => chats.id, { onDelete: 'cascade' }),
   sourceId: varchar("source_id").notNull().references(() => dataSources.id, { onDelete: 'cascade' }),
   enabled: integer("enabled").notNull().default(1), // 1 = enabled, 0 = disabled
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   chatIdIdx: index("chat_sources_chat_id_idx").on(table.chatId),
   sourceIdIdx: index("chat_sources_source_id_idx").on(table.sourceId),
@@ -451,8 +451,8 @@ export const webSearchCache = pgTable("web_search_cache", {
   queryHash: varchar("query_hash", { length: 64 }).notNull().unique(),
   query: text("query").notNull(),
   results: jsonb("results").notNull(),
-  expiresAt: timestamp("expires_at").notNull(),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   queryHashIdx: index("web_search_cache_query_hash_idx").on(table.queryHash),
   expiresAtIdx: index("web_search_cache_expires_at_idx").on(table.expiresAt),
@@ -467,7 +467,7 @@ export const queryAudit = pgTable("query_audit", {
   sourcesSucceeded: jsonb("sources_succeeded"), // Array of source types that succeeded
   sourcesFailed: jsonb("sources_failed"), // Array of source types that failed
   latencyMs: integer("latency_ms"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   chatIdIdx: index("query_audit_chat_id_idx").on(table.chatId),
   messageIdIdx: index("query_audit_message_id_idx").on(table.messageId),
@@ -478,7 +478,7 @@ export const companies = pgTable("companies", {
   name: text("name").notNull(),
   slug: varchar("slug", { length: 100 }).notNull().unique(), // URL-friendly identifier (e.g., "bosch")
   description: text("description"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   slugIdx: index("companies_slug_idx").on(table.slug),
 }));
@@ -488,7 +488,7 @@ export const companyMemberships = pgTable("company_memberships", {
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
   companyId: varchar("company_id").notNull().references(() => companies.id, { onDelete: 'cascade' }),
   role: varchar("role", { length: 20 }).notNull().default('member'), // 'admin' or 'member'
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   userIdIdx: index("company_memberships_user_id_idx").on(table.userId),
   companyIdIdx: index("company_memberships_company_id_idx").on(table.companyId),
@@ -501,7 +501,7 @@ export const userSettings = pgTable("user_settings", {
   activeCompanyId: varchar("active_company_id").references(() => companies.id, { onDelete: 'set null' }),
   connectorPreferences: text("connector_preferences"), // JSON string: { [connectorId]: boolean }
   cubePreferences: text("cube_preferences"), // JSON string: { [cubeId]: boolean }
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   userIdIdx: index("user_settings_user_id_idx").on(table.userId),
 }));
@@ -521,7 +521,7 @@ export const enterpriseDocuments = pgTable("enterprise_documents", {
   isActive: integer("is_active").notNull().default(1), // 1 = active (used in RAG), 0 = archived
   previousVersionId: varchar("previous_version_id").references((): any => enterpriseDocuments.id, { onDelete: 'set null' }), // Links to previous version
   anaplanMetadata: jsonb("anaplan_metadata"), // Stores Anaplan-specific data: { processId, exportName, syncDate }
-  uploadedAt: timestamp("uploaded_at").notNull().defaultNow(),
+  uploadedAt: timestamp("uploaded_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   companyIdIdx: index("enterprise_documents_company_id_idx").on(table.companyId),
   domainIdIdx: index("enterprise_documents_domain_id_idx").on(table.domainId),
@@ -541,7 +541,7 @@ export const enterpriseDocumentChunks = pgTable("enterprise_document_chunks", {
   chunkIndex: integer("chunk_index").notNull(),
   tokenCount: integer("token_count"),
   metadata: jsonb("metadata"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   documentIdIdx: index("enterprise_document_chunks_document_id_idx").on(table.documentId),
   companyIdIdx: index("enterprise_document_chunks_company_id_idx").on(table.companyId),
@@ -560,7 +560,7 @@ export const enterpriseDocumentEmbeddings = pgTable("enterprise_document_embeddi
     fromDriver(value: string): number[] { return JSON.parse(value); },
   })("embedding_3072"), // vector(3072) — Azure OpenAI domains (e.g. Bosch)
   modelName: varchar("model_name", { length: 100 }).default('mxbai-embed-large'),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   chunkIdIdx: index("enterprise_document_embeddings_chunk_id_idx").on(table.chunkId),
   companyIdIdx: index("enterprise_document_embeddings_company_id_idx").on(table.companyId),
@@ -575,9 +575,9 @@ export const enterpriseDocumentProcessing = pgTable("enterprise_document_process
   totalChunks: integer("total_chunks"),
   processedChunks: integer("processed_chunks"),
   errorMessage: text("error_message"),
-  startedAt: timestamp("started_at"),
-  completedAt: timestamp("completed_at"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  startedAt: timestamp("started_at", { withTimezone: true }),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   documentIdIdx: index("enterprise_document_processing_document_id_idx").on(table.documentId),
   companyIdIdx: index("enterprise_document_processing_company_id_idx").on(table.companyId),
@@ -596,9 +596,9 @@ export const anaplanAutomationLogs = pgTable("anaplan_automation_logs", {
   archivedVersions: integer("archived_versions").default(0),
   errorMessage: text("error_message"),
   details: jsonb("details"), // Stores detailed log of what happened
-  startedAt: timestamp("started_at").notNull(),
-  completedAt: timestamp("completed_at"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   companyIdIdx: index("anaplan_automation_logs_company_id_idx").on(table.companyId),
   statusIdx: index("anaplan_automation_logs_status_idx").on(table.status),
@@ -612,7 +612,7 @@ export const schedulerConfig = pgTable("scheduler_config", {
   hour: integer("hour").notNull().default(6), // 0-23 (24-hour format)
   minute: integer("minute").notNull().default(0), // 0-59
   timezone: varchar("timezone", { length: 50 }).notNull().default('Asia/Kolkata'), // IANA timezone
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   updatedBy: varchar("updated_by").references(() => users.id, { onDelete: 'set null' }),
 });
 
@@ -651,7 +651,7 @@ export const domains = pgTable("domains", {
   aiSystemPrompt: text("ai_system_prompt"),     // Custom system prompt (null = use default LedgerLM prompt)
   aiAuthMethod: varchar("ai_auth_method", { length: 20 }).default('api_key'), // 'api_key' | 'entra_id' | 'private_endpoint'
   createdBy: varchar("created_by").notNull().references(() => users.id, { onDelete: 'cascade' }),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   nameIdx: index("domains_name_idx").on(table.name),
   adminEmailIdx: index("domains_admin_email_idx").on(table.adminEmail),
@@ -666,11 +666,27 @@ export const domainUsers = pgTable("domain_users", {
   hardcodedOtp: varchar("hardcoded_otp", { length: 10 }), // Optional hardcoded OTP for this user
   status: varchar("status", { length: 20 }).notNull().default('active'), // 'active' | 'inactive' — inactive = deactivated by SSO sync
   invitedBy: varchar("invited_by").notNull().references(() => users.id, { onDelete: 'cascade' }),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   domainIdIdx: index("domain_users_domain_id_idx").on(table.domainId),
   emailIdx: index("domain_users_email_idx").on(table.email),
   domainEmailIdx: uniqueIndex("domain_users_domain_email_idx").on(table.domainId, table.email), // Unique per domain, not globally
+}));
+
+// Bosch's three master report layouts; these are not user-owned Boards.
+export const domainBoardTemplateOverrides = pgTable("domain_board_template_overrides", {
+  domainId: varchar("domain_id").notNull().references(() => domains.id, { onDelete: "cascade" }),
+  templateSlug: varchar("template_slug", { length: 100 }).notNull(),
+  reportTemplate: text("report_template").notNull().default(""),
+  reportTemplatePptxBase64: text("report_template_pptx_base64"),
+  fileName: text("file_name"),
+  revision: integer("revision").notNull().default(0),
+  updatedBy: varchar("updated_by").references(() => users.id, { onDelete: "set null" }),
+  updatedAt: timestamp("updated_at", { withTimezone: true }),
+}, (table) => ({
+  pk: primaryKey({ columns: [table.domainId, table.templateSlug] }),
+  allowedSlug: check("domain_board_template_overrides_slug_check",
+    sql`${table.templateSlug} IN ('kpi-metrics', 'balance-sheet-tracker', 'entity-pnl')`),
 }));
 
 // Data Cubes - containers for enterprise data segregation within a domain
@@ -685,7 +701,7 @@ export const cubes = pgTable("cubes", {
   connectorId: varchar("connector_id"), // Link to domain_api_connectors.id (FK enforced at DB level)
   ingestionConfig: text("ingestion_config"), // JSON config for source-specific settings (schedule, filters, etc.)
   createdBy: varchar("created_by").notNull().references(() => users.id, { onDelete: 'cascade' }),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   domainIdIdx: index("cubes_domain_id_idx").on(table.domainId),
   nameIdx: index("cubes_name_idx").on(table.name),
@@ -704,7 +720,7 @@ export const cubeEntityPnlPlanData = pgTable("cube_entity_pnl_plan_data", {
   contentHash: varchar("content_hash", { length: 64 }).notNull(),
   revision: integer("revision").notNull().default(1),
   uploadedBy: varchar("uploaded_by", { length: 255 }).notNull(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   scopePk: primaryKey({ columns: [table.cubeId, table.entityKey] }),
   revisionPositive: check("cube_entity_pnl_plan_data_revision_check", sql`${table.revision} > 0`),
@@ -717,7 +733,7 @@ export const cubeUserAccess = pgTable("cube_user_access", {
   userEmail: text("user_email").notNull(), // Domain user email
   enabled: integer("enabled").notNull().default(1), // 1 = enabled for RAG queries, 0 = disabled
   grantedBy: varchar("granted_by").notNull().references(() => users.id, { onDelete: 'cascade' }),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   cubeIdIdx: index("cube_user_access_cube_id_idx").on(table.cubeId),
   userEmailIdx: index("cube_user_access_user_email_idx").on(table.userEmail),
@@ -733,7 +749,7 @@ export const cubeMetadata = pgTable("cube_metadata", {
   periods: jsonb("periods"), // Array of period names: ["FY24", "FY25", "Q1", "Q2", "Jan 25", ...]
   customFields: jsonb("custom_fields"), // Flexible additional metadata as key-value pairs
   updatedBy: varchar("updated_by").notNull().references(() => users.id, { onDelete: 'cascade' }),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   cubeIdIdx: index("cube_metadata_cube_id_idx").on(table.cubeId),
 }));
@@ -749,7 +765,7 @@ export const kioskFaqDocuments = pgTable("kiosk_faq_documents", {
   billingType: varchar("billing_type", { length: 100 }), // 'non_mcr_faq', 'fixed_price', 't_and_m', 'at_actuals'
   status: varchar("status", { length: 50 }).notNull().default('pending'), // pending, processing, ready, failed
   uploadedBy: varchar("uploaded_by").notNull().references(() => users.id, { onDelete: 'cascade' }),
-  uploadedAt: timestamp("uploaded_at").notNull().defaultNow(),
+  uploadedAt: timestamp("uploaded_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   domainIdIdx: index("kiosk_faq_documents_domain_id_idx").on(table.domainId),
   statusIdx: index("kiosk_faq_documents_status_idx").on(table.status),
@@ -761,7 +777,7 @@ export const kioskChats = pgTable("kiosk_chats", {
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
   domainId: varchar("domain_id").notNull().references(() => domains.id, { onDelete: 'cascade' }),
   title: text("title").notNull().default('Kiosk Chat'),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   userIdIdx: index("kiosk_chats_user_id_idx").on(table.userId),
   domainIdIdx: index("kiosk_chats_domain_id_idx").on(table.domainId),
@@ -773,7 +789,7 @@ export const kioskMessages = pgTable("kiosk_messages", {
   content: text("content").notNull(),
   role: varchar("role", { length: 20 }).notNull(), // 'user' or 'assistant'
   sources: jsonb("sources"), // FAQ sources used in response
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   chatIdIdx: index("kiosk_messages_chat_id_idx").on(table.chatId),
 }));
@@ -786,7 +802,7 @@ export const kioskFaqEntries = pgTable("kiosk_faq_entries", {
   billingCategory: text("billing_category").notNull(),
   question: text("question").notNull(),
   answer: text("answer").notNull(),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   documentIdIdx: index("kiosk_faq_entries_document_id_idx").on(table.documentId),
   domainIdIdx: index("kiosk_faq_entries_domain_id_idx").on(table.domainId),
@@ -801,7 +817,7 @@ export const domainSchedulerConfig = pgTable("domain_scheduler_config", {
   hour: integer("hour").notNull().default(6), // 0-23 (24-hour format)
   minute: integer("minute").notNull().default(0), // 0-59
   timezone: varchar("timezone", { length: 50 }).notNull().default('Asia/Kolkata'), // IANA timezone
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   updatedBy: varchar("updated_by").references(() => users.id, { onDelete: 'set null' }),
 }, (table) => ({
   domainIdIdx: index("domain_scheduler_config_domain_id_idx").on(table.domainId),
@@ -816,7 +832,7 @@ export const domainApiConnectors = pgTable("domain_api_connectors", {
   config: jsonb("config").notNull().default({}), // Type-specific configuration (encrypted sensitive fields)
   tags: text("tags").array(), // Tags for categorization like ['#Deals', '#Marketing']
   status: varchar("status", { length: 20 }).default('pending'), // 'connected', 'error', 'pending', 'syncing'
-  lastSyncAt: timestamp("last_sync_at"),
+  lastSyncAt: timestamp("last_sync_at", { withTimezone: true }),
   lastSyncResult: text("last_sync_result"),
   documentCount: integer("document_count").default(0),
   targetCubeId: varchar("target_cube_id").references(() => cubes.id, { onDelete: 'set null' }), // Target cube for synced documents
@@ -826,8 +842,8 @@ export const domainApiConnectors = pgTable("domain_api_connectors", {
   scheduleMinute: integer("schedule_minute").default(0), // 0-59
   scheduleTimezone: varchar("schedule_timezone", { length: 50 }).default('Asia/Kolkata'), // IANA timezone
   blobPrefix: varchar("blob_prefix"), // Optional folder prefix filter for Azure Blob (e.g. "LedgerLM/2025/")
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   updatedBy: varchar("updated_by").references(() => users.id, { onDelete: 'set null' }),
 }, (table) => ({
   domainIdIdx: index("domain_api_connectors_domain_id_idx").on(table.domainId),
@@ -845,8 +861,8 @@ export const azureBlobFileRegistry = pgTable("azure_blob_file_registry", {
   connectorId: varchar("connector_id").notNull().references(() => domainApiConnectors.id, { onDelete: 'cascade' }),
   blobName: text("blob_name").notNull(),
   etag: varchar("etag", { length: 256 }),
-  lastModified: timestamp("last_modified"),
-  ingestedAt: timestamp("ingested_at").notNull().defaultNow(),
+  lastModified: timestamp("last_modified", { withTimezone: true }),
+  ingestedAt: timestamp("ingested_at", { withTimezone: true }).notNull().defaultNow(),
   documentId: varchar("document_id"),
   jobId: varchar("job_id"),
   status: varchar("status", { length: 20 }).notNull().default('success'), // 'success' | 'failed'
@@ -879,8 +895,8 @@ export const cubeColumnConfig = pgTable("cube_column_config", {
   useForRag: integer("use_for_rag").notNull().default(1), // 1 = include in RAG context, 0 = exclude
   sampleValues: text("sample_values").array(), // Sample values for LLM context ["Korea", "Japan", "Taiwan"]
   isNullable: integer("is_nullable").notNull().default(1), // 1 = nullable, 0 = not nullable
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   cubeIdIdx: index("cube_column_config_cube_id_idx").on(table.cubeId),
   columnIndexIdx: index("cube_column_config_column_index_idx").on(table.columnIndex),
@@ -896,8 +912,8 @@ export const domainHierarchyConfig = pgTable("domain_hierarchy_config", {
   description: text("description"), // For LLM context
   levels: text("levels").array().notNull(), // ['ProjTop_BU', 'ProjBU', 'ProjSection', 'ProjGroup']
   columnMappings: jsonb("column_mappings"), // {"level_0": "ProjTop_BU", "level_1": "ProjBU"}
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   domainIdIdx: index("domain_hierarchy_config_domain_id_idx").on(table.domainId),
   hierarchyNameIdx: index("domain_hierarchy_config_name_idx").on(table.hierarchyName),
@@ -910,7 +926,7 @@ export const cubeSchemaVersions = pgTable("cube_schema_versions", {
   version: integer("version").notNull(),
   columnNames: text("column_names").array().notNull(), // Array of column names from Excel
   columnHash: text("column_hash").notNull(), // Hash to detect structural changes
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   cubeIdIdx: index("cube_schema_versions_cube_id_idx").on(table.cubeId),
   versionIdx: index("cube_schema_versions_version_idx").on(table.version),
@@ -930,8 +946,8 @@ export const cubeBusinessTerms = pgTable("cube_business_terms", {
   priority: integer("priority").default(0), // Higher = matched first
   isActive: integer("is_active").notNull().default(1),
   isSeeded: integer("is_seeded").notNull().default(0),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   cubeIdIdx: index("cube_business_terms_cube_id_idx").on(table.cubeId),
   termNameIdx: index("cube_business_terms_term_name_idx").on(table.termName),
@@ -955,8 +971,8 @@ export const cubeCalculationRules = pgTable("cube_calculation_rules", {
   roundingPrecision: integer("rounding_precision").default(2),
   isActive: integer("is_active").notNull().default(1),
   isSeeded: integer("is_seeded").notNull().default(0),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   cubeIdIdx: index("cube_calculation_rules_cube_id_idx").on(table.cubeId),
   calculationNameIdx: index("cube_calculation_rules_name_idx").on(table.calculationName),
@@ -977,8 +993,8 @@ export const cubeQueryPatterns = pgTable("cube_query_patterns", {
   category: varchar("category", { length: 50 }).default('general'), // 'temporal', 'comparison', 'breakdown', 'trend'
   isActive: integer("is_active").notNull().default(1),
   isSeeded: integer("is_seeded").notNull().default(0),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   cubeIdIdx: index("cube_query_patterns_cube_id_idx").on(table.cubeId),
   patternNameIdx: index("cube_query_patterns_name_idx").on(table.patternName),
@@ -998,8 +1014,8 @@ export const cubeFilterRules = pgTable("cube_filter_rules", {
   isDefault: integer("is_default").notNull().default(0), // Auto-apply this filter
   isActive: integer("is_active").notNull().default(1),
   isSeeded: integer("is_seeded").notNull().default(0),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   cubeIdIdx: index("cube_filter_rules_cube_id_idx").on(table.cubeId),
   filterNameIdx: index("cube_filter_rules_name_idx").on(table.filterName),
@@ -1017,7 +1033,7 @@ export const cubeColumnValues = pgTable("cube_column_values", {
   usageContext: text("usage_context"), // When to use this value
   relatedValues: text("related_values").array(), // Other values often used together
   isActive: integer("is_active").notNull().default(1),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   cubeIdIdx: index("cube_column_values_cube_id_idx").on(table.cubeId),
   columnNameIdx: index("cube_column_values_column_name_idx").on(table.columnName),
@@ -1037,8 +1053,8 @@ export const cubeColumnRelationships = pgTable("cube_column_relationships", {
   metricName: text("metric_name"),                  // e.g. "Billing Utilization" — which metric this supports
   description: text("description").notNull(),        // human-readable explanation for LLM
   isActive: integer("is_active").notNull().default(1),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   cubeIdIdx: index("cube_col_rel_cube_id_idx").on(table.cubeId),
   fromColIdx: index("cube_col_rel_from_col_idx").on(table.fromColumn),
@@ -1063,7 +1079,7 @@ export const cubePlanData = pgTable("cube_plan_data", {
   page: varchar("page", { length: 100 }), // Page reference
   deltaValue: text("delta_value"), // Actual capacity delta from the planning workbook (stored as text for precision)
   sourceFile: varchar("source_file", { length: 255 }), // Original file name
-  ingestedAt: timestamp("ingested_at").defaultNow(),
+  ingestedAt: timestamp("ingested_at", { withTimezone: true }).defaultNow(),
   // Multi-tenant and multi-statement type support
   companyId: varchar("company_id", { length: 255 }), // Company ID for multi-tenant isolation
   statementType: varchar("statement_type", { length: 50 }), // 'P&L', 'BS', 'Cash' - identifies file type
@@ -1150,7 +1166,7 @@ export const cubeFactData = pgTable("cube_fact_data", {
   payableNotBilledAllocated: numeric("payable_not_billed_allocated"),
   payableNotBilledNotAllocated: numeric("payable_not_billed_not_allocated"),
   payableUnbilledCapWithPo: numeric("payable_unbilled_cap_with_po"),
-  ingestedAt: timestamp("ingested_at").defaultNow(),
+  ingestedAt: timestamp("ingested_at", { withTimezone: true }).defaultNow(),
   sourceRowNumber: integer("source_row_number"),
   rowData: jsonb("row_data"),
   includeExclude: varchar("include_exclude", { length: 50 }),
@@ -1203,7 +1219,7 @@ export const cubeCostCategories = pgTable("cube_cost_categories", {
   isSummary: boolean("is_summary").default(false),
   reportType: varchar("report_type", { length: 255 }),
   relevantColumns: jsonb("relevant_columns").default([]),
-  createdAt: timestamp("created_at").defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 }, (table) => ({
   cubeIdIdx: index("cube_cost_categories_cube_id_idx").on(table.cubeId),
   nameIdx: index("cube_cost_categories_name_idx").on(table.name),
@@ -1257,8 +1273,8 @@ export const cubeQueryJobs = pgTable("cube_query_jobs", {
   resultData: jsonb("result_data"),
   executionMs: integer("execution_ms"),
   errorMessage: text("error_message"),
-  createdAt: timestamp("created_at").defaultNow(),
-  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
 }, (table) => ({
   cubeIdIdx: index("cube_query_jobs_cube_id_idx").on(table.cubeId),
   userIdIdx: index("cube_query_jobs_user_id_idx").on(table.userId),
@@ -1275,8 +1291,8 @@ export const geographyMappings = pgTable("geography_mappings", {
   priority: integer("priority").notNull().default(0),
   isActive: integer("is_active").notNull().default(1),
   createdBy: varchar("created_by").notNull().references(() => users.id),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   companyIdIdx: index("geography_mappings_company_id_idx").on(table.companyId),
   patternIdx: index("geography_mappings_pattern_idx").on(table.pattern),
@@ -1286,7 +1302,7 @@ export const geographyMappings = pgTable("geography_mappings", {
 export const sessions = pgTable("session", {
   sid: varchar("sid").primaryKey(),
   sess: json("sess").notNull(),
-  expire: timestamp("expire").notNull(),
+  expire: timestamp("expire", { withTimezone: true }).notNull(),
 }, (table) => ({
   expireIdx: index("session_expire_idx").on(table.expire),
 }));
@@ -1533,7 +1549,7 @@ export const cubeBalanceSheetData = pgTable("cube_balance_sheet_data", {
   currency: varchar("currency", { length: 20 }).notNull().default("USD"),
   sourceFile: varchar("source_file", { length: 255 }),
   sourceRowNumber: integer("source_row_number"),
-  ingestedAt: timestamp("ingested_at").defaultNow(),
+  ingestedAt: timestamp("ingested_at", { withTimezone: true }).defaultNow(),
 }, (table) => ({
   cubeIdIdx: index("cube_bs_cube_id_idx").on(table.cubeId),
   periodIdx: index("cube_bs_period_idx").on(table.cubeId, table.fiscalYear, table.month),
@@ -1579,7 +1595,7 @@ export const cubeInvestmentData = pgTable("cube_investment_data", {
   expensesMinr:         numeric("expenses_minr"),
   travelMinr:           numeric("travel_minr"),
   balanceMinr:          numeric("balance_minr"),
-  ingestedAt:       timestamp("ingested_at").defaultNow(),
+  ingestedAt:       timestamp("ingested_at", { withTimezone: true }).defaultNow(),
   sourceRowNumber:  integer("source_row_number"),
 }, (table) => ({
   cubeIdIdx:    index("cube_inv_cube_id_idx").on(table.cubeId),
@@ -1902,7 +1918,7 @@ export const auditLogs = pgTable("audit_logs", {
   ipAddress:  varchar("ip_address", { length: 45 }),
   status:     varchar("status", { length: 20 }).notNull().default("success"),
   details:    jsonb("details"),
-  createdAt:  timestamp("created_at").notNull().defaultNow(),
+  createdAt:  timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   userIdIdx:    index("audit_logs_user_id_idx").on(table.userId),
   actionIdx:    index("audit_logs_action_idx").on(table.action),

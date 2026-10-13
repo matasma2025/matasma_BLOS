@@ -32,6 +32,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useLocation } from 'wouter';
 import { type BoardTemplate, type Board } from '@shared/schema';
 import { BoardCreationWizard } from './BoardCreationWizard';
+import { useBoardTemplatePolicy } from '@/hooks/useBoardTemplatePolicy';
 
 interface Cube { id: string; name: string; description?: string; schemaType?: 'kpi' | 'investment_capex_pmo' | 'balance_sheet' }
 interface CubeAccess { cubes: Cube[] }
@@ -139,9 +140,9 @@ export function BoardEditorDialog({
       const payload = {
         title: boardTitleSchema.parse(data.title),
         description: data.description,
-        templateId: template?.id ?? null,
+        templateId: isEditing ? board?.templateId ?? null : template?.id ?? null,
         settings: {
-          ...(isEntityPnlTemplate && (board?.settings as any)?.entityPnlFinancialPlan
+          ...(isEntityPnlTemplate && !policy.data?.locked && (board?.settings as any)?.entityPnlFinancialPlan
             ? { entityPnlFinancialPlan: (board!.settings as any).entityPnlFinancialPlan } : {}),
           analysisPrompts: data.analysisPrompts,
           cubeId: data.cubeId || undefined,
@@ -151,8 +152,10 @@ export function BoardEditorDialog({
           boardFlow: {
             comparisonBasis: data.comparisonBasis,
             scope: data.scope,
-            reportTemplate: data.reportTemplate || undefined,
-            reportTemplatePptxBase64: data.reportTemplatePptxBase64 || undefined,
+            ...(policy.data?.locked ? {} : {
+              reportTemplate: data.reportTemplate || undefined,
+              reportTemplatePptxBase64: data.reportTemplatePptxBase64 || undefined,
+            }),
           },
         },
       };
@@ -209,8 +212,13 @@ export function BoardEditorDialog({
       return { ...f, columnMapping: { ...f.columnMapping, rollingForecasts: next } };
     });
 
+  const policy = useBoardTemplatePolicy(open);
+
   return (
     <BoardCreationWizard
+      reportTemplateLocked={policy.data?.locked === true}
+      reportTemplatePolicyLoading={policy.isLoading || policy.isFetching && !policy.data}
+      reportTemplatePolicyError={policy.isError || (!policy.isLoading && !policy.data)}
       open={open}
       onOpenChange={onOpenChange}
       cubesLoading={cubesLoading}

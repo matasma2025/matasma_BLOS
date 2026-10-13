@@ -16,6 +16,7 @@ export type AuditAction =
   | "ADMIN_CUBE_DELETE"
   | "ADMIN_USER_INVITE"
   | "ADMIN_USER_REMOVE"
+  | "ADMIN_BOARD_TEMPLATE_UPDATE"
   // ── SSO User Lifecycle ──────────────────────────────────────────────────────
   | "SSO_LOGIN"             // successful SSO login (existing + returning users)
   | "SSO_LOGIN_FAILED"      // login attempt blocked (not_in_group, inactive, mismatch…)

@@ -11,6 +11,8 @@
     "test:security": "tsx --test tests/security/*.test.ts",
     "db:push": "tsx scripts/db-safe-push.ts",
     "db:push:check": "tsx scripts/db-safe-push.ts --dry-run",
+    "db:timestamps:check": "tsx scripts/db-utc-timestamps.ts",
+    "db:timestamps:apply": "tsx scripts/db-utc-timestamps.ts --apply",
     "db:prepare": "tsx scripts/db-prepare.ts",
     "db:entity-pnl-plan": "tsx scripts/entity-pnl-cube-plan.ts --migrate",
     "import:entity-pnl-plan": "tsx scripts/entity-pnl-cube-plan.ts"

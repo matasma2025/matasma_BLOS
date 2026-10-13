@@ -3,6 +3,7 @@ import os
 import math
 import logging
 import psycopg2
+from psycopg2.extensions import parse_dsn
 from psycopg2.extras import RealDictCursor, Json
 import json
 from typing import List, Dict, Any, Optional
@@ -43,6 +44,7 @@ def get_db_connection():
                 password=token,
                 port=5432,
                 sslmode="require",
+                options="-c timezone=UTC",
             )
         elif auth_mode == "postgres-azure":
             conn = psycopg2.connect(
@@ -52,10 +54,15 @@ def get_db_connection():
                 password=settings.DB_PASSWORD,
                 port=5432,
                 sslmode="require",
+                options="-c timezone=UTC",
             )
         else:
-            # Default: Neon / local (unchanged behaviour)
-            conn = psycopg2.connect(settings.DATABASE_URL)
+            # Preserve existing DSN options while making event-time handling UTC.
+            existing_options = parse_dsn(settings.DATABASE_URL).get("options", "")
+            conn = psycopg2.connect(
+                settings.DATABASE_URL,
+                options=f"{existing_options} -c timezone=UTC".strip(),
+            )
 
         return conn
     except Exception as e:

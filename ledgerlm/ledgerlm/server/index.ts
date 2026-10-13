@@ -4,6 +4,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import helmet from "helmet";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
+import { utcDatabaseConfig } from "./utils/databaseTime";
 import pkg from "pg";
 const { Pool } = pkg;
 import { registerRoutes } from "./routes";
@@ -14,6 +15,8 @@ import { startPythonBackend } from "./python-backend";
 import { scheduler } from "./services/scheduler";
 import { multiTenantScheduler } from "./services/multiTenantScheduler";
 import { createSchedulerConfig } from "./migrations/create-scheduler-config";
+import { createDomainBoardTemplateOverrides } from "./migrations/create-domain-board-template-overrides";
+import { initializeBoschMasterTemplates } from "./services/boards/boschTemplateCatalog";
 import { runDomainEnhancementsMigration } from "./migrations/domain-enhancements";
 import { createKioskTables } from "./migrations/create-kiosk-tables";
 import { addBillingTypeColumn } from "./migrations/add-billing-type-column";
@@ -181,23 +184,23 @@ let sessionPool: Pool;
 const _dbTlsRejectUnauthorized = process.env.DB_TLS_REJECT_UNAUTHORIZED !== 'false';
 
 if (_sessionAuthMode === 'entra' || _sessionAuthMode === 'hybrid') {
-  sessionPool = new Pool({
+  sessionPool = new Pool(utcDatabaseConfig({
     host: process.env.DB_HOST,
     user: process.env.DB_USER,
     database: process.env.DB_NAME,
     port: 5432,
     password: () => getEntraToken(),
     ssl: { rejectUnauthorized: _dbTlsRejectUnauthorized },
-  });
+  }));
 } else if (_sessionAuthMode === 'postgres-azure') {
-  sessionPool = new Pool({
+  sessionPool = new Pool(utcDatabaseConfig({
     host: process.env.DB_HOST,
     user: process.env.DB_USER,
     database: process.env.DB_NAME,
     password: process.env.DB_PASSWORD,
     port: 5432,
     ssl: { rejectUnauthorized: _dbTlsRejectUnauthorized },
-  });
+  }));
 } else {
   // Default: Neon / local (unchanged)
   const dbUrl = process.env.NEON_DATABASE_URL || process.env.DATABASE_URL;
@@ -209,10 +212,10 @@ if (_sessionAuthMode === 'entra' || _sessionAuthMode === 'hybrid') {
     dbUrl.includes('ledgerlm-db') ||
     dbUrl.includes('172.17.') ||
     dbUrl.includes('127.0.0.1');
-  sessionPool = new Pool({
+  sessionPool = new Pool(utcDatabaseConfig({
     connectionString: dbUrl,
     ssl: isLocalDb ? false : { rejectUnauthorized: _dbTlsRejectUnauthorized },
-  });
+  }));
 }
 
 app.use(session({
@@ -423,6 +426,7 @@ app.use("/api", createOperationLimitMiddleware({
   await createBoardAnalysisConfigsTable();
   await createBoardAnalysisRunsTable();
   await createGenericBoardReportsTable();
+  await createDomainBoardTemplateOverrides();
   await addBoardPhaseOneFoundation();
   await backfillBoardAnalysisConfigs();
   // Add varianceData + comparisonPeriodLabel columns (Phase 2)
@@ -432,6 +436,7 @@ app.use("/api", createOperationLimitMiddleware({
 
   const completeStartupData = async () => {
     await seedDatabase();
+    await initializeBoschMasterTemplates();
     await fixAzureBlobConnectorSchedules();
   };
   const deferStartupData = app.get("env") === "development";
