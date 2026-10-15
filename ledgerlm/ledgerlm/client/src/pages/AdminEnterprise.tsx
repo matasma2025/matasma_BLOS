@@ -8,6 +8,7 @@ import {
 import { AdminConnectorsDialog } from "@/components/AdminConnectorsDialog";
 import { HierarchyConfigDialog } from "@/components/HierarchyConfigDialog";
 import { CubeManagement } from "@/components/CubeManagement";
+import { EntityPnlCubePlanDialog } from "@/components/EntityPnlCubePlanDialog";
 import { IngestionStatusPanel } from "@/components/IngestionStatusPanel";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -126,6 +127,7 @@ interface Cube {
   name: string;
   description: string | null;
   sourceType: string;
+  schemaType: string;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -190,6 +192,7 @@ export default function AdminEnterprise() {
   const [uploadingFiles, setUploadingFiles]         = useState<File[]>([]);
   const [selectedDomainId, setSelectedDomainId]     = useState<string>("");
   const [selectedCubeId, setSelectedCubeId]         = useState<string>("");
+  const [entityPlanCube, setEntityPlanCube]           = useState<Cube | null>(null);
   const [isConnectorsDialogOpen, setIsConnectorsDialogOpen] = useState(false);
   const [isHierarchyDialogOpen, setIsHierarchyDialogOpen]   = useState(false);
   const [selectedConnectorFilter, setSelectedConnectorFilter] = useState<string>("all");
@@ -268,6 +271,7 @@ export default function AdminEnterprise() {
     },
     enabled: !!activeDomainId,
   });
+  const selectedUploadCube = cubes.find(cube => cube.id === selectedCubeId);
 
   const { data: automationLogs } = useQuery<AutomationLogsResponse>({
     queryKey: ["/api/domain-admin/anaplan/logs", activeDomainId],
@@ -875,6 +879,31 @@ export default function AdminEnterprise() {
                         </Button>
                       </div>
                     )}
+
+                    <div className="mt-4 flex flex-col gap-3 rounded-lg border border-primary/20 bg-primary/5 p-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-foreground">Entity P&amp;L financial plan</p>
+                        <p className="text-xs text-muted-foreground">
+                          Separate import for the selected KPI cube. Regular uploads above keep using the standard fact/plan pipeline.
+                        </p>
+                        {selectedUploadCube && selectedUploadCube.schemaType !== "kpi" && (
+                          <p className="mt-1 text-xs text-destructive">Available only for KPI cubes.</p>
+                        )}
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={!selectedUploadCube || selectedUploadCube.schemaType !== "kpi"}
+                        onClick={() => {
+                          if (selectedUploadCube?.schemaType === "kpi") setEntityPlanCube(selectedUploadCube);
+                        }}
+                        data-testid="button-upload-entity-pnl-plan"
+                        className="shrink-0"
+                      >
+                        <Upload className="mr-2 h-4 w-4" />
+                        Upload Entity P&amp;L Plan
+                      </Button>
+                    </div>
 
                     {/* Ingestion progress — shown immediately below the file list */}
                     {activeIngestionJobId && (
@@ -1533,6 +1562,13 @@ export default function AdminEnterprise() {
           onOpenChange={setIsHierarchyDialogOpen}
           domainId={activeDomainId}
           domainName={activeDomain?.name || "Domain"}
+        />
+      )}
+      {entityPlanCube && (
+        <EntityPnlCubePlanDialog
+          key={entityPlanCube.id}
+          cube={entityPlanCube}
+          onClose={() => setEntityPlanCube(null)}
         />
       )}
     </div>
