@@ -58,12 +58,46 @@ test("Signed credits reduce expense totals; blank-category cost is excluded", ()
     financial("Cost Summary", 9999, "actual", 2026, ""),
   ], request);
   assert.equal(report.metrics["Total Expenses"], 80);
+  assert.equal(report.metrics["Other Expenses"], -20);
   assert.equal(report.metrics.EBIT, 120);
   assert.equal(report.metrics["EBIT%"], 60);
   assert.equal(report.calculationVersion, ENTITY_PNL_CALCULATION_VERSION);
 });
 
-test("YoY and Actual-CF variances are independent and margins use pp only", () => {
+test("Unmapped Cost Summary categories roll into Other Expenses and reconcile to Total Expenses", () => {
+  const otherSourceCosts: Array<[string, number]> = [
+    ["Other Expenses", 10],
+    ["Travel", 20],
+    ["Revenue Hardware", 30],
+    ["Welfare cost", 40],
+    ["Material cost", 50],
+    ["Other cost", 60],
+    ["Depreciation", 70],
+    ["Unmapped expense", 80],
+    ["Travel", -15],
+  ];
+  const report = buildEntityPnlReport([
+    financial("Revenue Summary", 1_000),
+    financial("Cost Summary", 100, "actual", 2026, "Employee Benefits"),
+    financial("Cost Summary", 50, "actual", 2026, "Outsourcing Cost"),
+    financial("Cost Summary", 25, "actual", 2026, "Consultancy Charges"),
+    financial("Cost Summary", 30, "actual", 2026, "CI Charges & Other Revenue"),
+    financial("Cost Summary", 20, "actual", 2026, "Facilities Cost"),
+    ...otherSourceCosts.map(([category, amount]) => financial("Cost Summary", amount, "actual", 2026, category)),
+    financial("Cost Summary", 9999, "actual", 2026, ""),
+  ], request);
+  const displayedExpenseTotal = [
+    "Employee Benefits", "Outsourcing Cost", "Consultancy Charges",
+    "CI Charges & Other Revenue", "Facilities Cost", "Other Expenses",
+  ].reduce((sum, label) => sum + (report.metrics[label] ?? 0), 0);
+
+  assert.equal(report.metrics["Other Expenses"], 345);
+  assert.equal(report.metrics["Total Expenses"], 570);
+  assert.equal(displayedExpenseTotal, report.metrics["Total Expenses"]);
+  assert.equal(report.expenseReconciliation?.find((item) => item.period === report.currentLabel)?.amount, 0);
+});
+
+test("YoY margin variance shows pp and relative percent; Actual-CF remains independent", () => {
   const report = buildEntityPnlReport([
     financial("Revenue Summary", 200), financial("Cost Summary", 100),
     financial("Revenue Summary", 100, "actual", 2025), financial("Cost Summary", 80, "actual", 2025),
@@ -77,10 +111,45 @@ test("YoY and Actual-CF variances are independent and margins use pp only", () =
   assert.equal(cfRevenue.variancePercent, -20);
   const margin = report.lines.find((row) => row.label === "EBIT%")!;
   assert.equal(margin.variance, 30);
-  assert.equal(margin.variancePercent, null);
+  assert.equal(margin.variancePercent, 150);
   const cfMargin = report.forecastComparison!.rows.find((row) => row.label === "EBIT%")!;
   assert.equal(cfMargin.variance, 10);
   assert.equal(cfMargin.variancePercent, null);
+});
+
+test("QoQ EBIT% variance retains pp and adds relative percentage change", () => {
+  const qoqRequest = validateEntityPnlReportRequest({
+    cubeId: "authorized-cube", entity: "", asOf: "2026-06", comparison: "qoq", currency: "INR",
+  });
+  const report = buildEntityPnlReport([
+    { ...financial("Revenue Summary", 100), month: 3 },
+    { ...financial("Cost Summary", 60), month: 3 },
+    { ...financial("Revenue Summary", 300), month: 6 },
+    { ...financial("Cost Summary", 210), month: 6 },
+  ], qoqRequest);
+  const margin = report.lines.find((row) => row.label === "EBIT%")!;
+
+  assert.equal(margin.values["Q2 2026"], 25);
+  assert.equal(margin.values["Q1 2026"], 40);
+  assert.equal(margin.variance, -15);
+  assert.equal(margin.variancePercent, -37.5);
+});
+
+test("EBIT% relative variance stays unavailable when comparison margin is zero or missing", () => {
+  const zeroBaseline = buildEntityPnlReport([
+    financial("Revenue Summary", 200), financial("Cost Summary", 100),
+    financial("Revenue Summary", 100, "actual", 2025), financial("Cost Summary", 100, "actual", 2025),
+  ], request);
+  const zeroBaselineMargin = zeroBaseline.lines.find((row) => row.label === "EBIT%")!;
+  assert.equal(zeroBaselineMargin.variance, 50);
+  assert.equal(zeroBaselineMargin.variancePercent, null);
+
+  const missingBaseline = buildEntityPnlReport([
+    financial("Revenue Summary", 200), financial("Cost Summary", 100),
+  ], request);
+  const missingBaselineMargin = missingBaseline.lines.find((row) => row.label === "EBIT%")!;
+  assert.equal(missingBaselineMargin.variance, null);
+  assert.equal(missingBaselineMargin.variancePercent, null);
 });
 
 test("True zero CF is comparable while missing CF financial records remain unavailable", () => {

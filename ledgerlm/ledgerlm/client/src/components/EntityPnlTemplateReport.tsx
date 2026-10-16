@@ -235,7 +235,7 @@ export function EntityPnlTemplateReport({
                         {formatVariance(line, report.currency)}
                       </td>
                       <td className={`${reportTd} text-right tabular-nums`}>
-                        {line.label === "EBIT%" || line.variancePercent === null ? "—" : `${line.variancePercent.toFixed(1)}%`}
+                        {line.variancePercent === null ? "—" : `${line.variancePercent.toFixed(1)}%`}
                       </td>
                     </tr>
                   );
@@ -251,8 +251,7 @@ export function EntityPnlTemplateReport({
           <CardHeader className="pb-2"><CardTitle className="text-sm">Expense reconciliation</CardTitle></CardHeader>
           <CardContent className="space-y-2 text-sm">
             <p className="text-muted-foreground">
-              Total Expenses includes all governed cost categories. These amounts are already in Total Expenses
-              but not in the individual expense lines above; do not add them again or treat them as Other Expenses.
+              Other Expenses includes eligible cost categories that are not shown on their own line. Displayed expense lines reconcile to Total Expenses.
             </p>
             {report.expenseReconciliation.map((item) => (
               <p key={item.period} className="flex flex-wrap justify-between gap-2">

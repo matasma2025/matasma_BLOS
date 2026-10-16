@@ -97,6 +97,7 @@ test("uploaded template preserves non-slide files, branding, and correctly maps 
   assert.equal(rows[10][0], "EBIT%");
   assert.equal(rows[10][3], "20.0%");
   assert.equal(rows[10][5], "2.0 pp");
+  assert.equal(rows[10][6], "66.7%");
   assert.ok(slide.includes("BOSCH"));
   assert.ok(slide.includes("mINR"));
   assert.ok(!slide.includes("H1&apos;26"));
@@ -216,7 +217,8 @@ test("combined template exports only the selected layout with dynamic periods an
     assert.equal(rows[10][5], "2.00 pp");
     assert.ok(!slide.includes("658mINR") && !slide.includes("{{"));
     assert.equal(JSON.stringify(data), before);
-    assert.deepEqual(validateAndNormalizePptx(Buffer.from(zipSync(files))), Buffer.from(zipSync(files)));
+    const normalized = validateAndNormalizePptx(Buffer.from(zipSync(files)));
+    assert.deepEqual(unzipSync(normalized), files, "Normalization preserves slide and asset contents");
   }
 });
 

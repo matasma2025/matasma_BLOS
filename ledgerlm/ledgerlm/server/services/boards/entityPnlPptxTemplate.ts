@@ -226,7 +226,7 @@ export function renderEntityPnlTemplate(base64: string, payload: EntityPnlExport
           values = [line.label === "EBIT%" && referenceStyle ? "EBIT% of TNS" : line.label,
             ...columnKeys.map((column) => displayValue(line.label, column ? line.values[column] : null, false, referenceStyle)),
             displayValue(line.label, line.variance, true, referenceStyle),
-            line.label === "EBIT%" || line.variancePercent == null ? "—" : `${line.variancePercent.toFixed(referenceStyle ? 0 : 1).replace(/^-0$/, "0")}%`];
+            line.variancePercent == null ? "—" : `${line.variancePercent.toFixed(referenceStyle ? 0 : 1).replace(/^-0$/, "0")}%`];
         }
         let cellIndex = 0;
         let updatedRow = row.replace(/<a:tc\b[^>]*>[\s\S]*?<\/a:tc>/g, (cell) => {

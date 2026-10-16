@@ -80,7 +80,7 @@ function exportRows(payload: EntityPnlExportPayload) {
       line.label,
       ...payload.columns.map((column) => valueText(line.label, line.values[column], payload.currency)),
       variance,
-      line.label === "EBIT%" || line.variancePercent === null ? "—" : `${line.variancePercent.toFixed(1)}%`,
+      line.variancePercent === null ? "—" : `${line.variancePercent.toFixed(1)}%`,
     ];
   });
 }

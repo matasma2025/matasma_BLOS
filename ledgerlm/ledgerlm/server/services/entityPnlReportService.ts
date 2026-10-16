@@ -102,7 +102,8 @@ const VISIBLE_COST_LINES = [
     aliases: new Set(["ci charges & other revenue", "ci charges", "other revenue sw", "revenue software"]),
   },
   { label: "Facilities Cost", aliases: new Set(["facilities cost", "facility cost"]) },
-  { label: "Other Expenses", aliases: new Set(["other expenses", "other expense"]) },
+  // Other Expenses is derived as the residual after the separately displayed categories.
+  { label: "Other Expenses", aliases: new Set<string>() },
 ] as const;
 
 const CAPACITY_LINES = [
@@ -394,6 +395,18 @@ export function buildEntityPnlReport(rows: AggregateRow[], request: EntityPnlRep
     valuesByLine.set(label, values);
   }
 
+  const otherExpenses = valuesByLine.get("Other Expenses")!;
+  const separatelyDisplayedCosts = VISIBLE_COST_LINES
+    .filter((line) => line.label !== "Other Expenses")
+    .map((line) => line.label);
+  for (const column of columns) {
+    const total = valuesByLine.get("Total Expenses")?.[column] ?? null;
+    const displayedCosts = separatelyDisplayedCosts.map((label) => valuesByLine.get(label)?.[column] ?? null);
+    otherExpenses[column] = total === null || displayedCosts.some((value) => value === null)
+      ? null
+      : total - displayedCosts.reduce<number>((sum, value) => sum + (value ?? 0), 0);
+  }
+
   const derivedLabels = ["EBIT", "EBIT%"];
   for (const label of derivedLabels) valuesByLine.set(label, {});
   for (const column of columns) {
@@ -453,7 +466,7 @@ export function buildEntityPnlReport(rows: AggregateRow[], request: EntityPnlRep
     const current = values[currentLabel] ?? null;
     const prior = values[comparisonLabel] ?? null;
     const variance = current === null || prior === null ? null : current - prior;
-  const variancePercent = label === "EBIT%" || variance === null || prior === null || prior === 0 ? null : (variance / Math.abs(prior)) * 100;
+    const variancePercent = variance === null || prior === null || prior === 0 ? null : (variance / Math.abs(prior)) * 100;
     return { label, values, variance, variancePercent };
   });
 
@@ -628,7 +641,7 @@ export function buildEntityPnlReport(rows: AggregateRow[], request: EntityPnlRep
       ? `Read-only run from the selected Enterprise cube for ${entity}.`
       : "Read-only run from the selected Enterprise cube across all entity rows, including blank entity values.",
     `${request.comparison.toUpperCase()} comparison: ${currentLabel} versus ${comparisonLabel}.`,
-    "Total Expenses uses classified Entity P&L Cost Summary rows with nonblank entity category and subcategory; credits and reversals retain their signed contribution. Visible expense rows are a presentation subset.",
+    "Total Expenses uses eligible Entity P&L Cost Summary rows with nonblank entity category; credits and reversals retain their signed contribution. Other Expenses is the residual after separately displayed costs.",
     "Revenue excludes order reasons YEH, YEI, YEJ, YEK, YN2 and GL accounts beginning 139, matching the existing Entity P&L rules.",
     financialPlanSource?.periodBasis === "mtd"
       ? "Actual financial values retain cumulative YTD snapshot rules and quarter-end differences. Financial CF uses monthly MTD flows: sum January through the selected month for YoY, or the selected quarter's months for QoQ."
@@ -639,7 +652,7 @@ export function buildEntityPnlReport(rows: AggregateRow[], request: EntityPnlRep
     evidence.push(`Read ${rowCounts.get(normalizedScenario(request.cfVersion)) ?? 0} source rows for ${request.cfVersion}; forecast amounts remain separate from Actual.`);
   }
   if (planningForecast) evidence.push(`Read ${planningForecast.sourceRowCount} planning source rows for ${planningForecast.entity}, ${planningForecast.scenario}, ${planningForecast.asOf}, blank-GB entity total scope. Operational measures are not mixed with financial snapshots.`);
-  evidence.push(`Variance is current Actual minus comparison Actual, not Actual minus Forecast. Undisplayed expense categories are reconciled separately without redefining Other Expenses.`);
+  evidence.push(`Variance is current Actual minus comparison Actual, not Actual minus Forecast. Other Expenses is the remaining eligible Cost Summary amount after separately displayed costs.`);
   const chart = {
     title: "Revenue, Expenses and EBIT",
     series: ["Revenue", "Total Expenses", "EBIT"].map((name) => ({

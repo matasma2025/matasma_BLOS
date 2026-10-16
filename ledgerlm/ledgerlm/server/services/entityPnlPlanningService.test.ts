@@ -83,7 +83,7 @@ test("existing governed financial forecasts retain cumulative semantics even wit
   assert.equal(report.lines.find((line) => line.label === "Revenue")!.values[report.forecastLabel!], 400);
 });
 
-test("expense reconciliation reports the residual without adding it again to expenses", () => {
+test("unlisted Cost Summary categories roll into Other Expenses and reconcile to Total Expenses", () => {
   const base = { year: 2026, month: 7, scenario: "actual", cost_category: "Cost Summary",
     resource_type: "", source_sub_category: "", capacity: null, source_rows: 1 };
   const report = buildEntityPnlReport([
@@ -92,6 +92,6 @@ test("expense reconciliation reports the residual without adding it again to exp
     { ...base, entity_category: "Travel expenses", amount: 25 },
   ], request);
   assert.equal(report.lines.find((line) => line.label === "Total Expenses")!.values[report.currentLabel], 135);
-  assert.equal(report.lines.find((line) => line.label === "Other Expenses")!.values[report.currentLabel], 10);
-  assert.equal(report.expenseReconciliation?.find((item) => item.period === report.currentLabel)?.amount, 25);
+  assert.equal(report.lines.find((line) => line.label === "Other Expenses")!.values[report.currentLabel], 35);
+  assert.equal(report.expenseReconciliation?.find((item) => item.period === report.currentLabel)?.amount, 0);
 });
