@@ -14,12 +14,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   Upload,
-  FileText,
   Trash2,
   Download,
   MoreVertical,
-  File,
-  FileSpreadsheet,
   Filter,
   Search,
   Link as LinkIcon,
@@ -390,32 +387,41 @@ export default function Vault() {
 
   const getFileIcon = (fileName: string) => {
     const ext = fileName.split(".").pop()?.toLowerCase();
+    const formatBadge = (label: string, color: string) => (
+      <div
+        role="img"
+        aria-label={`${label} file`}
+        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md shadow-sm ${color}`}
+      >
+        <span className="text-[8px] font-bold leading-none tracking-tight text-white">
+          {label}
+        </span>
+      </div>
+    );
+
     switch (ext) {
       case "pdf":
-        return (
-          <div className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center">
-            <FileText className="w-4 h-4 text-red-500" />
-          </div>
-        );
+        return formatBadge("PDF", "bg-[#d63830]");
       case "xls":
       case "xlsx":
+        return formatBadge("XLS", "bg-[#16804a]");
       case "csv":
-        return (
-          <div className="w-8 h-8 rounded-lg bg-green-600/10 flex items-center justify-center">
-            <FileSpreadsheet className="w-4 h-4 text-green-600" />
-          </div>
-        );
+        return formatBadge("CSV", "bg-[#117d73]");
       case "doc":
       case "docx":
-        return (
-          <div className="w-8 h-8 rounded-lg bg-blue-600/10 flex items-center justify-center">
-            <FileText className="w-4 h-4 text-blue-600" />
-          </div>
-        );
+        return formatBadge("DOC", "bg-[#2474c8]");
+      case "txt":
+        return formatBadge("TXT", "bg-[#64748b]");
       default:
         return (
-          <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center">
-            <File className="w-4 h-4 text-muted-foreground" />
+          <div
+            role="img"
+            aria-label="Unknown file type"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-[#64748b] shadow-sm"
+          >
+            <span className="text-[8px] font-bold leading-none tracking-tight text-white">
+              FILE
+            </span>
           </div>
         );
     }
@@ -595,10 +601,10 @@ export default function Vault() {
   }
 
   return (
-    <div className="h-full flex flex-col overflow-hidden bg-primary/10">
-      <div className="flex-1 overflow-auto p-6">
-        <div className="h-full bg-white rounded-2xl overflow-auto flex flex-col">
-          <div className="px-6 lg:px-8 py-3.5 flex items-center justify-between gap-3 bg-primary/40 flex-shrink-0">
+    <div className="h-full flex flex-col overflow-hidden bg-[#edf4f3]">
+      <div className="flex-1 overflow-auto p-3 sm:p-4">
+        <div className="min-h-full bg-white rounded-2xl border border-[#dce7e8] overflow-hidden flex flex-col">
+          <div className="px-5 lg:px-7 py-3.5 flex items-center justify-between gap-3 bg-[#d6e8e9] flex-shrink-0">
             <h1
               className="text-xl font-semibold text-foreground"
               data-testid="text-vault-title"
@@ -606,147 +612,171 @@ export default function Vault() {
               Vault
             </h1>
             <div className="flex items-center gap-2 justify-end">
-              <Button variant="ghost" size="icon" data-testid="button-help">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-[#286e72] hover:bg-white/60"
+                data-testid="button-help"
+              >
                 <HelpCircle className="w-5 h-5 text-primary" />
               </Button>
               <Button
                 variant="outline"
-                className="gap-2 bg-white"
+                className="gap-2 border-[#c4d9db] bg-white text-[#31484a] hover:bg-[#f3f8f8]"
                 size="sm"
                 data-testid="button-data-sources"
               >
                 Data Sources
-                <Badge variant="secondary" className="ml-1">
+                <Badge variant="secondary" className="ml-1 bg-[#e7f1f2] text-[#466366]">
                   3
                 </Badge>
               </Button>
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto px-6 lg:px-8 py-6 space-y-4">
-
-            {/* ── Stat strip ── */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <Card className="p-4 flex items-center gap-3" data-testid="card-total-documents">
-                <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
-                  <FolderOpen className="w-4 h-4 text-blue-600" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground leading-none mb-1">Documents</p>
-                  <p className="text-2xl font-bold text-foreground leading-none">
-                    {statsLoading ? "—" : stats.totalDocuments}
-                  </p>
-                </div>
-              </Card>
-              <Card className="p-4 flex items-center gap-3" data-testid="card-vector-indexed">
-                <div className="w-9 h-9 rounded-lg bg-emerald-50 flex items-center justify-center flex-shrink-0">
-                  <Cpu className="w-4 h-4 text-emerald-600" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground leading-none mb-1">Indexed</p>
-                  <p className="text-2xl font-bold text-foreground leading-none">
-                    {statsLoading ? "—" : stats.vectorIndexed}
-                  </p>
-                </div>
-              </Card>
-              <Card className="p-4 flex items-center gap-3" data-testid="card-current-sessions">
-                <div className="w-9 h-9 rounded-lg bg-violet-50 flex items-center justify-center flex-shrink-0">
-                  <MessageSquare className="w-4 h-4 text-violet-600" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground leading-none mb-1">Active Sessions</p>
-                  <p className="text-2xl font-bold text-foreground leading-none">
-                    {statsLoading ? "—" : stats.currentSessions}
-                  </p>
-                </div>
-              </Card>
-              <Card className="p-4 flex items-center gap-3" data-testid="card-total-sessions">
-                <div className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0">
-                  <BarChart2 className="w-4 h-4 text-slate-600" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground leading-none mb-1">Total Sessions</p>
-                  <p className="text-2xl font-bold text-foreground leading-none">
-                    {statsLoading ? "—" : stats.totalSessions}
-                  </p>
-                </div>
-              </Card>
-            </div>
-
-            {/* ── Upload zone ── */}
-            <Card
-              className={`border-2 border-dashed transition-colors ${
-                dragActive ? "border-primary bg-primary/5" : "border-border"
-              }`}
-              onDragEnter={handleDrag}
-              onDragLeave={handleDrag}
-              onDragOver={handleDrag}
-              onDrop={handleDrop}
-            >
-              {uploading ? (
-                <div className="flex items-center gap-4 px-6 py-4">
-                  <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                    <Loader2 className="w-4 h-4 text-primary animate-spin" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-sm text-foreground">Uploading…</p>
-                    <p className="text-xs text-muted-foreground">Please wait</p>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-center justify-between px-6 py-4 gap-4">
-                  <div className="flex items-center gap-4">
-                    <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                      <Upload className="w-4 h-4 text-primary" />
+          <div className="flex-1 overflow-y-auto px-4 py-5 sm:px-6 lg:px-8 space-y-5">
+            <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+              <section className="flex flex-col" aria-labelledby="vault-history-heading">
+                <h2
+                  id="vault-history-heading"
+                  className="mb-3 text-sm font-semibold text-[#263638]"
+                >
+                  Document History
+                </h2>
+                <div className="grid flex-1 grid-cols-2 gap-3">
+                  <Card className="flex items-center gap-3 rounded-lg border border-[#d9e5e6] bg-white p-4 shadow-none" data-testid="card-total-documents">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50">
+                      <FolderOpen className="h-4 w-4 text-blue-600" />
                     </div>
                     <div>
-                      <p className="font-medium text-sm text-foreground">Drop files here or{" "}
+                      <p className="mb-1 text-xs text-[#687879]">Documents</p>
+                      <p className="text-2xl font-bold leading-none text-[#202b2d]">
+                        {statsLoading ? "—" : stats.totalDocuments}
+                      </p>
+                    </div>
+                  </Card>
+                  <Card className="flex items-center gap-3 rounded-lg border border-[#d9e5e6] bg-white p-4 shadow-none" data-testid="card-vector-indexed">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-50">
+                      <Cpu className="h-4 w-4 text-emerald-600" />
+                    </div>
+                    <div>
+                      <p className="mb-1 text-xs text-[#687879]">Indexed</p>
+                      <p className="text-2xl font-bold leading-none text-[#202b2d]">
+                        {statsLoading ? "—" : stats.vectorIndexed}
+                      </p>
+                    </div>
+                  </Card>
+                  <Card className="flex items-center gap-3 rounded-lg border border-[#d9e5e6] bg-white p-4 shadow-none" data-testid="card-current-sessions">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-violet-50">
+                      <MessageSquare className="h-4 w-4 text-violet-600" />
+                    </div>
+                    <div>
+                      <p className="mb-1 text-xs text-[#687879]">Active Sessions</p>
+                      <p className="text-2xl font-bold leading-none text-[#202b2d]">
+                        {statsLoading ? "—" : stats.currentSessions}
+                      </p>
+                    </div>
+                  </Card>
+                  <Card className="flex items-center gap-3 rounded-lg border border-[#d9e5e6] bg-white p-4 shadow-none" data-testid="card-total-sessions">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100">
+                      <BarChart2 className="h-4 w-4 text-slate-600" />
+                    </div>
+                    <div>
+                      <p className="mb-1 text-xs text-[#687879]">Total Sessions</p>
+                      <p className="text-2xl font-bold leading-none text-[#202b2d]">
+                        {statsLoading ? "—" : stats.totalSessions}
+                      </p>
+                    </div>
+                  </Card>
+                </div>
+              </section>
+
+              <section className="flex flex-col" aria-labelledby="vault-upload-heading">
+                <h2
+                  id="vault-upload-heading"
+                  className="mb-3 text-sm font-semibold text-[#263638]"
+                >
+                  File Upload
+                </h2>
+                <Card
+                  className={`min-h-[220px] flex-1 rounded-xl border-2 border-dashed transition-colors ${
+                    dragActive
+                      ? "border-[#398b8e] bg-[#eaf5f5]"
+                      : "border-[#d2e1e3] bg-[#f2f8f8]"
+                  }`}
+                  onDragEnter={handleDrag}
+                  onDragLeave={handleDrag}
+                  onDragOver={handleDrag}
+                  onDrop={handleDrop}
+                >
+                  {uploading ? (
+                    <div className="flex h-full min-h-[220px] flex-col items-center justify-center gap-3 px-5 py-6 text-center">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#e0eeee]">
+                        <Loader2 className="h-5 w-5 animate-spin text-[#398b8e]" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-[#263638]">Uploading…</p>
+                        <p className="text-xs text-[#687879]">Please wait</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex min-h-[220px] flex-col items-center justify-center gap-2 px-5 py-5 text-center">
+                      <div className="mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-[#e0eeee]">
+                        <Upload className="h-5 w-5 text-[#398b8e]" />
+                      </div>
+                      <p className="text-sm font-semibold text-[#263638]">
+                        Drop files here or{" "}
                         <button
+                          type="button"
                           onClick={() => fileInputRef.current?.click()}
-                          className="text-primary hover:underline"
+                          className="font-medium text-[#398b8e] underline underline-offset-2 hover:text-[#286e72]"
                           data-testid="button-browse-files"
                         >
                           browse
                         </button>
                       </p>
-                      <p className="text-xs text-muted-foreground">PDF, Word, Excel, CSV, TXT — up to 100 MB</p>
+                      <p className="text-xs text-[#687879]">
+                        PDF, Word, Excel, CSV, TXT — up to 100 MB
+                      </p>
+                      <span className="my-1 text-xs text-[#879596]">or</span>
+                      <Button
+                        type="button"
+                        className="h-9 gap-2 bg-[#398b8e] px-4 text-xs font-medium text-white hover:bg-[#32777b]"
+                        onClick={() => setShowConnectDrive(true)}
+                        data-testid="button-connect-drive"
+                      >
+                        Connect Drive
+                        <LinkIcon className="h-3.5 w-3.5" />
+                      </Button>
                     </div>
-                  </div>
-                  <button
-                    onClick={() => setShowConnectDrive(true)}
-                    className="text-xs text-muted-foreground hover:text-primary underline underline-offset-2 flex-shrink-0"
-                    data-testid="button-connect-drive"
-                  >
-                    <LinkIcon className="w-3 h-3 inline mr-1" />
-                    Connect Drive
-                  </button>
-                </div>
-              )}
-              <input
-                ref={fileInputRef}
-                type="file"
-                className="hidden"
-                onChange={(e) => handleFileSelect(e.target.files)}
-                accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt"
-                data-testid="input-file-upload"
-              />
-            </Card>
+                  )}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    className="hidden"
+                    onChange={(e) => handleFileSelect(e.target.files)}
+                    accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt"
+                    data-testid="input-file-upload"
+                  />
+                </Card>
+              </section>
+            </div>
 
-            <div className="space-y-3 bg-white -mx-6 lg:-mx-8 px-6 lg:px-8 py-5 -mb-6">
-              <div className="flex items-center justify-between">
+            <section className="overflow-hidden rounded-xl border border-[#d8e5e6] bg-white" aria-label="All files">
+              <div className="flex flex-col gap-3 border-b border-[#c9dcde] bg-[#cfe3e5] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                 <h2
-                  className="text-base font-semibold text-foreground"
+                  className="text-sm font-semibold text-[#263638]"
                   data-testid="text-all-files"
                 >
                   All Files ({filteredDocuments.length})
                 </h2>
-                <div className="flex items-center gap-2">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <div className="flex w-full items-center gap-2 sm:w-auto">
+                  <div className="relative min-w-0 flex-1 sm:flex-none">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#718183]" />
                     <Input
                       type="search"
                       placeholder="Search for document by name or type"
-                      className="pl-10 w-80 h-9 bg-white"
+                      className="h-9 w-full border-[#d2e0e2] bg-white pl-10 text-[13px] sm:w-72"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       data-testid="input-search-documents"
@@ -755,7 +785,7 @@ export default function Vault() {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="bg-white"
+                    className="shrink-0 border-[#c4d9db] bg-white text-[#35484a] hover:bg-[#f2f8f8]"
                     data-testid="button-filter"
                   >
                     <Filter className="w-4 h-4 mr-2" />
@@ -911,13 +941,13 @@ export default function Vault() {
                   </table>
                 </div>
               </Card> */}
-              <Card className="overflow-hidden bg-white backdrop-blur-sm flex-shrink-0">
+              <Card className="flex-shrink-0 overflow-hidden border-0 bg-white shadow-none">
                 <div className="overflow-x-auto">
                   <div>
-                    <table className="w-full">
-                      <thead className="bg-primary/5">
-                        <tr className="border-b bg-primary/5">
-                          <th className="text-left px-4 py-3 font-medium text-sm text-muted-foreground w-12">
+                    <table className="w-full min-w-[920px]">
+                      <thead className="bg-[#e0edef]">
+                        <tr className="border-b border-[#d3e1e3] bg-[#e0edef]">
+                          <th className="w-12 px-4 py-3 text-left text-[13px] font-semibold text-[#45595b]">
                             <Checkbox
                               checked={
                                 selectedDocs.size ===
@@ -929,7 +959,7 @@ export default function Vault() {
                             />
                           </th>
                           <th
-                            className="text-left px-4 py-3 font-medium text-sm text-muted-foreground cursor-pointer hover:text-foreground transition-colors"
+                            className="cursor-pointer px-4 py-3 text-left text-[13px] font-semibold text-[#45595b] transition-colors hover:text-[#1e5558]"
                             onClick={() => handleSort("name")}
                             data-testid="header-document-name"
                           >
@@ -947,7 +977,7 @@ export default function Vault() {
                             </div>
                           </th>
                           <th
-                            className="text-left px-4 py-3 font-medium text-sm text-muted-foreground cursor-pointer hover:text-foreground transition-colors"
+                            className="cursor-pointer px-4 py-3 text-left text-[13px] font-semibold text-[#45595b] transition-colors hover:text-[#1e5558]"
                             onClick={() => handleSort("date")}
                             data-testid="header-upload-date"
                           >
@@ -964,13 +994,13 @@ export default function Vault() {
                               )}
                             </div>
                           </th>
-                          <th className="text-left px-4 py-3 font-medium text-sm text-muted-foreground">
+                          <th className="px-4 py-3 text-left text-[13px] font-semibold text-[#45595b]">
                             Status
                           </th>
-                          <th className="text-left px-4 py-3 font-medium text-sm text-muted-foreground">
+                          <th className="px-4 py-3 text-left text-[13px] font-semibold text-[#45595b]">
                             Sessions
                           </th>
-                          <th className="text-left px-4 py-3 font-medium text-sm text-muted-foreground">
+                          <th className="px-4 py-3 text-left text-[13px] font-semibold text-[#45595b]">
                             Actions
                           </th>
                         </tr>
@@ -981,7 +1011,7 @@ export default function Vault() {
                           <tr>
                             <td
                               colSpan={6}
-                              className="text-center py-12 text-muted-foreground text-sm"
+                              className="py-12 text-center text-sm text-[#687879]"
                             >
                               Loading documents...
                             </td>
@@ -990,7 +1020,7 @@ export default function Vault() {
                           <tr>
                             <td
                               colSpan={6}
-                              className="text-center py-12 text-muted-foreground text-sm"
+                              className="py-12 text-center text-sm text-[#687879]"
                             >
                               {searchQuery
                                 ? "No documents found"
@@ -1001,7 +1031,7 @@ export default function Vault() {
                           filteredDocuments.map((doc) => (
                             <tr
                               key={doc.id}
-                              className="border-b last:border-b-0 hover:bg-muted/40 transition-colors group"
+                              className="group border-b border-[#e2ebec] odd:bg-white even:bg-[#eff7f8] transition-colors hover:bg-[#e5f1f2] last:border-b-0"
                               data-testid={`row-document-${doc.id}`}
                             >
                               <td className="px-4 py-3">
@@ -1016,19 +1046,19 @@ export default function Vault() {
                                   {getFileIcon(doc.name)}
                                   <div className="min-w-0 flex-1">
                                     <p
-                                      className="font-medium text-sm text-foreground truncate"
+                                      className="truncate text-sm font-medium text-[#263638]"
                                       data-testid={`text-document-name-${doc.id}`}
                                     >
                                       {doc.name}
                                     </p>
-                                    <p className="text-xs text-muted-foreground">
+                                    <p className="text-xs text-[#718183]">
                                       {formatFileSize(doc.fileSize)}
                                     </p>
                                   </div>
                                 </div>
                               </td>
                               <td
-                                className="px-4 py-3 text-sm text-muted-foreground whitespace-nowrap"
+                                className="whitespace-nowrap px-4 py-3 text-sm text-[#526668]"
                                 data-testid={`text-upload-date-${doc.id}`}
                                 title={formatDateFull(doc.uploadedAt)}
                               >
@@ -1052,7 +1082,7 @@ export default function Vault() {
                                   <Button
                                     variant="ghost"
                                     size="icon"
-                                    className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
+                                    className="h-7 w-7 opacity-0 transition-opacity text-[#718183] group-hover:opacity-100 hover:text-[#286e72]"
                                     onClick={() => createAnalysisMutation.mutate([doc.id])}
                                     title="Start New Analysis"
                                     data-testid={`button-analysis-${doc.id}`}
@@ -1062,7 +1092,7 @@ export default function Vault() {
                                   <Button
                                     variant="ghost"
                                     size="icon"
-                                    className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
+                                    className="h-7 w-7 opacity-0 transition-opacity text-[#718183] group-hover:opacity-100 hover:text-[#286e72]"
                                     onClick={() => handleView(doc)}
                                     title="View File"
                                     data-testid={`button-view-${doc.id}`}
@@ -1072,7 +1102,7 @@ export default function Vault() {
                                   <Button
                                     variant="ghost"
                                     size="icon"
-                                    className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
+                                    className="h-7 w-7 opacity-0 transition-opacity text-[#718183] group-hover:opacity-100 hover:text-[#286e72]"
                                     onClick={() => handleDownload(doc)}
                                     title="Download File"
                                     data-testid={`button-download-inline-${doc.id}`}
@@ -1082,7 +1112,7 @@ export default function Vault() {
                                   <Button
                                     variant="ghost"
                                     size="icon"
-                                    className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                                    className="h-7 w-7 opacity-0 transition-opacity text-[#718183] group-hover:opacity-100 hover:text-destructive"
                                     onClick={() => deleteMutation.mutate(doc.id)}
                                     title="Delete File"
                                     data-testid={`button-delete-inline-${doc.id}`}
@@ -1122,7 +1152,7 @@ export default function Vault() {
                   </Button>
                 </div>
               )}
-            </div>
+            </section>
           </div>
         </div>
       </div>

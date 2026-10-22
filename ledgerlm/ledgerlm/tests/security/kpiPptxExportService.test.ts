@@ -67,13 +67,28 @@ function wordingFixture(variance: number | null = 9) {
       scopeBadges: scopes.map((scope) => ({ ...scope, metrics })),
     } },
   };
+  const footerRow = [
+    [3, 0, 4_572_000],
+    [4, 4_572_000, 2_194_560],
+    [5, 6_766_560, 2_377_440],
+    [6, 9_144_000, 3_048_000],
+  ].map(([id, x, width]) =>
+    `<p:sp><p:nvSpPr><p:cNvPr id="${id}" name="Legacy footer panel ${id - 2}"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="${x}" y="6446520"/><a:ext cx="${width}" cy="411480"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:solidFill><a:srgbClr val="D70012"/></a:solidFill></p:spPr></p:sp>`,
+  ).join("");
+  const topDecoration = '<p:sp><p:nvSpPr><p:cNvPr id="7" name="Top decoration"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="12192000" cy="50000"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr></p:sp>';
   const files = Object.fromEntries(scopes.map((scope, index) => {
     const prefix = scope.code.toLowerCase();
     const paragraphs = ["budget_revenue", "capacity", "internal_utilization"].map(
       (metric) => `<a:p><a:r><a:t>{{${prefix}_${metric}_detail}}</a:t></a:r></a:p>`,
     ).join("");
-    return [`ppt/slides/slide${index + 1}.xml`, strToU8(`<p:sld><p:txBody>${paragraphs}</p:txBody></p:sld>`)];
+    return [`ppt/slides/slide${index + 1}.xml`, strToU8(
+      `<p:sld><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name="Group"/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr/><p:sp><p:nvSpPr><p:cNvPr id="2" name="KPI placeholders"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr/><p:txBody>${paragraphs}</p:txBody></p:sp>${footerRow}${topDecoration}</p:spTree></p:sld>`,
+    )];
   }));
+  files["[Content_Types].xml"] = strToU8(
+    '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="xml" ContentType="application/xml"/></Types>',
+  );
+  files["ppt/presentation.xml"] = strToU8('<p:presentation><p:sldSz cx="12192000" cy="6858000"/></p:presentation>');
   return { report, template: Buffer.from(zipSync(files)).toString("base64") };
 }
 
@@ -88,6 +103,10 @@ test("all four template slides use Budget forecast-first and Capacity actual-fir
       assert.ok(xml.includes(`${prefix}YTD 08.26 end Capacity (20,329) is lower by 236 HC as compared to YTD 08.26 Forecast (20,565).`));
     }
     assert.ok(xml.includes("1) YTD 08.26 is 95.2%; YTD 08.25: 93.0%; YTD 07.26 is 94.0%"));
+    if (index === 1) {
+      assert.ok(xml.includes('name="Top decoration"'));
+      assert.ok(!xml.includes("Legacy footer panel"));
+    }
   }
   assert.equal(JSON.stringify(report), before);
 });
@@ -179,4 +198,36 @@ test("removes the Source and governance block and its divider, preserving brandi
     + shape("Shape 48", "");
   assert.equal(removeSourceGovernanceFooter(xml), kept);
   assert.equal(removeSourceGovernanceFooter(kept + shape("Shape 48", "")), kept + shape("Shape 48", ""));
+});
+
+test("uploaded KPI slides use the Entity P&L Bosch logo, strip, and footer text", async () => {
+  const { report, template } = wordingFixture();
+  const files = unzipSync(await exportKpiReportPptx(report, "IN", template));
+  const xml = strFromU8(files["ppt/slides/slide2.xml"]);
+  const relationships = strFromU8(files["ppt/slides/_rels/slide2.xml.rels"]);
+
+  assert.equal((xml.match(/<p:pic>/g) ?? []).length, 2);
+  assert.ok(xml.includes('name="Bosch Footer Logo"'));
+  assert.ok(xml.includes('name="Bosch Footer Strip"'));
+  assert.ok(xml.includes("Internal | Governed Enterprise Data"));
+  assert.ok(xml.includes("© Bosch Global Software Technologies Company Limited 2022."));
+  assert.ok(relationships.includes('Target="../media/ledgerlm-bosch-logo.png"'));
+  assert.ok(relationships.includes('Target="../media/ledgerlm-bosch-footer-strip.png"'));
+  assert.ok(files["ppt/media/ledgerlm-bosch-logo.png"].length > 10_000);
+  assert.ok(files["ppt/media/ledgerlm-bosch-footer-strip.png"].length > 1_000);
+  assert.ok(!xml.includes('sz="930" b="1"'));
+  assert.ok(!xml.includes("Internal | Governed Enterprise Data | KPI Metrics Board"));
+});
+
+test("generated KPI slides include the same Bosch footer without an uploaded template", async () => {
+  const { report } = wordingFixture();
+  const files = unzipSync(await exportKpiReportPptx(report));
+  const slideNames = Object.keys(files).filter((name) => /^ppt\/slides\/slide\d+\.xml$/.test(name));
+  assert.equal(slideNames.length, 4);
+  for (const slideName of slideNames) {
+    const xml = strFromU8(files[slideName]);
+    assert.equal((xml.match(/<p:pic>/g) ?? []).length, 2);
+    assert.ok(xml.includes("Internal | Governed Enterprise Data"));
+    assert.ok(xml.includes("© Bosch Global Software Technologies Company Limited 2022."));
+  }
 });

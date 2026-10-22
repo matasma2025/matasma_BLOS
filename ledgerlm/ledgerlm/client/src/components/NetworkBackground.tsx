@@ -40,7 +40,6 @@ export function NetworkBackground({ theme = 'dark' }: NetworkBackgroundProps) {
     const bgColor = theme === 'teal' ? '#0D4946' : '#1A1A1A';
     const primaryColor = theme === 'teal' ? '#3B9B96' : '#2D5F5D';
     const accentColor = '#EC407A';
-
     for (let i = 0; i < nodeCount; i++) {
       nodes.push({
         x: Math.random() * canvas.width,

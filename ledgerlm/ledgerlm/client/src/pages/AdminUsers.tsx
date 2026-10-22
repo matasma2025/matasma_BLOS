@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, apiRequestWithAdminStepUp, queryClient } from '@/lib/queryClient';
 import { useAuthUser } from '@/lib/auth';
-import { Trash2, UserPlus, Key, Edit, Globe, Shield, CheckCircle, Users, ShieldCheck } from 'lucide-react';
+import { Trash2, UserPlus, Key, Edit, Globe, Shield, CheckCircle, Users, ShieldCheck, LockKeyhole } from 'lucide-react';
 import SsoAuditDomainAdmin from '@/components/admin/SsoAuditDomainAdmin';
 
 interface DomainInfo {
@@ -166,19 +166,23 @@ export default function AdminUsers() {
 
   if (domainLoading) {
     return (
-      <div className="h-full flex items-center justify-center bg-primary/10">
-        <div className="text-lg text-muted-foreground">Loading...</div>
+      <div className="flex h-full items-center justify-center bg-primary/10">
+        <div className="rounded-xl border border-border/70 bg-white px-5 py-4 text-sm text-muted-foreground shadow-sm">
+          Loading...
+        </div>
       </div>
     );
   }
 
   if (!isSuperAdmin && !domainInfo?.domain) {
     return (
-      <div className="h-full flex items-center justify-center bg-primary/10">
-        <Card className="w-96">
+      <div className="flex h-full items-center justify-center bg-primary/10 p-4">
+        <Card className="w-full max-w-md rounded-2xl border-border/70 shadow-sm">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Shield className="h-5 w-5 text-destructive" />
+            <CardTitle className="flex items-center gap-3 text-base">
+              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-destructive/10">
+                <Shield className="h-4 w-4 text-destructive" />
+              </span>
               Access Denied
             </CardTitle>
             <CardDescription>
@@ -192,14 +196,19 @@ export default function AdminUsers() {
 
   return (
     <div className="h-full flex flex-col overflow-hidden bg-primary/10">
-      <div className="flex-1 overflow-auto p-6">
-        <div className="h-full bg-white rounded-2xl overflow-auto flex flex-col">
-          <div className="px-6 lg:px-8 py-3.5 flex items-center justify-between gap-3 bg-primary/40 flex-shrink-0">
+      <div className="flex-1 overflow-auto p-4 sm:p-6">
+        <div className="h-full min-h-full overflow-auto rounded-[18px] border border-border/60 bg-white flex flex-col shadow-sm">
+          <div className="flex flex-shrink-0 items-center justify-between gap-3 border-b border-primary/20 bg-primary/40 px-5 py-4 sm:px-6 lg:px-8">
             <div>
-              <h1 className="text-xl font-semibold text-foreground" data-testid="text-page-title">
+              <div className="mb-1 flex items-center gap-2 text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                <span>Administration</span>
+                <span aria-hidden="true">/</span>
+                <span>User access</span>
+              </div>
+              <h1 className="text-xl font-semibold tracking-tight text-foreground" data-testid="text-page-title">
                 User Management
               </h1>
-              <p className="text-sm text-muted-foreground" data-testid="text-page-description">
+              <p className="mt-0.5 text-xs text-muted-foreground sm:text-sm" data-testid="text-page-description">
                 {isSuperAdmin 
                   ? 'Select a domain and manage its users' 
                   : `Manage users in ${domainInfo?.domain?.name}`}
@@ -208,7 +217,7 @@ export default function AdminUsers() {
             {currentDomainId && (
               <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button data-testid="button-invite-user">
+                  <Button className="rounded-lg shadow-sm" data-testid="button-invite-user">
                     <UserPlus className="mr-2 h-4 w-4" />
                     Invite User
                   </Button>
@@ -281,30 +290,38 @@ export default function AdminUsers() {
 
           {/* ── Tabs: Users | SSO Audit ─────────────────────────────────── */}
           <Tabs defaultValue="users" className="flex-1 flex flex-col overflow-hidden min-h-0">
-            <div className="px-6 lg:px-8 pt-3 border-b flex-shrink-0">
-              <TabsList className="h-9 mb-0">
-                <TabsTrigger value="users" className="text-xs gap-1.5">
+            <div className="flex h-12 flex-shrink-0 items-end border-b border-border/70 px-4 sm:px-6 lg:px-8">
+              <TabsList className="mb-0 h-12 rounded-none bg-transparent p-0">
+                <TabsTrigger
+                  value="users"
+                  className="h-9 gap-1.5 rounded-t-lg border-b-2 border-transparent px-3.5 text-xs font-semibold text-muted-foreground data-[state=active]:border-primary data-[state=active]:bg-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-none"
+                >
                   <Users className="h-3.5 w-3.5" /> Users
                 </TabsTrigger>
-                <TabsTrigger value="sso-audit" className="text-xs gap-1.5">
+                <TabsTrigger
+                  value="sso-audit"
+                  className="h-9 gap-1.5 rounded-t-lg border-b-2 border-transparent px-3.5 text-xs font-semibold text-muted-foreground data-[state=active]:border-primary data-[state=active]:bg-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-none"
+                >
                   <ShieldCheck className="h-3.5 w-3.5" /> SSO Audit
                 </TabsTrigger>
               </TabsList>
             </div>
 
             {/* ── Users tab ── */}
-            <TabsContent value="users" className="flex-1 overflow-y-auto m-0 px-6 lg:px-8 py-6">
-              <div className="space-y-6">
+            <TabsContent value="users" className="m-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6 lg:px-8">
+              <div className="space-y-5">
                 {isSuperAdmin && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <Globe className="h-5 w-5" />
+                  <Card className="rounded-xl border-border/70 shadow-sm">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="flex items-center gap-3 text-base">
+                        <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
+                          <Globe className="h-4 w-4 text-primary" />
+                        </span>
                         Select Domain
                       </CardTitle>
-                      <CardDescription>Choose a domain to manage its users</CardDescription>
+                      <CardDescription className="text-xs">Choose a domain to manage its users</CardDescription>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="pt-0">
                       <Select value={selectedDomainId} onValueChange={setSelectedDomainId}>
                         <SelectTrigger className="w-full" data-testid="select-domain">
                           <SelectValue placeholder="Select a domain to manage" />
@@ -327,32 +344,41 @@ export default function AdminUsers() {
                 )}
 
                 {!isSuperAdmin && domainInfo?.domain && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <Globe className="h-5 w-5" />
-                        Domain Information
-                      </CardTitle>
+                  <Card className="rounded-xl border-border/70 shadow-sm">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center gap-2.5">
+                        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                          <Globe className="h-4 w-4" />
+                        </span>
+                        <div>
+                          <CardTitle className="text-[13px] font-bold">Domain Information</CardTitle>
+                          <CardDescription className="mt-0.5 text-[10px]">Identity settings and user capacity</CardDescription>
+                        </div>
+                        <span className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[9px] font-semibold text-emerald-700">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" />
+                          Active domain
+                        </span>
+                      </div>
                     </CardHeader>
-                    <CardContent>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
-                        <div>
-                          <span className="text-muted-foreground">Domain:</span>
-                          <span className="ml-2 font-medium" data-testid="text-domain-name">{domainInfo.domain.name}</span>
+                    <CardContent className="space-y-2 pt-0">
+                      <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2 xl:grid-cols-4">
+                        <div className="min-w-0 rounded-lg border border-border/60 bg-muted/20 px-3 py-2.5">
+                          <span className="block text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">Domain</span>
+                          <span className="mt-1 block truncate text-xs font-semibold" data-testid="text-domain-name">{domainInfo.domain.name}</span>
                         </div>
-                        <div>
-                          <span className="text-muted-foreground">Admin:</span>
-                          <span className="ml-2 font-medium">{domainInfo.domain.adminEmail}</span>
+                        <div className="min-w-0 rounded-lg border border-border/60 bg-muted/20 px-3 py-2.5">
+                          <span className="block text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">Admin</span>
+                          <span className="mt-1 block truncate text-xs font-semibold">{domainInfo.domain.adminEmail}</span>
                         </div>
-                        <div>
-                          <span className="text-muted-foreground">Default OTP:</span>
-                          <span className="ml-2 font-medium">
+                        <div className="min-w-0 rounded-lg border border-border/60 bg-muted/20 px-3 py-2.5">
+                          <span className="block text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">Default OTP</span>
+                          <span className="mt-1 block truncate text-xs font-semibold">
                             {domainInfo.domain.defaultOtp || 'Email OTP'}
                           </span>
                         </div>
-                        <div>
-                          <span className="text-muted-foreground">Users:</span>
-                          <span className="ml-2 font-medium" data-testid="text-user-count">
+                        <div className="min-w-0 rounded-lg border border-border/60 bg-muted/20 px-3 py-2.5">
+                          <span className="block text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">Users</span>
+                          <span className="mt-1 block text-xs font-semibold tabular-nums" data-testid="text-user-count">
                             {domainInfo.domain.userCount}
                             {domainInfo.domain.userQuota && (
                               <span className="text-muted-foreground"> / {domainInfo.domain.userQuota}</span>
@@ -360,9 +386,15 @@ export default function AdminUsers() {
                           </span>
                         </div>
                         {domainInfo.domain.userQuota && (
-                          <div className="col-span-2">
-                            <span className="text-muted-foreground">Quota Usage:</span>
-                            <div className="mt-1 h-2 bg-muted rounded-full overflow-hidden">
+                          <div className="rounded-lg border border-border/60 bg-muted/20 px-3.5 py-3 sm:col-span-2 xl:col-span-4">
+                            <div className="mb-2 flex items-center justify-between gap-3">
+                              <span className="text-[10px] font-semibold text-muted-foreground">Quota Usage</span>
+                              <span className="text-[10px] font-bold tabular-nums text-primary">
+                                {Math.round((domainInfo.domain.userCount / domainInfo.domain.userQuota) * 100)}% used
+                                <span className="font-normal text-muted-foreground"> · {domainInfo.domain.userCount} of {domainInfo.domain.userQuota} seats</span>
+                              </span>
+                            </div>
+                            <div className="h-1.5 overflow-hidden rounded-full bg-muted">
                               <div
                                 className={`h-full transition-all ${
                                   (domainInfo.domain.userCount / domainInfo.domain.userQuota) >= 0.9
@@ -375,7 +407,7 @@ export default function AdminUsers() {
                               />
                             </div>
                             {(domainInfo.domain.userCount / domainInfo.domain.userQuota) >= 0.9 && (
-                              <p className="text-xs text-destructive mt-1">
+                              <p className="mt-1 text-xs text-destructive">
                                 Approaching user limit. Contact support to increase quota.
                               </p>
                             )}
@@ -387,54 +419,67 @@ export default function AdminUsers() {
                 )}
 
                 {currentDomainId && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Domain Users</CardTitle>
-                      <CardDescription>Users registered in {currentDomain?.name || 'this domain'}</CardDescription>
+                  <Card className="rounded-xl border-border/70 shadow-sm">
+                    <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
+                      <div>
+                        <CardTitle className="flex items-center gap-2 text-[13px] font-bold">
+                          Domain Users
+                          <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-[9px] font-bold text-primary">{users.length}</span>
+                        </CardTitle>
+                        <CardDescription className="mt-1 text-[10px]">Users registered in {currentDomain?.name || 'this domain'}</CardDescription>
+                      </div>
+                      <span className="inline-flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                        <LockKeyhole className="h-3 w-3" />
+                        Domain-scoped access
+                      </span>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="pt-0">
                       {usersLoading ? (
-                        <div className="text-center py-8">Loading users...</div>
+                        <div className="rounded-lg border border-dashed border-border/70 py-8 text-center text-sm text-muted-foreground">Loading users...</div>
                       ) : users.length === 0 ? (
-                        <div className="text-center py-8 text-muted-foreground">
+                        <div className="rounded-lg border border-dashed border-border/70 py-8 text-center text-sm text-muted-foreground">
                           No users in this domain yet. Click "Invite User" to add someone.
                         </div>
                       ) : (
                         <Table>
                           <TableHeader>
-                            <TableRow>
-                              <TableHead>Email</TableHead>
-                              <TableHead>Role</TableHead>
-                              <TableHead>OTP</TableHead>
-                              <TableHead>Added</TableHead>
-                              <TableHead>Actions</TableHead>
+                            <TableRow className="bg-muted/40 hover:bg-muted/40">
+                              <TableHead className="h-10 text-[9px] font-bold uppercase tracking-[0.1em] text-muted-foreground">Email</TableHead>
+                              <TableHead className="h-10 text-[9px] font-bold uppercase tracking-[0.1em] text-muted-foreground">Role</TableHead>
+                              <TableHead className="h-10 text-[9px] font-bold uppercase tracking-[0.1em] text-muted-foreground">OTP</TableHead>
+                              <TableHead className="h-10 text-[9px] font-bold uppercase tracking-[0.1em] text-muted-foreground">Added</TableHead>
+                              <TableHead className="h-10 text-[9px] font-bold uppercase tracking-[0.1em] text-muted-foreground">Actions</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
                             {users.map((user) => (
-                              <TableRow key={user.id} data-testid={`row-user-${user.id}`}>
-                                <TableCell className="font-medium">{user.email}</TableCell>
+                              <TableRow
+                                key={user.id}
+                                className="transition-colors hover:bg-muted/20"
+                                data-testid={`row-user-${user.id}`}
+                              >
+                                <TableCell className="py-3.5 text-xs font-semibold">{user.email}</TableCell>
                                 <TableCell>
                                   {user.role === 'admin' ? (
-                                    <span className="inline-flex items-center gap-1 text-sm font-medium text-primary">
+                                    <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-[9px] font-semibold text-primary">
                                       <CheckCircle className="h-3 w-3" />
                                       Admin
                                     </span>
                                   ) : (
-                                    <span className="text-muted-foreground">Standard</span>
+                                    <span className="inline-flex rounded-full bg-muted px-2.5 py-1 text-[9px] font-medium text-muted-foreground">Standard</span>
                                   )}
                                 </TableCell>
                                 <TableCell>
                                   {user.hardcodedOtp ? (
-                                    <span className="inline-flex items-center gap-1 text-sm font-mono">
+                                    <span className="inline-flex items-center gap-1 rounded-md bg-muted/60 px-2 py-1 text-[10px] font-mono">
                                       <Key className="h-3 w-3" />
                                       {user.hardcodedOtp}
                                     </span>
                                   ) : (
-                                    <span className="text-muted-foreground">Email OTP</span>
+                                    <span className="inline-flex rounded-md bg-muted/60 px-2 py-1 text-[9px] text-muted-foreground">Email OTP</span>
                                   )}
                                 </TableCell>
-                                <TableCell className="text-sm text-muted-foreground">
+                                <TableCell className="py-3.5 text-[10px] tabular-nums text-muted-foreground">
                                   {new Date(user.createdAt).toLocaleDateString()}
                                 </TableCell>
                                 <TableCell>
@@ -442,14 +487,16 @@ export default function AdminUsers() {
                                     <Button
                                       size="sm"
                                       variant="outline"
+                                      className="h-7 gap-1 rounded-md border-border/70 px-2 py-0 text-[9px] font-semibold text-muted-foreground hover:border-primary/40 hover:bg-primary/5 hover:text-primary"
                                       onClick={() => openEditDialog(user)}
                                       data-testid={`button-edit-user-${user.id}`}
                                     >
-                                      <Edit className="h-3 w-3" />
+                                      <Edit className="h-3 w-3" /> Edit
                                     </Button>
                                     <Button
                                       size="sm"
-                                      variant="destructive"
+                                      variant="outline"
+                                      className="h-7 gap-1 rounded-md border-destructive/20 px-2 py-0 text-[9px] font-semibold text-destructive hover:bg-destructive/5 hover:text-destructive"
                                       onClick={() => {
                                         if (confirm(`Remove user "${user.email}"?`)) {
                                           deleteUserMutation.mutate(user.id);
@@ -458,7 +505,7 @@ export default function AdminUsers() {
                                       disabled={deleteUserMutation.isPending}
                                       data-testid={`button-delete-user-${user.id}`}
                                     >
-                                      <Trash2 className="h-3 w-3" />
+                                      <Trash2 className="h-3 w-3" /> Delete
                                     </Button>
                                   </div>
                                 </TableCell>
@@ -472,8 +519,8 @@ export default function AdminUsers() {
                 )}
 
                 {!currentDomainId && isSuperAdmin && (
-                  <Card>
-                    <CardContent className="py-8 text-center text-muted-foreground">
+                  <Card className="rounded-xl border-border/70 shadow-sm">
+                    <CardContent className="py-8 text-center text-sm text-muted-foreground">
                       Select a domain above to manage its users
                     </CardContent>
                   </Card>
@@ -482,7 +529,7 @@ export default function AdminUsers() {
             </TabsContent>
 
             {/* ── SSO Audit tab ── */}
-            <TabsContent value="sso-audit" className="flex-1 overflow-y-auto m-0 px-6 lg:px-8 py-6">
+            <TabsContent value="sso-audit" className="m-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6 lg:px-8">
               {isSuperAdmin && !currentDomainId ? (
                 <Card>
                   <CardContent className="py-8 text-center text-muted-foreground text-sm">

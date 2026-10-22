@@ -810,38 +810,59 @@ export function AppSidebar() {
                   </AvatarFallback>
                 </Avatar>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>
-                  <div className="flex flex-col">
-                    <span className="font-medium">{displayName}</span>
-                    <span className="text-xs text-muted-foreground font-normal">
-                      {username}
-                    </span>
+              <DropdownMenuContent
+                side="top"
+                align="end"
+                sideOffset={8}
+                className="w-56 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl"
+              >
+                <DropdownMenuLabel className="px-2 py-2 font-normal">
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    <Avatar className="h-8 w-8 shrink-0">
+                      <AvatarFallback className="bg-primary/10 text-xs font-semibold text-primary">
+                        {initials}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex min-w-0 flex-col">
+                      <span className="truncate text-xs font-semibold text-slate-800">
+                        {username || displayName}
+                      </span>
+                      <span className="truncate text-xs font-normal text-muted-foreground">
+                        {username ? displayName : "Account"}
+                      </span>
+                    </div>
                   </div>
                 </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem data-testid="menu-item-profile">
-                  <User className="w-4 h-4 mr-2" />
+                <DropdownMenuSeparator className="mx-1 my-1 bg-slate-100" />
+                <DropdownMenuItem
+                  className="h-9 rounded-lg px-3 text-sm text-slate-700 focus:bg-slate-100 focus:text-slate-900"
+                  data-testid="menu-item-profile"
+                >
+                  <User className="h-4 w-4 text-slate-500" />
                   Profile
                 </DropdownMenuItem>
-                <DropdownMenuItem data-testid="menu-item-settings">
-                  <Settings className="w-4 h-4 mr-2" />
+                <DropdownMenuItem
+                  className="h-9 rounded-lg px-3 text-sm text-slate-700 focus:bg-slate-100 focus:text-slate-900"
+                  data-testid="menu-item-settings"
+                >
+                  <Settings className="h-4 w-4 text-slate-500" />
                   Settings
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => setShowTermsModal(true)}
+                  className="h-9 rounded-lg px-3 text-sm text-slate-700 focus:bg-slate-100 focus:text-slate-900"
                   data-testid="menu-item-terms-and-conditions"
                 >
-                  <ScrollText className="w-4 h-4 mr-2" />
+                  <ScrollText className="h-4 w-4 text-slate-500" />
                   Terms & Conditions
                 </DropdownMenuItem>
-                <DropdownMenuSeparator />
+                <DropdownMenuSeparator className="mx-1 my-1 bg-slate-100" />
                 <DropdownMenuItem
                   onClick={handleLogout}
-                  className="text-destructive focus:text-destructive"
+                  className="h-9 rounded-lg px-3 text-sm text-destructive focus:bg-destructive/10 focus:text-destructive"
                   data-testid="menu-item-logout"
                 >
-                  <LogOut className="w-4 h-4 mr-2" />
+                  <LogOut className="h-4 w-4" />
                   Log out
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -862,7 +883,7 @@ export function AppSidebar() {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <div
-                  className="flex items-center gap-3 p-2 rounded-lg hover-elevate cursor-pointer mt-2 bg-white -top-2 relative"
+                  className="relative -top-2 mt-2 flex items-center gap-3 rounded-xl border border-slate-200/80 bg-white p-2.5 shadow-sm transition-colors hover:bg-white"
                   data-testid="button-user-profile"
                 >
                   <Avatar className="w-8 h-8">
@@ -878,38 +899,59 @@ export function AppSidebar() {
                   <ChevronDown className="w-4 h-4 text-muted-foreground" />
                 </div>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>
-                  <div className="flex flex-col">
-                    <span className="font-medium">{displayName}</span>
-                    <span className="text-xs text-muted-foreground font-normal">
-                      {username}
-                    </span>
+              <DropdownMenuContent
+                side="top"
+                align="end"
+                sideOffset={8}
+                className="w-72 max-w-[calc(100vw-2rem)] rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl"
+              >
+                <DropdownMenuLabel className="px-2 py-2 font-normal">
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    <Avatar className="h-8 w-8 shrink-0">
+                      <AvatarFallback className="bg-primary/10 text-xs font-semibold text-primary">
+                        {initials}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex min-w-0 flex-col">
+                      <span className="truncate text-xs font-semibold text-slate-800">
+                        {username || displayName}
+                      </span>
+                      <span className="truncate text-xs font-normal text-muted-foreground">
+                        {username ? displayName : "Account"}
+                      </span>
+                    </div>
                   </div>
                 </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem data-testid="menu-item-profile">
-                  <User className="w-4 h-4 mr-2" />
+                <DropdownMenuSeparator className="mx-1 my-1 bg-slate-100" />
+                <DropdownMenuItem
+                  className="h-9 rounded-lg px-3 text-sm text-slate-700 focus:bg-slate-100 focus:text-slate-900"
+                  data-testid="menu-item-profile"
+                >
+                  <User className="h-4 w-4 text-slate-500" />
                   Profile
                 </DropdownMenuItem>
-                <DropdownMenuItem data-testid="menu-item-settings">
-                  <Settings className="w-4 h-4 mr-2" />
+                <DropdownMenuItem
+                  className="h-9 rounded-lg px-3 text-sm text-slate-700 focus:bg-slate-100 focus:text-slate-900"
+                  data-testid="menu-item-settings"
+                >
+                  <Settings className="h-4 w-4 text-slate-500" />
                   Settings
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => setShowTermsModal(true)}
+                  className="h-9 rounded-lg px-3 text-sm text-slate-700 focus:bg-slate-100 focus:text-slate-900"
                   data-testid="menu-item-terms-and-conditions"
                 >
-                  <ScrollText className="w-4 h-4 mr-2" />
+                  <ScrollText className="h-4 w-4 text-slate-500" />
                   Terms & Conditions
                 </DropdownMenuItem>
-                <DropdownMenuSeparator />
+                <DropdownMenuSeparator className="mx-1 my-1 bg-slate-100" />
                 <DropdownMenuItem
                   onClick={handleLogout}
-                  className="text-destructive focus:text-destructive"
+                  className="h-9 rounded-lg px-3 text-sm text-destructive focus:bg-destructive/10 focus:text-destructive"
                   data-testid="menu-item-logout"
                 >
-                  <LogOut className="w-4 h-4 mr-2" />
+                  <LogOut className="h-4 w-4" />
                   Log out
                 </DropdownMenuItem>
               </DropdownMenuContent>

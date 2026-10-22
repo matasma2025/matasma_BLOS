@@ -1,6 +1,7 @@
 import PptxGenJS from "pptxgenjs";
 import type { BalanceSheetCategoryBreakdown, BalanceSheetReport } from "@shared/boards/balanceSheet";
 import { applyBalanceSheetCommentary, hasBalanceSheetComparison } from "./balanceSheetCommentaryService";
+import { addBoschFooterToGeneratedSlide } from "./boschPptxFooter";
 
 const CURRENT = "439798", PRIOR = "BC4096", TEXT = "333333", MUTED = "666666";
 // Text margins are points, in left/top/right/bottom order. These match the
@@ -134,5 +135,6 @@ export function addBalanceSheetReferenceSlide(
   });
   const mode = narrative.commentaryStatus === "ai-selected" ? "AI-selected, verified commentary" : "Factual commentary (AI unavailable/not configured)";
   text(`${mode} · Source: ${report.sourceSnapshot?.name || "Dedicated Balance Sheet cube"} · latest earlier loaded comparison period`,
-    0.32, 7.15, 12.6, 0.16, 7, false, MUTED);
+    0.32, 7.15, 11.1, 0.16, 7, false, MUTED);
+  addBoschFooterToGeneratedSlide(pptx, slide);
 }

@@ -1,5 +1,6 @@
 import PptxGenJS from "pptxgenjs";
 import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
+import { addBoschFooterToGeneratedSlide, addBoschFooterToTemplateSlide, slideSizeFromPresentationXml } from "./boschPptxFooter";
 
 interface KpiMetric {
   label: string;
@@ -332,6 +333,8 @@ function renderUploadedTemplate(
 ) {
   const templateBytes = Buffer.from(templateBytesBase64, "base64");
   const files: TemplateZip = unzipSync(new Uint8Array(templateBytes));
+  const presentationXml = files["ppt/presentation.xml"] ? strFromU8(files["ppt/presentation.xml"]) : "";
+  const slideSize = slideSizeFromPresentationXml(presentationXml);
   const slideNames = Object.keys(files)
     .filter((name) => /^ppt\/slides\/slide\d+\.xml$/i.test(name))
     .sort((left, right) => Number(left.match(/slide(\d+)/i)?.[1]) - Number(right.match(/slide(\d+)/i)?.[1]));
@@ -348,7 +351,9 @@ function renderUploadedTemplate(
     const slideName = slideNames[sourceIndex];
     if (!slideName) throw new Error("The uploaded PowerPoint template is missing a KPI section slide");
     const xml = strFromU8(files[slideName]);
-    files[slideName] = strToU8(replaceTemplateTokens(xml, report, kpiReport, scope, sourceIndex, selectedScopes.length));
+    const replaced = replaceTemplateTokens(xml, report, kpiReport, scope, sourceIndex, selectedScopes.length);
+    files[slideName] = strToU8(replaced);
+    addBoschFooterToTemplateSlide(files, slideName, slideSize.width, slideSize.height);
     return sourceIndex;
   });
 
@@ -507,7 +512,7 @@ function addScopeSlide(
     }
   });
 
-  const footerY = Math.min(6.82, startY + Math.ceil(metrics.length / columns) * (cardHeight + gap) + 0.18);
+  const footerY = Math.min(6.65, startY + Math.ceil(metrics.length / columns) * (cardHeight + gap) + 0.18);
   slide.addText(`${scope.label} · ${period} · ${sourceName}`, {
     x: 0.6, y: footerY, w: 9.5, h: 0.16, fontFace: "Aptos", fontSize: 7.5,
     color: "64748B", margin: 0, fit: "shrink",
@@ -516,6 +521,7 @@ function addScopeSlide(
     x: 9.2, y: footerY, w: 3.55, h: 0.16, fontFace: "Aptos", fontSize: 7.5,
     bold: true, color: colors.text, align: "right", margin: 0,
   });
+  addBoschFooterToGeneratedSlide(pptx, slide);
 }
 
 export async function exportKpiReportPptx(

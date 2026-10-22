@@ -60,6 +60,18 @@ test("both slides use prominent statement totals with no repeated table or data 
   assert.equal(JSON.stringify(balanceSheet), before);
 });
 
+test("both generated Balance Sheet slides include the Bosch logo and multicolor footer band", async () => {
+  const files = await exported(fixture());
+  for (let index = 1; index <= 2; index++) {
+    const xml = strFromU8(files[`ppt/slides/slide${index}.xml`]);
+    const relationships = strFromU8(files[`ppt/slides/_rels/slide${index}.xml.rels`]);
+    assert.equal((xml.match(/<p:pic>/g) ?? []).length, 2);
+    assert.ok(xml.includes("Internal | Governed Enterprise Data"));
+    assert.ok(xml.includes("© Bosch Global Software Technologies Company Limited 2022."));
+    assert.equal((relationships.match(/\/image"/g) ?? []).length, 2);
+  }
+});
+
 test("reference charts keep equity first in the main plot, with top legends and unwrapped above-bar values", async () => {
   const files = await exported(fixture());
   const chartNames = Object.keys(files).filter((name) => /^ppt\/charts\/chart\d+\.xml$/.test(name));
