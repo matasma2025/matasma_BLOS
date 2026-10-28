@@ -1,10 +1,20 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -46,6 +56,10 @@ export default function AdminUsers() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<DomainUser | null>(null);
+  const [userToDelete, setUserToDelete] = useState<DomainUser | null>(null);
+  const [deleteDialogStage, setDeleteDialogStage] = useState<'confirm' | 'otp'>('confirm');
+  const [deleteOtpCode, setDeleteOtpCode] = useState('');
+  const pendingDeleteOtpResolver = useRef<((code: string | null) => void) | null>(null);
   const [selectedDomainId, setSelectedDomainId] = useState<string>('');
   const [newUser, setNewUser] = useState({ email: '', role: 'standard', hardcodedOtp: '' });
   const [editUser, setEditUser] = useState({ role: 'standard', hardcodedOtp: '' });
@@ -53,6 +67,23 @@ export default function AdminUsers() {
   const currentUser = useAuthUser();
 
   const isSuperAdmin = currentUser?.username?.toLowerCase() === 'customer@ledgerlm.ai';
+
+  const collectDeleteAdminOtp = () =>
+    new Promise<string | null>((resolve) => {
+      pendingDeleteOtpResolver.current = resolve;
+      setDeleteOtpCode('');
+      setDeleteDialogStage('otp');
+    });
+
+  const resolveDeleteAdminOtp = (code: string | null) => {
+    const resolve = pendingDeleteOtpResolver.current;
+    if (!resolve) return;
+
+    pendingDeleteOtpResolver.current = null;
+    setDeleteOtpCode('');
+    setDeleteDialogStage('confirm');
+    resolve(code);
+  };
 
   const { data: domainInfo, isLoading: domainLoading } = useQuery<DomainInfo>({
     queryKey: ['/api/domain-admin/my-domain'],
@@ -128,7 +159,10 @@ export default function AdminUsers() {
 
   const deleteUserMutation = useMutation({
     mutationFn: async (id: string) => {
-      return apiRequestWithAdminStepUp(() => apiRequest('DELETE', `/api/domain-admin/users/${id}`));
+      return apiRequestWithAdminStepUp(
+        () => apiRequest('DELETE', `/api/domain-admin/users/${id}`),
+        collectDeleteAdminOtp,
+      );
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/domain-admin/users'] });
@@ -136,6 +170,8 @@ export default function AdminUsers() {
       toast({ title: 'User removed successfully' });
     },
     onError: (error: any) => {
+      setDeleteDialogStage('confirm');
+      setDeleteOtpCode('');
       toast({
         title: 'Failed to remove user',
         description: error.message || 'Please try again',
@@ -155,6 +191,19 @@ export default function AdminUsers() {
     e.preventDefault();
     if (selectedUser) {
       updateUserMutation.mutate({ id: selectedUser.id, data: editUser });
+    }
+  };
+
+  const handleConfirmDeleteUser = (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    if (userToDelete) {
+      deleteUserMutation.mutate(userToDelete.id, {
+        onSuccess: () => {
+          setUserToDelete(null);
+          setDeleteDialogStage('confirm');
+          setDeleteOtpCode('');
+        },
+      });
     }
   };
 
@@ -497,11 +546,7 @@ export default function AdminUsers() {
                                       size="sm"
                                       variant="outline"
                                       className="h-7 gap-1 rounded-md border-destructive/20 px-2 py-0 text-[9px] font-semibold text-destructive hover:bg-destructive/5 hover:text-destructive"
-                                      onClick={() => {
-                                        if (confirm(`Remove user "${user.email}"?`)) {
-                                          deleteUserMutation.mutate(user.id);
-                                        }
-                                      }}
+                                      onClick={() => setUserToDelete(user)}
                                       disabled={deleteUserMutation.isPending}
                                       data-testid={`button-delete-user-${user.id}`}
                                     >
@@ -595,6 +640,93 @@ export default function AdminUsers() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog
+        open={!!userToDelete}
+        onOpenChange={(open) => {
+          if (!open && !deleteUserMutation.isPending) {
+            setUserToDelete(null);
+            setDeleteDialogStage('confirm');
+            setDeleteOtpCode('');
+          }
+        }}
+      >
+        <AlertDialogContent data-testid="dialog-delete-user">
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {deleteDialogStage === 'otp' ? 'Administrator verification' : 'Remove this user?'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteDialogStage === 'otp' ? (
+                <>
+                  Enter the 6-digit administrator code sent to your email to continue removing{' '}
+                  <span className="font-medium text-foreground">{userToDelete?.email}</span>.
+                </>
+              ) : (
+                <>
+                  Remove <span className="font-medium text-foreground">{userToDelete?.email}</span> from this domain and revoke their active sessions? This action cannot be undone.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {deleteDialogStage === 'otp' ? (
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                resolveDeleteAdminOtp(deleteOtpCode);
+              }}
+              className="space-y-4"
+            >
+              <div className="space-y-2">
+                <Label htmlFor="delete-admin-otp">Verification code</Label>
+                <Input
+                  id="delete-admin-otp"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  placeholder="Enter 6-digit code"
+                  value={deleteOtpCode}
+                  onChange={(event) => setDeleteOtpCode(event.target.value)}
+                  disabled={!deleteUserMutation.isPending}
+                  data-testid="input-delete-admin-otp"
+                />
+              </div>
+              <AlertDialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => resolveDeleteAdminOtp(null)}
+                  disabled={!deleteUserMutation.isPending}
+                  data-testid="button-cancel-delete-admin-otp"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={!deleteUserMutation.isPending}
+                  data-testid="button-submit-delete-admin-otp"
+                >
+                  Verify &amp; Remove
+                </Button>
+              </AlertDialogFooter>
+            </form>
+          ) : (
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deleteUserMutation.isPending} data-testid="button-cancel-delete-user">
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleConfirmDeleteUser}
+                disabled={deleteUserMutation.isPending}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                data-testid="button-confirm-delete-user"
+              >
+                {deleteUserMutation.isPending ? 'Removing...' : 'Remove User'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          )}
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -48,8 +48,11 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
+export type AdminStepUpOtpCollector = () => Promise<string | null>;
+
 export async function apiRequestWithAdminStepUp<T = unknown>(
   operation: () => Promise<T>,
+  collectOtpCode?: AdminStepUpOtpCollector,
 ): Promise<T> {
   try {
     return await operation();
@@ -63,9 +66,11 @@ export async function apiRequestWithAdminStepUp<T = unknown>(
       "POST",
       "/api/auth/admin-step-up/request",
     );
-    const otpCode = window.prompt(
-      "Administrator verification required. Enter the 6-digit code sent to your email.",
-    );
+    const otpCode = collectOtpCode
+      ? await collectOtpCode()
+      : window.prompt(
+          "Administrator verification required. Enter the 6-digit code sent to your email.",
+        );
     if (!otpCode) {
       throw new Error("Administrator verification was cancelled");
     }

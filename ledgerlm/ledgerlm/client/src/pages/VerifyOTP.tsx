@@ -163,9 +163,6 @@ export default function VerifyOTP() {
                 data-testid="input-otp-code"
               />
             </div>
-            <p className="text-xs text-[#71817f]">
-
-            </p>
           </div>
 
           <Button

@@ -30,6 +30,16 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState, useRef } from "react";
 import { TermsAndConditionsModal } from "@/components/TermsAndConditionsModal";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -144,6 +154,7 @@ export function AppSidebar() {
   const [location, setLocation] = useLocation();
   const [showAllChats, setShowAllChats] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [chatToDelete, setChatToDelete] = useState<Chat | null>(null);
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
   const [renamingChat, setRenamingChat] = useState<Chat | null>(null);
   const [renameValue, setRenameValue] = useState("");
@@ -268,6 +279,7 @@ export function AppSidebar() {
     },
     onSuccess: (deletedId: string) => {
       queryClient.invalidateQueries({ queryKey: ["/api/chats"] });
+      setChatToDelete(null);
       toast({
         title: "Success",
         description: "Chat deleted successfully.",
@@ -336,13 +348,7 @@ export function AppSidebar() {
   };
 
   const handleDeleteChat = (chat: Chat) => {
-    if (
-      confirm(
-        `Are you sure you want to delete "${chat.title}"? This action cannot be undone.`,
-      )
-    ) {
-      deleteChatMutation.mutate(chat.id);
-    }
+    setChatToDelete(chat);
   };
 
   const filteredChats =
@@ -1004,6 +1010,41 @@ export function AppSidebar() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog
+        open={!!chatToDelete}
+        onOpenChange={(open) => {
+          if (!open && !deleteChatMutation.isPending) setChatToDelete(null);
+        }}
+      >
+        <AlertDialogContent data-testid="dialog-delete-chat">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this chat?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete “{chatToDelete?.title}”? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              disabled={deleteChatMutation.isPending}
+              data-testid="button-cancel-delete-chat"
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(event) => {
+                event.preventDefault();
+                if (chatToDelete) deleteChatMutation.mutate(chatToDelete.id);
+              }}
+              disabled={deleteChatMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              data-testid="button-confirm-delete-chat"
+            >
+              {deleteChatMutation.isPending ? "Deleting..." : "Delete Chat"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Bosch Collective Principles — view-only modal triggered from user menu */}
       <TermsAndConditionsModal

@@ -8,6 +8,16 @@ import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -122,6 +132,7 @@ export function CubeManagement({ domainId, domainName, isSuperAdmin }: CubeManag
   const [isSchemaConfigDialogOpen, setIsSchemaConfigDialogOpen] = useState(false);
   const [isHierarchyDialogOpen, setIsHierarchyDialogOpen] = useState(false);
   const [isSchemaStudioOpen, setIsSchemaStudioOpen] = useState(false);
+  const [cubeToDelete, setCubeToDelete] = useState<Cube | null>(null);
 
   // Edit credentials dialog
   const [editCredConnector, setEditCredConnector] = useState<DomainConnector | null>(null);
@@ -371,6 +382,7 @@ export function CubeManagement({ domainId, domainName, isSuperAdmin }: CubeManag
       return apiRequest('DELETE', `/api/domain-admin/cubes/${cubeId}?force=${force}`);
     },
     onSuccess: () => {
+      setCubeToDelete(null);
       toast({ title: 'Cube deleted successfully', description: 'All related data has been removed from the database' });
       queryClient.invalidateQueries({ queryKey: ['/api/domain-admin/cubes', domainId] });
     },
@@ -916,15 +928,8 @@ export function CubeManagement({ domainId, domainName, isSuperAdmin }: CubeManag
                         <Button
                           size="sm"
                           variant="ghost"
-                          onClick={() => {
-                            const hasDocuments = cube.documentCount && cube.documentCount > 0;
-                            const message = hasDocuments
-                              ? `Delete cube "${cube.name}" and all ${cube.documentCount} documents? This will also remove all related data from the database.`
-                              : `Delete cube "${cube.name}"? This will remove all related data from the database.`;
-                            if (confirm(message)) {
-                              deleteCubeMutation.mutate({ cubeId: cube.id, force: true });
-                            }
-                          }}
+                          onClick={() => setCubeToDelete(cube)}
+                          disabled={deleteCubeMutation.isPending}
                           data-testid={`button-delete-cube-${cube.id}`}
                         >
                           <Trash2 className="h-4 w-4" />
@@ -2036,6 +2041,47 @@ export function CubeManagement({ domainId, domainName, isSuperAdmin }: CubeManag
           }}
         />
       )}
+
+      <AlertDialog
+        open={!!cubeToDelete}
+        onOpenChange={(open) => {
+          if (!open && !deleteCubeMutation.isPending) setCubeToDelete(null);
+        }}
+      >
+        <AlertDialogContent data-testid="dialog-delete-cube">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this cube?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Delete <span className="font-medium text-foreground">“{cubeToDelete?.name}”</span>
+              {cubeToDelete?.documentCount != null && cubeToDelete.documentCount > 0
+                ? ` and all ${cubeToDelete.documentCount} documents`
+                : ''}
+              ? This will remove all related data from the database, including documents and connector-related data. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              disabled={deleteCubeMutation.isPending}
+              data-testid="button-cancel-delete-cube"
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(event) => {
+                event.preventDefault();
+                if (cubeToDelete) {
+                  deleteCubeMutation.mutate({ cubeId: cubeToDelete.id, force: true });
+                }
+              }}
+              disabled={deleteCubeMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              data-testid="button-confirm-delete-cube"
+            >
+              {deleteCubeMutation.isPending ? 'Deleting...' : 'Delete Cube'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
