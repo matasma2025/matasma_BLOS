@@ -624,7 +624,7 @@ export function buildEntityPnlReport(rows: AggregateRow[], request: EntityPnlRep
       : MONEY_LINES.has(line.label)
         ? money(line.variance, request.currency)
         : line.label === "EBIT%"
-          ? `${line.variance.toFixed(1)} pp`
+          ? line.variance.toFixed(1)
           : line.variance.toLocaleString("en-US", { maximumFractionDigits: 0 }),
     line.variancePercent === null ? "—" : `${line.variancePercent.toFixed(1)}%`,
   ]);

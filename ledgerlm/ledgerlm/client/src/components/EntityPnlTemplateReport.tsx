@@ -75,9 +75,9 @@ function formatCell(line: EntityPnlLine, value: number | null | undefined, curre
   return new Intl.NumberFormat("en-US", { maximumFractionDigits: 1 }).format(value);
 }
 
-function formatVariance(line: EntityPnlLine, currency: "USD" | "INR") {
+function formatVariance(line: EntityPnlLine, currency: "USD" | "INR", includePpSuffix = true) {
   if (line.variance === null) return "—";
-  if (line.label === "EBIT%") return `${line.variance.toFixed(1)} pp`;
+  if (line.label === "EBIT%") return `${line.variance.toFixed(1)}${includePpSuffix ? " pp" : ""}`;
   return formatCell(line, line.variance, currency);
 }
 
@@ -232,7 +232,7 @@ export function EntityPnlTemplateReport({
                         </td>
                       ))}
                       <td className={`${reportTd} text-right tabular-nums`}>
-                        {formatVariance(line, report.currency)}
+                        {formatVariance(line, report.currency, false)}
                       </td>
                       <td className={`${reportTd} text-right tabular-nums`}>
                         {line.variancePercent === null ? "—" : `${line.variancePercent.toFixed(1)}%`}

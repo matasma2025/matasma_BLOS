@@ -96,7 +96,7 @@ test("uploaded template preserves non-slide files, branding, and correctly maps 
   assert.equal(rows[0][2], "CF05 · Jul 2026 YTD");
   assert.equal(rows[10][0], "EBIT%");
   assert.equal(rows[10][3], "20.0%");
-  assert.equal(rows[10][5], "2.0 pp");
+  assert.equal(rows[10][5], "2.0");
   assert.equal(rows[10][6], "66.7%");
   assert.ok(slide.includes("BOSCH"));
   assert.ok(slide.includes("mINR"));
@@ -214,7 +214,7 @@ test("combined template exports only the selected layout with dynamic periods an
     assert.equal(rows[2][5], "(1,462)");
     assert.equal(rows[2][6], "0%");
     assert.equal(rows[1][6], "67%");
-    assert.equal(rows[10][5], "2.00 pp");
+    assert.equal(rows[10][5], "2.00");
     assert.ok(!slide.includes("658mINR") && !slide.includes("{{"));
     assert.equal(JSON.stringify(data), before);
     const normalized = validateAndNormalizePptx(Buffer.from(zipSync(files)));

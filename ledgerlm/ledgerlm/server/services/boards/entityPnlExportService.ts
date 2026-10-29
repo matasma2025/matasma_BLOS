@@ -74,7 +74,7 @@ function exportRows(payload: EntityPnlExportPayload) {
     const variance = line.variance === null
       ? "—"
       : line.label === "EBIT%"
-        ? `${line.variance.toFixed(1)} pp`
+        ? line.variance.toFixed(1)
         : valueText(line.label, line.variance, payload.currency);
     return [
       line.label,

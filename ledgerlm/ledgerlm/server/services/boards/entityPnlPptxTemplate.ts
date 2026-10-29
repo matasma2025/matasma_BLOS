@@ -39,7 +39,9 @@ function canonicalKey(text: string) {
 
 function displayValue(label: string, value: number | null | undefined, variance = false, referenceStyle = false) {
   if (value == null || !Number.isFinite(value)) return "—";
-  if (label === "EBIT%") return `${value.toFixed(variance && referenceStyle ? 2 : 1)}${variance ? " pp" : "%"}`;
+  if (label === "EBIT%") return variance
+    ? value.toFixed(referenceStyle ? 2 : 1)
+    : `${value.toFixed(1)}%`;
   const scaled = MONEY.has(label) ? value / 1_000_000 : value;
   const formatted = new Intl.NumberFormat("en-US", { maximumFractionDigits: referenceStyle ? 0 : 1 })
     .format(referenceStyle ? Math.abs(scaled) : scaled);
